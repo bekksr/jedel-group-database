@@ -1,4 +1,5 @@
 .DS_Store
+Thumbs.db
 *.log
 .env
 .env.*
@@ -7,3 +8,42 @@
 .idea/
 node_modules/
 __pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+dist/
+build/
+.angular/
+out-tsc/
+coverage/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.egg-info/
+staticfiles/
+
+# Local development process logs; never credentials
+backend/.runtime/
+
+# Private local backups and credentials (the reviewed team SQL dump is retained)
+database/backups/
+*.backup
+*.dump
+*.sql.gz
+*.sql.zip
+*.bak
+*.pem
+*.key
+*.p12
+*.pfx
+.pgpass
+pgpass.conf
+
+# Local scratch/editor artifacts
+*.tmp
+*.swp
+*.swo
+*~
+.cache/

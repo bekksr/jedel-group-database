@@ -1,0 +1,206 @@
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">Your supplier network</p>
+    <h1>
+      Suppliers <span class="count-pill">{{ data.suppliers().length }}</span>
+    </h1>
+    <p>Manage the relationships behind every purchase.</p>
+  </div>
+  <button
+    class="button"
+    [disabled]="
+      data.loading() ||
+      data.busy?.() ||
+      data.permissions?.()?.manageCatalog === false ||
+      data.canWrite?.() === false ||
+      !!data.error()
+    "
+    (click)="open()"
+  >
+    <app-icon name="plus" />Add supplier
+  </button>
+</section>
+<section class="card">
+  <div class="table-toolbar">
+    <div>
+      <h2>All suppliers</h2>
+      <p>Contact information and supplier records</p>
+    </div>
+    <label class="search-input"
+      ><app-icon name="search" /><input
+        aria-label="Search suppliers"
+        placeholder="Search suppliers..."
+        [ngModel]="query()"
+        (ngModelChange)="search($event)"
+    /></label>
+  </div>
+  <app-data-state [loading]="data.loading()" [error]="data.error()" />
+  @if (!data.loading() && !data.error()) {
+    <div class="table-scroll" role="region" tabindex="0" aria-label="Scrollable suppliers table">
+      <table>
+        <caption class="sr-only">
+          Supplier directory
+        </caption>
+        <thead>
+          <tr>
+            <th
+              [attr.aria-sort]="
+                sort() === 'supplier_name'
+                  ? direction() === 1
+                    ? 'ascending'
+                    : 'descending'
+                  : 'none'
+              "
+            >
+              <button (click)="sortBy('supplier_name')">
+                Supplier <app-icon name="sort" [size]="14" />
+              </button>
+            </th>
+            <th
+              [attr.aria-sort]="
+                sort() === 'email' ? (direction() === 1 ? 'ascending' : 'descending') : 'none'
+              "
+            >
+              <button (click)="sortBy('email')">Email <app-icon name="sort" [size]="14" /></button>
+            </th>
+            <th>Phone</th>
+            <th
+              [attr.aria-sort]="
+                sort() === 'address' ? (direction() === 1 ? 'ascending' : 'descending') : 'none'
+              "
+            >
+              <button (click)="sortBy('address')">
+                Address <app-icon name="sort" [size]="14" />
+              </button>
+            </th>
+            <th class="align-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (s of rows(); track s.supplier_id) {
+            <tr>
+              <td>
+                <div class="identity">
+                  <span class="avatar">{{ s.supplier_name.slice(0, 2).toUpperCase() }}</span>
+                  <div>
+                    <strong>{{ s.supplier_name }}</strong
+                    ><small>SUP-{{ s.supplier_id.toString().padStart(3, '0') }}</small>
+                  </div>
+                </div>
+              </td>
+              <td>{{ s.email }}</td>
+              <td class="nowrap">{{ s.phone || 'Not specified' }}</td>
+              <td>{{ s.address || 'Not specified' }}</td>
+              <td>
+                <div class="row-actions">
+                  <button
+                    class="icon-button"
+                    [disabled]="
+                      data.loading() ||
+                      data.busy?.() ||
+                      data.permissions?.()?.manageCatalog === false ||
+                      data.canWrite?.() === false
+                    "
+                    (click)="open(s)"
+                    [attr.aria-label]="'Edit ' + s.supplier_name"
+                  >
+                    <app-icon name="edit" [size]="16" /></button
+                  ><button
+                    class="icon-button danger-text"
+                    [disabled]="
+                      data.busy?.() ||
+                      data.permissions?.()?.deleteRecords === false ||
+                      data.canWrite?.() === false
+                    "
+                    [attr.data-delete-control]="true"
+                    (click)="askDelete(s)"
+                    [attr.aria-label]="'Delete ' + s.supplier_name"
+                  >
+                    <app-icon name="delete" [size]="16" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-data-state [empty]="!filtered().length" /><app-pagination
+      [page]="currentPage()"
+      [total]="filtered().length"
+      (pageChange)="page.set($event)"
+    />
+  }
+</section>
+@if (formOpen()) {
+  <app-modal
+    [busy]="saving()"
+    [title]="editing() ? 'Edit supplier' : 'Add supplier'"
+    (dismiss)="formOpen.set(false)"
+    ><form [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <fieldset [disabled]="saving()">
+        <p class="form-hint">
+          Required fields are marked *.
+          {{
+            data.mode === 'demo'
+              ? 'Changes stay in this demo session.'
+              : 'Changes are saved only after server confirmation.'
+          }}
+        </p>
+        <label class="field"
+          >Supplier name *<input
+            formControlName="supplier_name"
+            maxlength="100"
+            autocomplete="organization" /><app-field-error
+            [control]="form.controls.supplier_name" /></label
+        ><label class="field"
+          >Email *<input
+            type="email"
+            formControlName="email"
+            maxlength="100"
+            autocomplete="email" /><app-field-error [control]="form.controls.email"
+        /></label>
+        <div class="form-grid">
+          <label class="field"
+            >Phone<input
+              formControlName="phone"
+              maxlength="20"
+              autocomplete="tel" /><app-field-error [control]="form.controls.phone" /></label
+          ><label class="field"
+            >Address<input
+              formControlName="address"
+              maxlength="255"
+              autocomplete="street-address" /><app-field-error [control]="form.controls.address"
+          /></label>
+        </div>
+        @if (error()) {
+          <p class="error-banner" role="alert">{{ error() }}</p>
+        }
+        <div class="form-actions">
+          <button type="button" class="button secondary" (click)="formOpen.set(false)">
+            Cancel</button
+          ><button type="submit" class="button">
+            {{ editing() ? 'Save changes' : 'Add supplier' }}
+          </button>
+        </div>
+      </fieldset>
+    </form></app-modal
+  >
+}
+@if (deleting(); as s) {
+  <app-confirm-dialog
+    [busy]="saving()"
+    title="Delete supplier?"
+    [message]="
+      'Remove ' +
+      s.supplier_name +
+      (data.mode === 'demo' ? ' from this demo session?' : ' from PostgreSQL?') +
+      ' Suppliers linked to orders cannot be deleted.'
+    "
+    action="Delete supplier"
+    [danger]="true"
+    [error]="error()"
+    (cancel)="deleting.set(null)"
+    (confirm)="remove()"
+  />
+}

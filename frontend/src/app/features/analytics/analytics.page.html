@@ -1,0 +1,125 @@
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">Data into decisions</p>
+    <h1>Purchasing analytics</h1>
+    <p>Understand order value, supplier activity, and inventory health.</p>
+  </div>
+  <span class="period-label"><app-icon name="analytics" />All available records</span>
+</section>
+<div class="info-note">
+  <app-icon name="help" /><span
+    >Spending means purchase order value, not payments. Charts are derived from current records;
+    cancelled orders are excluded from value totals.</span
+  >
+</div>
+<app-data-state [loading]="data.loading()" [error]="data.error()" />
+@if (!data.loading() && !data.error()) {
+  <div class="kpi-grid">
+    <article class="kpi-card">
+      <div class="kpi-top">
+        <span>Purchasing value</span><span class="kpi-icon blue"><app-icon name="wallet" /></span>
+      </div>
+      <strong class="currency-kpi">{{ metrics.purchasingValue() | kzt }}</strong
+      ><span class="kpi-note">All non-cancelled orders</span>
+    </article>
+    <article class="kpi-card">
+      <div class="kpi-top">
+        <span>Delivered order value</span
+        ><span class="kpi-icon green"><app-icon name="truck" /></span>
+      </div>
+      <strong class="currency-kpi">{{ metrics.deliveredValue() | kzt }}</strong
+      ><span class="kpi-note">Value of fully delivered orders</span>
+    </article>
+    <article class="kpi-card">
+      <div class="kpi-top">
+        <span>Units in stock</span><span class="kpi-icon violet"><app-icon name="layers" /></span>
+      </div>
+      <strong>{{ metrics.stockUnits() }}</strong
+      ><span class="kpi-note">{{ metrics.productCount() }} catalog products</span>
+    </article>
+    <article class="kpi-card">
+      <div class="kpi-top">
+        <span>Products needing attention</span
+        ><span class="kpi-icon amber"><app-icon name="products" /></span>
+      </div>
+      <strong>{{ metrics.lowStock().length }}</strong
+      ><span class="kpi-note">At or below {{ data.lowStockThreshold() }} units</span>
+    </article>
+  </div>
+  <div class="chart-grid">
+    <section class="card chart-card">
+      <div class="card-heading">
+        <div>
+          <h2>Supplier spending</h2>
+          <p>Ranked by total non-cancelled order value</p>
+        </div>
+      </div>
+      <app-spending-chart [rows]="metrics.spending()" />
+    </section>
+    <section class="card chart-card">
+      <div class="card-heading">
+        <div>
+          <h2>Order status distribution</h2>
+          <p>All orders, including cancelled</p>
+        </div>
+      </div>
+      <app-status-chart [rows]="metrics.statusCounts()" />
+    </section>
+  </div>
+  <section class="card">
+    <div class="card-heading">
+      <div>
+        <h2>Stock summary</h2>
+        <p>Current inventory by product</p>
+      </div>
+      <a class="text-link" routerLink="/products"
+        >Product catalog<app-icon name="arrow" [size]="16"
+      /></a>
+    </div>
+    <div class="table-scroll" role="region" tabindex="0" aria-label="Scrollable analytics table">
+      <table>
+        <caption class="sr-only">
+          Stock summary
+        </caption>
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Category</th>
+            <th>Units in stock</th>
+            <th>Unit price</th>
+            <th>Stock level</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of data.products(); track p.product_id) {
+            <tr>
+              <td class="table-strong">{{ p.product_name }}</td>
+              <td>{{ p.category || 'Uncategorized' }}</td>
+              <td>{{ p.stock_quantity }}</td>
+              <td class="money">{{ p.unit_price | kzt }}</td>
+              <td>
+                <span
+                  class="stock-badge"
+                  [class.low]="p.stock_quantity <= data.lowStockThreshold()"
+                  [class.out]="p.stock_quantity === 0"
+                  >{{
+                    p.stock_quantity === 0
+                      ? 'Out of stock'
+                      : p.stock_quantity <= data.lowStockThreshold()
+                        ? 'Low stock'
+                        : 'In stock'
+                  }}</span
+                >
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-data-state
+      [empty]="!metrics.productCount()"
+      title="No stock records"
+      description="Add products to build your catalog."
+    />
+  </section>
+}

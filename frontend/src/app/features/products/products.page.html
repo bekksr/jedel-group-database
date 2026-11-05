@@ -1,0 +1,247 @@
+<section class="page-heading">
+  <div>
+    <p class="eyebrow">Catalog &amp; inventory</p>
+    <h1>
+      Products <span class="count-pill">{{ data.products().length }}</span>
+    </h1>
+    <p>A clear view of your products, pricing, and stock.</p>
+  </div>
+  <button
+    class="button"
+    [disabled]="
+      data.loading() ||
+      data.busy?.() ||
+      data.permissions?.()?.manageCatalog === false ||
+      data.canWrite?.() === false ||
+      !!data.error()
+    "
+    (click)="open()"
+  >
+    <app-icon name="plus" />Add product
+  </button>
+</section>
+<div class="info-note">
+  <app-icon name="layers" /><span
+    >Stock quantities change only when an approved order is delivered. New products start at
+    zero.</span
+  >
+</div>
+<section class="card">
+  <div class="table-toolbar">
+    <div>
+      <h2>Product catalog</h2>
+      <p>Prices in KZT - Low stock threshold: {{ data.lowStockThreshold() }} units</p>
+    </div>
+    <div class="filters">
+      <label class="search-input"
+        ><app-icon name="search" /><input
+          aria-label="Search products"
+          placeholder="Search products..."
+          [ngModel]="query()"
+          (ngModelChange)="search($event)" /></label
+      ><select
+        aria-label="Filter by category"
+        [ngModel]="category()"
+        (ngModelChange)="filter($event)"
+      >
+        <option value="">All categories</option>
+        @for (cat of categories(); track cat) {
+          <option [value]="cat">{{ cat }}</option>
+        }
+      </select>
+    </div>
+  </div>
+  <app-data-state [loading]="data.loading()" [error]="data.error()" />
+  @if (!data.loading() && !data.error()) {
+    <div class="table-scroll" role="region" tabindex="0" aria-label="Scrollable products table">
+      <table>
+        <caption class="sr-only">
+          Product catalog and stock
+        </caption>
+        <thead>
+          <tr>
+            <th
+              [attr.aria-sort]="
+                sort() === 'product_name'
+                  ? direction() === 1
+                    ? 'ascending'
+                    : 'descending'
+                  : 'none'
+              "
+            >
+              <button (click)="sortBy('product_name')">
+                Product <app-icon name="sort" [size]="14" />
+              </button>
+            </th>
+            <th>Category</th>
+            <th
+              [attr.aria-sort]="
+                sort() === 'unit_price' ? (direction() === 1 ? 'ascending' : 'descending') : 'none'
+              "
+            >
+              <button (click)="sortBy('unit_price')">
+                Unit price <app-icon name="sort" [size]="14" />
+              </button>
+            </th>
+            <th
+              [attr.aria-sort]="
+                sort() === 'stock_quantity'
+                  ? direction() === 1
+                    ? 'ascending'
+                    : 'descending'
+                  : 'none'
+              "
+            >
+              <button (click)="sortBy('stock_quantity')">
+                Stock <app-icon name="sort" [size]="14" />
+              </button>
+            </th>
+            <th>Stock level</th>
+            <th class="align-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (p of rows(); track p.product_id) {
+            <tr>
+              <td>
+                <div class="identity">
+                  <span class="product-avatar"><app-icon name="products" /></span>
+                  <div>
+                    <strong>{{ p.product_name }}</strong
+                    ><small>PRD-{{ p.product_id.toString().padStart(3, '0') }}</small>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <span class="category-tag">{{ p.category || 'Uncategorized' }}</span>
+              </td>
+              <td class="money">{{ p.unit_price | kzt }}</td>
+              <td>
+                <strong>{{ p.stock_quantity }}</strong
+                ><span class="muted"> units</span>
+              </td>
+              <td>
+                <span
+                  class="stock-badge"
+                  [class.low]="p.stock_quantity <= data.lowStockThreshold()"
+                  [class.out]="p.stock_quantity === 0"
+                  >{{
+                    p.stock_quantity === 0
+                      ? 'Out of stock'
+                      : p.stock_quantity <= data.lowStockThreshold()
+                        ? 'Low stock'
+                        : 'In stock'
+                  }}</span
+                >
+              </td>
+              <td class="align-right">
+                <button
+                  class="icon-button"
+                  [disabled]="
+                    data.loading() ||
+                    data.busy?.() ||
+                    data.permissions?.()?.manageCatalog === false ||
+                    data.canWrite?.() === false
+                  "
+                  (click)="open(p)"
+                  [attr.aria-label]="'Edit ' + p.product_name"
+                >
+                  <app-icon name="edit" [size]="16" /></button
+                ><button
+                  class="icon-button danger-text"
+                  [disabled]="
+                    data.busy?.() ||
+                    data.permissions?.()?.deleteRecords === false ||
+                    data.canWrite?.() === false
+                  "
+                  [attr.data-delete-control]="true"
+                  (click)="askDelete(p)"
+                  [attr.aria-label]="'Delete ' + p.product_name"
+                >
+                  <app-icon name="delete" [size]="16" />
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <app-data-state [empty]="!filtered().length" /><app-pagination
+      [page]="currentPage()"
+      [total]="filtered().length"
+      (pageChange)="page.set($event)"
+    />
+  }
+</section>
+@if (formOpen()) {
+  <app-modal
+    [busy]="saving()"
+    [title]="editing() ? 'Edit product' : 'Add product'"
+    (dismiss)="formOpen.set(false)"
+    ><form [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <fieldset [disabled]="saving()">
+        <p class="form-hint">
+          Required fields are marked *.
+          {{
+            data.mode === 'demo'
+              ? 'Demo changes are session-only.'
+              : 'Changes are saved to PostgreSQL through Django.'
+          }}
+        </p>
+        <label class="field"
+          >Product name *<input formControlName="product_name" maxlength="100" /><app-field-error
+            [control]="form.controls.product_name"
+        /></label>
+        <div class="form-grid">
+          <label class="field"
+            >Category<input
+              formControlName="category"
+              maxlength="50"
+              list="product-categories" /><datalist id="product-categories">
+              @for (cat of categories(); track cat) {
+                <option [value]="cat"></option>
+              }</datalist
+            ><app-field-error [control]="form.controls.category" /></label
+          ><label class="field"
+            >Unit price (&#8376;) *<input
+              type="number"
+              min="0"
+              max="99999999.99"
+              step="0.01"
+              formControlName="unit_price" /><app-field-error [control]="form.controls.unit_price"
+          /></label>
+        </div>
+        <div class="info-note">
+          <app-icon name="layers" /><span
+            >Stock: {{ editing()?.stock_quantity ?? 0 }} units. Inventory is read-only here.</span
+          >
+        </div>
+        @if (error()) {
+          <p class="error-banner" role="alert">{{ error() }}</p>
+        }
+        <div class="form-actions">
+          <button type="button" class="button secondary" (click)="formOpen.set(false)">
+            Cancel</button
+          ><button type="submit" class="button">
+            {{ editing() ? 'Save changes' : 'Add product' }}
+          </button>
+        </div>
+      </fieldset>
+    </form></app-modal
+  >
+}
+
+@if (deleting(); as p) {
+  <app-confirm-dialog
+    title="Delete product?"
+    [message]="
+      'Delete ' + p.product_name + '? Products with stock or order references cannot be deleted.'
+    "
+    action="Delete product"
+    [danger]="true"
+    [busy]="saving()"
+    [error]="error()"
+    (cancel)="deleting.set(null)"
+    (confirm)="remove()"
+  />
+}

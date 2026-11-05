@@ -1,0 +1,5 @@
+# Python 3.13; PostgreSQL 17 schema. Filtering/auth use DRF built-ins.
+Django==6.0.10
+djangorestframework==3.17.1
+django-cors-headers==4.9.0
+psycopg2==2.9.10
