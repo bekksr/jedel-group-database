@@ -34,6 +34,8 @@ A five-student university project for managing suppliers, products, purchasing a
 
 ## Monorepo
 
+See [Bekarys's System Analysis & Business Logic documentation](docs/bekarys/README.md) for business requirements, purchasing processes, lifecycle, traceability and acceptance analysis.
+
 - `frontend/`: Angular standalone ERP with default API integration and a separate explicit demo option.
 - `backend/`: Django REST API, scoped bearer access, unmanaged PostgreSQL models, atomic order/stock services, and isolated PostgreSQL tests.
 - `database/`: unchanged team SQL dump, schema review, and migration policy.
