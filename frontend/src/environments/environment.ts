@@ -1,1 +1,5 @@
-export const environment = { production: true, apiBaseUrl: '/api', enableDemoMode: true } as const;
+export const environment = {
+  production: true,
+  apiBaseUrl: "/api",
+  enableDemoMode: true,
+} as const;

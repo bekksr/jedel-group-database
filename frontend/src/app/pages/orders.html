@@ -1,0 +1,181 @@
+<div class="heading">
+  <div>
+    <h1>Purchase orders</h1>
+    <p class="subtitle">Create orders and track their progress.</p>
+  </div>
+  <button [disabled]="!canCreate()" (click)="open()">New order</button>
+</div>
+@if(message()){
+<p role="status" class="note">{{message()}}</p>
+} @if(error()){
+<p role="alert" class="error">{{error()}}</p>
+} @if(formOpen()){
+<section class="panel">
+  <h2>New purchase order</h2>
+  <form [formGroup]="form" (ngSubmit)="save()">
+    <fieldset [disabled]="saving() || data.busy() || data.loading()">
+      <div class="form-grid">
+        <label
+          >Supplier<select formControlName="supplier_id" required>
+            <option [ngValue]="0">Select supplier</option>
+            @for(s of data.suppliers();track s.supplier_id){
+            <option [ngValue]="s.supplier_id">{{s.supplier_name}}</option>
+            }
+          </select></label
+        >
+        <label
+          >Order date<input
+            type="date"
+            formControlName="order_date"
+            required /></label
+        ><label
+          >Expected delivery (optional)<input
+            type="date"
+            formControlName="expected_delivery_date"
+            [min]="form.controls.order_date.value"
+        /></label>
+      </div>
+      <p class="hint">
+        This is a purchase from a supplier. Warehouse stock does not limit
+        purchase quantities.
+      </p>
+      <div formArrayName="items">
+        @for(item of items.controls;track item;let i=$index){
+        <div class="order-line" [formGroupName]="i">
+          <label
+            >Product {{i+1}}<select formControlName="product_id" required>
+              <option [ngValue]="0">Select product</option>
+              @for(p of data.products();track p.product_id){
+              <option [ngValue]="p.product_id">
+                {{p.product_name}} · {{p.unit_price | number:'1.2-2'}} ₸
+              </option>
+              }
+            </select></label
+          ><label
+            >Quantity {{i+1}}<input
+              type="number"
+              formControlName="quantity"
+              min="1"
+              max="2147483647"
+              step="1"
+              required /></label
+          ><button
+            class="secondary"
+            type="button"
+            [disabled]="items.length===1"
+            (click)="items.removeAt(i)"
+            [attr.aria-label]="'Remove product '+(i+1)"
+          >
+            Remove
+          </button>
+        </div>
+        }
+      </div>
+      <button class="secondary" type="button" (click)="items.push(itemGroup())">
+        Add product
+      </button>
+      <p class="total">Estimated total: {{draftTotal() | number:'1.2-2'}} ₸</p>
+      <div class="actions">
+        <button type="submit" [disabled]="!canCreate()">Create order</button
+        ><button
+          class="secondary"
+          type="button"
+          (click)="formOpen.set(false);error.set('')"
+        >
+          Cancel
+        </button>
+      </div>
+    </fieldset>
+  </form>
+</section>
+}
+<label class="search"
+  >Filter by status<select
+    [ngModel]="status()"
+    (ngModelChange)="status.set($event)"
+  >
+    <option value="">All statuses</option>
+    @for(s of statuses;track s){
+    <option [value]="s">{{s}}</option>
+    }
+  </select></label
+>
+<div class="table-wrap" tabindex="0" role="region" aria-label="Purchase orders">
+  <table>
+    <thead>
+      <tr>
+        <th>Order</th>
+        <th>Supplier</th>
+        <th>Date</th>
+        <th>Status</th>
+        <th>Total</th>
+        <th>Details</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for(o of filtered();track o.order_id){
+      <tr>
+        <td>#{{o.order_id}}</td>
+        <td>{{supplierName(o.supplier_id)}}</td>
+        <td>{{o.order_date}}</td>
+        <td>
+          <span class="badge" [attr.data-status]="o.status">{{o.status}}</span>
+        </td>
+        <td class="money">{{total(o.order_id) | number:'1.2-2'}} ₸</td>
+        <td>
+          <button
+            class="secondary"
+            (click)="selectedId.set(o.order_id)"
+            [attr.aria-label]="'View order '+o.order_id"
+          >
+            View
+          </button>
+        </td>
+      </tr>
+      }@empty{
+      <tr>
+        <td colspan="6">No orders match this filter.</td>
+      </tr>
+      }
+    </tbody>
+  </table>
+</div>
+@if(selected();as o){
+<section class="panel detail">
+  <div class="heading">
+    <h2>Order #{{o.order_id}}</h2>
+    <button class="secondary" (click)="selectedId.set(null)">
+      Close details
+    </button>
+  </div>
+  <p>{{supplierName(o.supplier_id)}} · {{o.status}}</p>
+  <p>Expected delivery: {{o.expected_delivery_date || 'Not specified'}}</p>
+  <ul class="item-list">
+    @for(i of orderItems(o.order_id);track i.item_id){
+    <li>
+      <span
+        >{{productName(i.product_id)}}<small
+          >{{i.quantity}} × {{i.unit_price | number:'1.2-2'}} ₸</small
+        ></span
+      ><strong>{{i.quantity*i.unit_price | number:'1.2-2'}} ₸</strong>
+    </li>
+    }
+  </ul>
+  <p class="total">Total: {{total(o.order_id) | number:'1.2-2'}} ₸</p>
+  @if(transitions(o.status).length){
+  <p class="hint">
+    {{data.mode === 'demo' ? 'Demo delivery updates sample stock once.' :
+    'Delivery is applied by the backend. Displayed stock updates after a
+    successful refresh.'}}
+  </p>
+  <div class="actions">
+    @for(s of transitions(o.status);track s){<button
+      class="secondary"
+      (click)="transition(o.order_id,s)"
+    >
+      Mark {{s}}</button
+    >}
+  </div>
+  }
+</section>
+}

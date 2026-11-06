@@ -1,4 +1,4 @@
-import { OrderStatus } from './models';
+import { OrderStatus } from "./models";
 export interface Page<T> {
   count: number;
   next: string | null;
@@ -48,7 +48,7 @@ export interface StatusCount {
   count: number;
 }
 export interface ApiDashboard {
-  currency: 'KZT';
+  currency: "KZT";
   total_suppliers: number;
   total_products: number;
   total_purchase_orders: number;
@@ -65,9 +65,9 @@ export interface ApiDashboard {
 }
 export interface ApiAccess {
   can_write: boolean;
-  authentication: 'shared_bearer_token';
+  authentication: "shared_bearer_token";
   role_based_security: boolean;
-  role?: 'viewer' | 'buyer' | 'approver' | 'admin';
+  role?: "viewer" | "buyer" | "approver" | "admin";
   capabilities?: {
     manage_catalog: boolean;
     create_orders: boolean;

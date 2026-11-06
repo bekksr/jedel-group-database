@@ -1,7 +1,11 @@
-import { computed, inject, Injectable, signal } from '@angular/core';
-import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
-import { firstValueFrom, timeout } from 'rxjs';
-import { environment } from '../../../environments/environment';
+import { computed, inject, Injectable, signal } from "@angular/core";
+import {
+  HttpClient,
+  HttpErrorResponse,
+  HttpHeaders,
+} from "@angular/common/http";
+import { firstValueFrom, timeout } from "rxjs";
+import { environment } from "../../../environments/environment";
 import {
   ApiAccess,
   ApiDashboard,
@@ -11,7 +15,7 @@ import {
   ApiSupplier,
   Page,
   StatusCount,
-} from './api-contracts';
+} from "./api-contracts";
 import {
   Capabilities,
   DashboardData,
@@ -24,9 +28,9 @@ import {
   Spending,
   Supplier,
   allowedTransitions,
-} from './models';
-import { Notifications } from './notifications.service';
-import { apiError } from './api-errors';
+} from "./models";
+import { Notifications } from "./notifications.service";
+import { apiError } from "./api-errors";
 
 interface Snapshot {
   suppliers: Supplier[];
@@ -47,34 +51,38 @@ const empty = (): Snapshot => ({
   statuses: [],
 });
 export function decimalValue(value: string): number {
-  if (typeof value !== 'string' || !/^\d+(\.\d{1,2})?$/.test(value))
-    throw new Error('The API returned an invalid monetary value.');
-  const [whole, fraction = ''] = value.split('.');
-  const cents = BigInt(whole!) * 100n + BigInt(fraction.padEnd(2, '0'));
+  if (typeof value !== "string" || !/^\d+(\.\d{1,2})?$/.test(value))
+    throw new Error("The API returned an invalid monetary value.");
+  const [whole, fraction = ""] = value.split(".");
+  const cents = BigInt(whole!) * 100n + BigInt(fraction.padEnd(2, "0"));
   const result = Number(value);
   const reconstructed = Number.isFinite(result)
-    ? new Intl.NumberFormat('en-US', {
+    ? new Intl.NumberFormat("en-US", {
         useGrouping: false,
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       })
         .format(result)
-        .replace('.', '')
-    : '';
-  if (cents > BigInt(Number.MAX_SAFE_INTEGER) || !reconstructed || BigInt(reconstructed) !== cents)
+        .replace(".", "")
+    : "";
+  if (
+    cents > BigInt(Number.MAX_SAFE_INTEGER) ||
+    !reconstructed ||
+    BigInt(reconstructed) !== cents
+  )
     throw new Error(
-      'The API amount exceeds safe display precision. Contact support; do not resubmit the operation.',
+      "The API amount exceeds safe display precision. Contact support; do not resubmit the operation.",
     );
   return result;
 }
 const supplier = (s: ApiSupplier): Supplier => ({
   ...s,
-  phone: s.phone ?? '',
-  address: s.address ?? '',
+  phone: s.phone ?? "",
+  address: s.address ?? "",
 });
 const product = (p: ApiProduct): Product => ({
   ...p,
-  category: p.category ?? '',
+  category: p.category ?? "",
   unit_price: decimalValue(p.unit_price),
 });
 const order = (o: ApiOrder): PurchaseOrder => ({
@@ -101,18 +109,18 @@ const spending = (rows: ApiSpending[]): Spending[] =>
     orders: s.order_count,
   }));
 
-@Injectable({ providedIn: 'root' })
+@Injectable({ providedIn: "root" })
 export class ApiDataService implements ErpData {
-  readonly mode = 'api' as const;
+  readonly mode = "api" as const;
   private readonly http = inject(HttpClient);
   private readonly notices = inject(Notifications);
   private readonly state = signal<Snapshot>(empty());
-  private token = '';
+  private token = "";
   private epoch = 0;
   private readonly threshold = signal(20);
   readonly connected = signal(false);
   readonly canWrite = signal(false);
-  readonly role = signal('not connected');
+  readonly role = signal("not connected");
   readonly permissions = signal<Capabilities>({
     manageCatalog: false,
     createOrders: false,
@@ -122,7 +130,7 @@ export class ApiDataService implements ErpData {
   readonly loading = signal(false);
   readonly busy = signal(false);
   readonly error = signal(
-    'API not connected. Open Settings to enter an access token and connect to PostgreSQL through Django.',
+    "API not connected. Open Settings to enter an access token and connect to PostgreSQL through Django.",
   );
   readonly suppliers = computed(() => this.state().suppliers);
   readonly products = computed(() => this.state().products);
@@ -132,7 +140,7 @@ export class ApiDataService implements ErpData {
   readonly supplierSpending = computed(() => this.state().spending);
   readonly orderStatuses = computed(() => this.state().statuses);
   readonly lowStockThreshold = this.threshold.asReadonly();
-  readonly baseUrl = environment.apiBaseUrl.replace(/\/$/, '');
+  readonly baseUrl = environment.apiBaseUrl.replace(/\/$/, "");
 
   private url(path: string): string {
     return `${this.baseUrl}/${path}`;
@@ -142,7 +150,9 @@ export class ApiDataService implements ErpData {
   }
   private get<T>(path: string): Promise<T> {
     return firstValueFrom(
-      this.http.get<T>(this.url(path), { headers: this.headers() }).pipe(timeout(15000)),
+      this.http
+        .get<T>(this.url(path), { headers: this.headers() })
+        .pipe(timeout(15000)),
     );
   }
   private async all<T>(resource: string): Promise<T[]> {
@@ -153,21 +163,23 @@ export class ApiDataService implements ErpData {
       result.push(...response.results);
       if (!response.next) return result;
     }
-    throw new Error('The result set is too large to load. Contact support.');
+    throw new Error("The result set is too large to load. Contact support.");
   }
   async connect(token: string): Promise<void> {
-    if (this.busy() || this.loading()) throw new Error('Wait for the current request to finish.');
+    if (this.busy() || this.loading())
+      throw new Error("Wait for the current request to finish.");
     this.disconnect();
     this.token = token.trim();
-    if (!this.token || /\s/.test(this.token)) throw new Error('Enter a valid bearer access token.');
+    if (!this.token || /\s/.test(this.token))
+      throw new Error("Enter a valid bearer access token.");
     await this.refresh();
   }
   disconnect(): void {
     this.epoch++;
-    this.token = '';
+    this.token = "";
     this.connected.set(false);
     this.canWrite.set(false);
-    this.role.set('not connected');
+    this.role.set("not connected");
     this.permissions.set({
       manageCatalog: false,
       createOrders: false,
@@ -176,28 +188,39 @@ export class ApiDataService implements ErpData {
     });
     this.state.set(empty());
     this.loading.set(false);
-    this.error.set('API not connected. Connect in Settings.');
+    this.error.set("API not connected. Connect in Settings.");
   }
   async refresh(): Promise<void> {
     if (this.loading())
-      throw new Error('The workspace is already refreshing. Wait for it to finish.');
+      throw new Error(
+        "The workspace is already refreshing. Wait for it to finish.",
+      );
     if (!this.token) {
-      this.error.set('API not connected. Connect in Settings.');
+      this.error.set("API not connected. Connect in Settings.");
       throw new Error(this.error());
     }
     const epoch = ++this.epoch;
     this.loading.set(true);
     try {
-      const [access, suppliers, products, orders, dashboard, supplierReport, statusReport] =
-        await Promise.all([
-          this.get<ApiAccess>('access/'),
-          this.all<ApiSupplier>('suppliers'),
-          this.all<ApiProduct>('products'),
-          this.all<ApiOrder>('orders'),
-          this.get<ApiDashboard>(`dashboard/?low_stock_threshold=${this.threshold()}`),
-          this.get<{ results: ApiSpending[] }>('analytics/supplier-spending/'),
-          this.get<{ results: StatusCount[] }>('analytics/order-status/'),
-        ]);
+      const [
+        access,
+        suppliers,
+        products,
+        orders,
+        dashboard,
+        supplierReport,
+        statusReport,
+      ] = await Promise.all([
+        this.get<ApiAccess>("access/"),
+        this.all<ApiSupplier>("suppliers"),
+        this.all<ApiProduct>("products"),
+        this.all<ApiOrder>("orders"),
+        this.get<ApiDashboard>(
+          `dashboard/?low_stock_threshold=${this.threshold()}`,
+        ),
+        this.get<{ results: ApiSpending[] }>("analytics/supplier-spending/"),
+        this.get<{ results: StatusCount[] }>("analytics/order-status/"),
+      ]);
       if (epoch !== this.epoch) return;
       const summary: DashboardData = {
         supplierCount: dashboard.total_suppliers,
@@ -221,22 +244,30 @@ export class ApiDataService implements ErpData {
         statuses: statusReport.results,
       });
       this.canWrite.set(access.can_write === true);
-      this.role.set(access.role ?? (access.can_write ? 'admin' : 'viewer'));
+      this.role.set(access.role ?? (access.can_write ? "admin" : "viewer"));
       const caps = access.capabilities;
       this.permissions.set({
-        manageCatalog: caps ? caps.manage_catalog === true : access.can_write === true,
-        createOrders: caps ? caps.create_orders === true : access.can_write === true,
-        transitionOrders: caps ? caps.transition_orders === true : access.can_write === true,
-        deleteRecords: caps ? caps.delete_records === true : access.can_write === true,
+        manageCatalog: caps
+          ? caps.manage_catalog === true
+          : access.can_write === true,
+        createOrders: caps
+          ? caps.create_orders === true
+          : access.can_write === true,
+        transitionOrders: caps
+          ? caps.transition_orders === true
+          : access.can_write === true,
+        deleteRecords: caps
+          ? caps.delete_records === true
+          : access.can_write === true,
       });
       this.connected.set(true);
-      this.error.set('');
+      this.error.set("");
     } catch (e) {
       if (epoch !== this.epoch) return;
       this.state.set(empty());
       this.connected.set(false);
       this.canWrite.set(false);
-      this.role.set('not connected');
+      this.role.set("not connected");
       this.permissions.set({
         manageCatalog: false,
         createOrders: false,
@@ -250,21 +281,27 @@ export class ApiDataService implements ErpData {
     }
   }
   private async write<T>(
-    method: 'POST' | 'PATCH' | 'DELETE',
+    method: "POST" | "PATCH" | "DELETE",
     path: string,
     body: unknown,
     label: string,
   ): Promise<T> {
-    if (this.busy() || this.loading()) throw new Error('Wait for the current request to finish.');
+    if (this.busy() || this.loading())
+      throw new Error("Wait for the current request to finish.");
     if (!this.connected() || !this.canWrite())
-      throw new Error('Connect with a write-scoped token in Settings before changing records.');
+      throw new Error(
+        "Connect with a write-scoped token in Settings before changing records.",
+      );
     this.busy.set(true);
     try {
       let response: T;
       try {
         response = await firstValueFrom(
           this.http
-            .request<T>(method, this.url(path), { body, headers: this.headers() })
+            .request<T>(method, this.url(path), {
+              body,
+              headers: this.headers(),
+            })
             .pipe(timeout(30000)),
         );
       } catch (e) {
@@ -281,7 +318,7 @@ export class ApiDataService implements ErpData {
           this.state.set(empty());
           this.connected.set(false);
           this.canWrite.set(false);
-          this.role.set('not connected');
+          this.role.set("not connected");
           this.permissions.set({
             manageCatalog: false,
             createOrders: false,
@@ -296,15 +333,15 @@ export class ApiDataService implements ErpData {
             /* Preserve the original actionable conflict. */
           }
         }
-        this.notices.show('error', message);
+        this.notices.show("error", message);
         throw new Error(message);
       }
       try {
         await this.refresh();
-        this.notices.show('success', `${label} confirmed by the server.`);
+        this.notices.show("success", `${label} confirmed by the server.`);
       } catch {
         this.notices.show(
-          'warning',
+          "warning",
           `${label} was confirmed, but refreshing failed. Do not submit it again. Reconnect or refresh to retrieve current records.`,
         );
       }
@@ -313,37 +350,40 @@ export class ApiDataService implements ErpData {
       this.busy.set(false);
     }
   }
-  async saveSupplier(value: Omit<Supplier, 'supplier_id'>, id?: number): Promise<void> {
-    await this.write(
-      id === undefined ? 'POST' : 'PATCH',
-      id === undefined ? 'suppliers/' : `suppliers/${id}/`,
-      value,
-      id === undefined ? 'Supplier creation' : 'Supplier update',
-    );
-  }
-  async deleteSupplier(id: number): Promise<void> {
-    await this.write('DELETE', `suppliers/${id}/`, null, 'Supplier deletion');
-  }
-  async saveProduct(
-    value: Omit<Product, 'product_id' | 'stock_quantity'>,
+  async saveSupplier(
+    value: Omit<Supplier, "supplier_id">,
     id?: number,
   ): Promise<void> {
     await this.write(
-      id === undefined ? 'POST' : 'PATCH',
-      id === undefined ? 'products/' : `products/${id}/`,
+      id === undefined ? "POST" : "PATCH",
+      id === undefined ? "suppliers/" : `suppliers/${id}/`,
+      value,
+      id === undefined ? "Supplier creation" : "Supplier update",
+    );
+  }
+  async deleteSupplier(id: number): Promise<void> {
+    await this.write("DELETE", `suppliers/${id}/`, null, "Supplier deletion");
+  }
+  async saveProduct(
+    value: Omit<Product, "product_id" | "stock_quantity">,
+    id?: number,
+  ): Promise<void> {
+    await this.write(
+      id === undefined ? "POST" : "PATCH",
+      id === undefined ? "products/" : `products/${id}/`,
       { ...value, unit_price: value.unit_price.toFixed(2) },
-      id === undefined ? 'Product creation' : 'Product update',
+      id === undefined ? "Product creation" : "Product update",
     );
   }
   async deleteProduct(id: number): Promise<void> {
-    await this.write('DELETE', `products/${id}/`, null, 'Product deletion');
+    await this.write("DELETE", `products/${id}/`, null, "Product deletion");
   }
   async createOrder(value: OrderDraft): Promise<number> {
     const response = await this.write<ApiOrder>(
-      'POST',
-      'orders/',
+      "POST",
+      "orders/",
       value,
-      'Purchase order creation',
+      "Purchase order creation",
     );
     return response.order_id;
   }
@@ -351,22 +391,23 @@ export class ApiDataService implements ErpData {
     const current = this.orders().find((o) => o.order_id === id);
     if (!current || !allowedTransitions(current.status).includes(status))
       throw new Error(
-        'This status transition is not allowed. Refresh the order to check its current state.',
+        "This status transition is not allowed. Refresh the order to check its current state.",
       );
     const actions: Partial<Record<OrderStatus, string>> = {
-      Approved: 'approve',
-      Delivered: 'deliver',
-      Cancelled: 'cancel',
+      Approved: "approve",
+      Delivered: "deliver",
+      Cancelled: "cancel",
     };
     await this.write(
-      'POST',
+      "POST",
       `orders/${id}/${actions[status]}/`,
       {},
       `Order ${status.toLowerCase()} operation`,
     );
   }
   async loadOrder(id: number): Promise<void> {
-    if (this.loading() || this.busy()) throw new Error('Wait for the workspace request to finish.');
+    if (this.loading() || this.busy())
+      throw new Error("Wait for the workspace request to finish.");
     const epoch = this.epoch;
     try {
       const response = await this.get<ApiOrder>(`orders/${id}/`);
@@ -383,9 +424,10 @@ export class ApiDataService implements ErpData {
     }
   }
   async setLowStockThreshold(value: number): Promise<void> {
-    if (this.loading() || this.busy()) throw new Error('Wait for the current request to finish.');
+    if (this.loading() || this.busy())
+      throw new Error("Wait for the current request to finish.");
     if (!Number.isInteger(value) || value < 0 || value > 2147483647)
-      throw new Error('Enter a nonnegative whole-number threshold.');
+      throw new Error("Enter a nonnegative whole-number threshold.");
     const previous = this.threshold();
     this.threshold.set(value);
     try {
@@ -396,6 +438,6 @@ export class ApiDataService implements ErpData {
     }
   }
   reset(): void {
-    throw new Error('API data cannot be reset from the browser.');
+    throw new Error("API data cannot be reset from the browser.");
   }
 }
