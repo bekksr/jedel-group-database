@@ -20,6 +20,7 @@ test('Groq consent checkbox stays visible and enables Ask without external reque
   });
   await page.route('**/api/ai/chat/',()=>{throw new Error('Consent-only test must not submit a cloud request');});
   await page.goto('/ai-assistant');
+  await expect(page.locator('.account-summary')).toContainText('Basic User');
   const consent=page.getByRole('checkbox',{name:/I agree to send this message to Groq/});
   const ask=page.getByRole('button',{name:'Ask Copilot',exact:true});
   for(const width of [1440,390]) {
@@ -30,7 +31,9 @@ test('Groq consent checkbox stays visible and enables Ask without external reque
     const box=await consent.boundingBox();expect(box!.width).toBeGreaterThanOrEqual(20);expect(box!.height).toBeGreaterThanOrEqual(20);
     await expect(ask).toBeDisabled();
     await consent.focus();await page.keyboard.press('Space');
-    await expect(consent).toBeChecked();await expect(ask).toBeEnabled();
+    await expect(consent).toBeChecked();
+    await expect(page.getByLabel('Message',{exact:true})).toHaveValue('can you find electronics');
+    await expect(ask).toBeEnabled();
     await consent.uncheck();await expect(ask).toBeDisabled();
   }
   await context.close();

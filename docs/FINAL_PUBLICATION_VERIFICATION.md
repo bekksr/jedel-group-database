@@ -12,11 +12,11 @@ Latest origin/main at audit: d290bd6. No unresolved merge/rebase; latest remote 
 | Gate | Result |
 | --- | --- |
 | Full Django/PostgreSQL suite | 166 discovered: 165 passed, 0 failed, 1 opt-in browser skipped; 53.978s |
-| Separate full Chromium suite | 10 passed, 0 failed, 0 skipped; 40.5s |
+| Separate full Chromium suite | 10 passed, 0 failed, 0 skipped; 39.1s |
 | Django browser wrapper | 1 passed, 0 failed, 0 skipped |
-| Angular full suite | 104 passed, 0 failed, 0 skipped; 13 files |
+| Angular full suite | 105 passed, 0 failed, 0 skipped; 13 files |
 | TypeScript noEmit | Passed |
-| Production Angular build | Passed; initial bundle 462.68 kB |
+| Production Angular build | Passed; initial bundle 462.80 kB |
 | Django system/readiness checks | Passed |
 | Live schema/data preservation | 14 public-table row counts and deterministic UTC hashes unchanged; constraints/indexes/sequences/grants unchanged |
 | Six live role permission sets | Exact match with approved intended_permissions; no role writes |
@@ -214,3 +214,31 @@ Push success and final commit hashes are verified separately by Git after commit
 - scripts/start-macos.sh
 - scripts/start-windows.ps1
 - scripts/start.py
+
+
+## Clean-commit verification and corrected release blocker
+
+A genuinely clean local Git clone of commit a043a3b (no source overlay) installed
+its dependencies from requirements/constraints and npm ci. No private env, venv,
+node_modules or database directory was copied. Its noninteractive setup generated
+new private dev config and correctly stopped at missing DB_PASSWORD, without
+querying or initializing a host database.
+
+The clean clone passed the full backend suite (165 passed, 1 browser skipped),
+first-run initialization, idempotence, existing-session restoration after a real
+isolated PostgreSQL restart, native launcher health/proxy checks, 104 frontend
+tests and production build. Its extra browser run initially found a real UI
+readiness race: message/consent could be used before session restoration finished,
+then an account-change effect could clear the input. Publication was stopped.
+
+The follow-up fix disables those two controls during restoration/loading and
+makes the browser test await the actual account, preserve/assert the entered
+message, and test keyboard consent. No security check or failing test was removed.
+A new unit test covers the restoration state. Final working-source frontend suite:
+105 passed; full Chromium suite: 10 passed; TypeScript/build pass. Backend source
+is unchanged from the successfully verified clean commit.
+
+The corrective source files are frontend/src/app/pages/copilot.html,
+frontend/src/app/pages/copilot.spec.ts and frontend/e2e/copilot.spec.ts.
+Additional clean Git verification is performed after committing the correction,
+with results reported in the final publication response.

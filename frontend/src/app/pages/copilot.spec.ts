@@ -85,6 +85,16 @@ it('explains a missing backend SDK and keeps cloud submission disabled',async()=
   expect(fixture.nativeElement.textContent).toContain('missing the Groq-compatible SDK');
   expect(fixture.nativeElement.textContent).toContain('Search the product catalog');
 });
+it('keeps message and external consent disabled until session restoration finishes',async()=>{
+  const fixture=await setup();const page=fixture.componentInstance;const auth=TestBed.inject(Auth);
+  page.caps.set({...publicCaps,chat_configured:true});auth.restoring.set(true);
+  await fixture.whenStable();
+  expect((fixture.nativeElement.querySelector('textarea[name="message"]') as HTMLTextAreaElement).disabled).toBe(true);
+  expect((fixture.nativeElement.querySelector('input[name="consent"]') as HTMLInputElement).disabled).toBe(true);
+  auth.restoring.set(false);await fixture.whenStable();
+  expect((fixture.nativeElement.querySelector('textarea[name="message"]') as HTMLTextAreaElement).disabled).toBe(false);
+  expect((fixture.nativeElement.querySelector('input[name="consent"]') as HTMLInputElement).disabled).toBe(false);
+});
 it('renders a review-only draft and inventory with explicit threshold',async()=>{
   const fixture=await setup(true);fixture.componentInstance.choose(product);fixture.componentInstance.supplierId=2;
   let action=fixture.componentInstance.prepare();await csrf();http.expectOne('/api/ai/orders/draft/').flush({draft_only:true,persisted:false,supplier:{supplier_id:2,supplier_name:'Authorized supplier'},items:[{product_id:1,product_name:product.product_name,quantity:1,unit_price:'10.25',subtotal:'10.25'}],currency:'KZT',source:'Catalog price',warnings:['No order was changed.']});await action;await fixture.whenStable();
