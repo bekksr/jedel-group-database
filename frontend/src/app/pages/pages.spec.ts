@@ -8,13 +8,17 @@ import {
   convertToParamMap,
 } from "@angular/router";
 import { describe, expect, it, beforeEach } from "vitest";
+import { BehaviorSubject } from "rxjs";
 import { RegisterPage } from "./register";
 import { OrdersPage } from "./orders";
 import { ProductsPage } from "./products";
 import { SuppliersPage } from "./suppliers";
 import { HomePage } from "./home";
 describe("Pages", () => {
+  let queryParams: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
+
   beforeEach(async () => {
+    queryParams = new BehaviorSubject(convertToParamMap({ new: 1, supplier: 2, product: 3 }));
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
@@ -24,12 +28,9 @@ describe("Pages", () => {
           provide: ActivatedRoute,
           useValue: {
             snapshot: {
-              queryParamMap: convertToParamMap({
-                new: 1,
-                supplier: 2,
-                product: 3,
-              }),
+              queryParamMap: queryParams.value,
             },
+            queryParamMap: queryParams,
           },
         },
       ],
@@ -64,6 +65,7 @@ describe("Pages", () => {
   });
   it("retains a rejected draft and shows its error", async () => {
     const f = TestBed.createComponent(OrdersPage);
+    await f.whenStable();
     const p = f.componentInstance;
     p.items.push(p.itemGroup());
     p.items.at(1).patchValue({ product_id: 3 });
@@ -74,6 +76,27 @@ describe("Pages", () => {
     expect(f.nativeElement.querySelector("[role=alert]").textContent).toContain(
       "only once",
     );
+  });
+  it("updates the order prefill when the route query changes", async () => {
+    const f = TestBed.createComponent(OrdersPage);
+    await f.whenStable();
+    queryParams.next(convertToParamMap({ new: 1, supplier: 1, product: 2 }));
+    await f.whenStable();
+    expect(f.componentInstance.form.controls.supplier_id.value).toBe(1);
+    expect(f.componentInstance.items.at(0).controls.product_id.value).toBe(2);
+  });
+  it("filters products by description and category and resolves suppliers from orders", () => {
+    const p = TestBed.createComponent(ProductsPage).componentInstance;
+    p.query.set(" PORTABLE ");
+    expect(p.filtered().map((product) => product.product_id)).toEqual([1]);
+    p.category.set("Furniture");
+    expect(p.filtered()).toHaveLength(0);
+    expect([...p.purchasingSuppliers().get(3)!].map((supplier) => supplier.supplier_id).sort()).toEqual([2, 3]);
+  });
+  it("finds suppliers by contact details", () => {
+    const p = TestBed.createComponent(SuppliersPage).componentInstance;
+    p.query.set(" GLOBAL@EXAMPLE.COM ");
+    expect(p.filtered().map((supplier) => supplier.supplier_id)).toEqual([2]);
   });
   it("rejects invalid registration and mismatched passwords then clears passwords", () => {
     const p = TestBed.createComponent(RegisterPage).componentInstance;
@@ -86,11 +109,22 @@ describe("Pages", () => {
       confirm: "different",
     });
     p.submit();
-    expect(p.error()).toContain("match");
+    expect(p.form.hasError("passwordMismatch")).toBe(true);
     p.form.controls.confirm.setValue("test12345");
     p.submit();
     expect(p.success()).toBe(true);
     expect(p.form.controls.password.value).toBe("");
     expect(p.form.controls.confirm.value).toBe("");
+
+    const next = TestBed.createComponent(RegisterPage).componentInstance;
+    next.form.setValue({
+      name: "Test User",
+      email: " TEST@example.com ",
+      password: "test12345",
+      confirm: "test12345",
+    });
+    next.submit();
+    expect(next.fields.email.hasError("duplicate")).toBe(true);
+    expect(next.success()).toBe(false);
   });
 });

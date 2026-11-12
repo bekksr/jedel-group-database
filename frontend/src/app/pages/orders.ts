@@ -1,4 +1,17 @@
-import { Component, computed, inject, signal } from "@angular/core";
+import {
+  afterNextRender,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  ElementRef,
+  inject,
+  Injector,
+  signal,
+  untracked,
+  viewChild,
+} from "@angular/core";
+import { toSignal } from "@angular/core/rxjs-interop";
 import { DecimalPipe } from "@angular/common";
 import {
   FormsModule,
@@ -6,7 +19,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from "@angular/forms";
-import { ActivatedRoute } from "@angular/router";
+import { ActivatedRoute, ParamMap, RouterLink } from "@angular/router";
 import { Store } from "../store";
 import {
   allowedTransitions,
@@ -16,12 +29,15 @@ import {
   orderTotal,
 } from "../models";
 @Component({
-  imports: [DecimalPipe, FormsModule, ReactiveFormsModule],
+  imports: [DecimalPipe, FormsModule, ReactiveFormsModule, RouterLink],
   templateUrl: "./orders.html",
 })
 export class OrdersPage {
   readonly data = inject(Store);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly orderDetails = viewChild<ElementRef<HTMLElement>>("orderDetails");
   readonly statuses = ORDER_STATUSES;
   readonly transitions = allowedTransitions;
   readonly formOpen = signal(false);
@@ -46,7 +62,6 @@ export class OrdersPage {
   }
   readonly selectedId = signal<number | null>(null);
   readonly error = signal("");
-  readonly message = signal("");
   readonly status = signal("");
   readonly selected = computed(() =>
     this.data.orders().find((o) => o.order_id === this.selectedId()),
@@ -65,16 +80,15 @@ export class OrdersPage {
     items: this.fb.array([this.itemGroup()]),
   });
   constructor() {
-    const params = inject(ActivatedRoute).snapshot.queryParamMap;
-    if (params.get("new")) {
-      this.open();
-      const supplier = Number(params.get("supplier"));
-      const product = Number(params.get("product"));
-      if (this.data.suppliers().some((s) => s.supplier_id === supplier))
-        this.form.controls.supplier_id.setValue(supplier);
-      if (this.data.products().some((p) => p.product_id === product))
-        this.items.at(0).controls.product_id.setValue(product);
-    }
+    const route = inject(ActivatedRoute);
+    const queryParams = toSignal(route.queryParamMap, { initialValue: route.snapshot.queryParamMap });
+    let applied: ParamMap | undefined;
+    effect(() => {
+      const params = queryParams();
+      if (params === applied || !params.get("new") || !this.canCreate()) return;
+      applied = params;
+      untracked(() => this.open(Number(params.get("supplier")), Number(params.get("product"))));
+    });
   }
   itemGroup() {
     return this.fb.group({
@@ -129,22 +143,29 @@ export class OrdersPage {
         ) / 100
     );
   }
-  open() {
-    if (!this.canCreate()) {
-      this.error.set("Connect with Buyer or Admin access, or open demo first.");
-      return;
-    }
+  open(supplierId = 0, productId = 0): void {
+    if (!this.canCreate()) return;
+    const supplier = this.data.suppliers().some((row) => row.supplier_id === supplierId) ? supplierId : 0;
+    const product = this.data.products().some((row) => row.product_id === productId) ? productId : 0;
     this.form.reset({
-      supplier_id: 0,
+      supplier_id: supplier,
       order_date: localDate(),
       expected_delivery_date: "",
     });
     this.items.clear();
-    this.items.push(this.itemGroup());
+    const firstItem = this.itemGroup();
+    firstItem.controls.product_id.setValue(product);
+    this.items.push(firstItem);
     this.error.set("");
-    this.message.set("");
     this.formOpen.set(true);
   }
+
+  viewOrder(id: number): void {
+    this.selectedId.set(id);
+    if (this.destroyRef.destroyed) return;
+    afterNextRender(() => this.orderDetails()?.nativeElement.focus(), { injector: this.injector });
+  }
+
   async save() {
     if (!this.canCreate()) return;
     this.error.set("");
@@ -155,16 +176,20 @@ export class OrdersPage {
       );
       return;
     }
+    const v = this.form.getRawValue();
+    if (v.expected_delivery_date && v.expected_delivery_date < v.order_date) {
+      this.error.set("Expected delivery must be on or after the order date.");
+      return;
+    }
     this.saving.set(true);
     try {
-      const v = this.form.getRawValue();
       const id = await this.data.createOrder({
         ...v,
         expected_delivery_date: v.expected_delivery_date || null,
       });
-      this.selectedId.set(id);
       this.status.set("");
       this.formOpen.set(false);
+      this.viewOrder(id);
     } catch (e) {
       this.error.set((e as Error).message);
     } finally {

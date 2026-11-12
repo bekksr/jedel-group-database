@@ -108,6 +108,7 @@ export class DemoDataService implements ErpData {
     if (id !== undefined && !existing)
       throw new Error("Product no longer exists.");
     const saved: Product = {
+      ...existing,
       product_id: id ?? this.nextProductId++,
       product_name: name,
       category,

@@ -427,7 +427,7 @@ describe("Angular to Django API contract and state safety", () => {
     await pending;
     expect(component.formOpen()).toBe(false);
     expect(component.canCreate()).toBe(false);
-    expect(component.message()).toBe('');
+    expect(component.selected()).toBeUndefined();
     expect(notices.messages().at(-1)?.kind).toBe('warning');
   });
 

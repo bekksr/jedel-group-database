@@ -371,7 +371,11 @@ export class ApiDataService implements ErpData {
     await this.write(
       id === undefined ? "POST" : "PATCH",
       id === undefined ? "products/" : `products/${id}/`,
-      { ...value, unit_price: value.unit_price.toFixed(2) },
+      {
+        product_name: value.product_name,
+        category: value.category,
+        unit_price: value.unit_price.toFixed(2),
+      },
       id === undefined ? "Product creation" : "Product update",
     );
   }
