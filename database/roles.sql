@@ -35,6 +35,6 @@ GRANT SELECT (item_id, order_id, product_id, quantity)
 
 
 -- Пользователь приложения (Django): права менеджера + удаление позиций
--- при правке Pending-заказа. Пароль: \password erpapp1
+-- при правке Pending-заказа. Пароль задаётся отдельно через \password
 CREATE ROLE erp_app LOGIN IN ROLE role_manager;
 GRANT DELETE ON purchase_order_items TO erp_app;
