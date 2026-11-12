@@ -32,3 +32,9 @@ GRANT SELECT (order_id, supplier_id, order_date, expected_delivery_date, status)
   ON purchase_orders TO role_employee;
 GRANT SELECT (item_id, order_id, product_id, quantity)
   ON purchase_order_items TO role_employee;
+
+
+-- Пользователь приложения (Django): права менеджера + удаление позиций
+-- при правке Pending-заказа. Пароль: \password erpapp1
+CREATE ROLE erp_app LOGIN IN ROLE role_manager;
+GRANT DELETE ON purchase_order_items TO erp_app;
