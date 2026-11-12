@@ -40,6 +40,9 @@ def exception_handler(exc, context):
             return Response({field: [message]}, status=400)
         return Response({'detail': 'The operation violates a uniqueness, relationship, or data constraint.'}, status=409)
     if isinstance(exc, DatabaseError):
+        request = context.get('request')
+        if getattr(request, 'path', '').startswith('/api/auth/') and getattr(exc.__cause__, 'pgcode', None) == '42P01':
+            return Response({'detail': 'Account service setup is incomplete. Contact the administrator; account registration and login are not available yet.', 'code': 'authentication_setup_required'}, status=503)
         logger.error('Database operation failed in %s', type(context.get('view')).__name__)
         return Response({'detail': 'Database service is unavailable. Check resource state before retrying.'}, status=503)
     logger.error('Unexpected API failure in %s', type(context.get('view')).__name__)

@@ -49,3 +49,10 @@ class EnvironmentTokenAuthentication(BaseAuthentication):
 
     def authenticate_header(self, request):
         return 'Bearer'
+
+
+from rest_framework.authentication import SessionAuthentication
+
+class AccountSessionAuthentication(SessionAuthentication):
+    def authenticate_header(self, request):
+        return 'Session'

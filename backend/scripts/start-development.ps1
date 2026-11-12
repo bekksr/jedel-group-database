@@ -24,7 +24,7 @@ if (-not $env:DB_USER) { $env:DB_USER = 'postgres' }
 $env:DB_USER = $env:DB_USER.Trim()
 if ($CredentialDialog -or -not $env:DB_USER -or -not $env:DB_PASSWORD) {
     if ($CredentialDialog) {
-        $credential = Get-Credential -UserName $env:DB_USER -Message 'Existing PostgreSQL role and password for jedel_group_db. These are NOT your ERP bearer token.'
+        $credential = Get-Credential -UserName $env:DB_USER -Message 'Existing PostgreSQL role and password for jedel_group_db. These are separate from your ERP account.'
         if ($null -eq $credential) { throw 'Database credential entry cancelled. Nothing was changed.' }
         $env:DB_USER = $credential.UserName
         $env:DB_PASSWORD = $credential.GetNetworkCredential().Password
@@ -38,16 +38,7 @@ if ($CredentialDialog -or -not $env:DB_USER -or -not $env:DB_PASSWORD) {
         }
     }
 }
-$roleVariables = @{ viewer='ERP_READ_TOKEN'; buyer='ERP_BUYER_TOKEN'; approver='ERP_APPROVER_TOKEN'; admin='ERP_WRITE_TOKEN' }
-$tokenVariable = $roleVariables[$Role]
-if (-not [Environment]::GetEnvironmentVariable($tokenVariable, 'Process')) {
-    $randomBytes = New-Object byte[] 48
-    $generator = [Security.Cryptography.RandomNumberGenerator]::Create()
-    try { $generator.GetBytes($randomBytes) } finally { $generator.Dispose() }
-    $tokenValue = [Convert]::ToBase64String($randomBytes).TrimEnd('=').Replace('+','-').Replace('/','_')
-    [Environment]::SetEnvironmentVariable($tokenVariable, $tokenValue, 'Process')
-    $tokenValue = $null
-}
+if ($CopyToken) { throw 'CopyToken is retired. Sign in with an approved individual account.' }
 Push-Location $backendRoot
 try {
     & $pythonPath manage.py check
@@ -82,17 +73,9 @@ try {
     $deadline = [DateTime]::UtcNow.AddSeconds(20)
     $healthy = $false
     do {
-        try { $health = Invoke-RestMethod 'http://127.0.0.1:8000/api/health/' -TimeoutSec 2; $healthy = $health.status -eq 'ok' } catch { Start-Sleep -Milliseconds 250 }
+        try { $health = Invoke-RestMethod 'http://127.0.0.1:8000/health/' -TimeoutSec 2; $healthy = $health.status -eq 'ok' } catch { Start-Sleep -Milliseconds 250 }
     } while (-not $healthy -and -not $server.HasExited -and [DateTime]::UtcNow -lt $deadline)
     if (-not $healthy) { throw 'Development server did not become ready. Review backend/.runtime/development.stderr.log. Credentials were not printed.' }
     Write-Host ('Django is running with the configured credentials. PID: ' + $server.Id)
-    & $pythonPath manage.py verify_connection --http-only --role $Role
-    if ($LASTEXITCODE -ne 0) { throw 'Authenticated HTTP verification failed. The server remains running for diagnosis; inspect Settings and the reported status.' }
-    if ($CopyToken) {
-        Set-Clipboard -Value ([Environment]::GetEnvironmentVariable($tokenVariable, 'Process'))
-        Write-Host 'Selected API token copied locally. Paste ONLY its value into Angular Settings, then Connect. Do not paste it into chat or source files.'
-    } else {
-        Write-Host ('To copy the token locally in this same terminal: Set-Clipboard -Value $env:' + $tokenVariable)
-    }
-    Write-Host 'Verified read-only SQL and authenticated direct/proxied GETs. Website: http://localhost:4200'
+    Write-Host 'Open http://localhost:4200/login and sign in with your approved account. No migrations were applied.'
 } finally { Pop-Location }

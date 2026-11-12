@@ -27,21 +27,27 @@ class CredentialRoleTests(FixtureMixin, TestCase):
 
     def client_for(self, token):
         client = APIClient(enforce_csrf_checks=True)
-        client.credentials(HTTP_AUTHORIZATION='Bearer ' + token * 40)
+        from django.contrib.auth.models import User, Group
+        roles = {'v': 'Analyst / Tester', 'b': 'Purchasing Employee', 'p': 'Purchasing Manager', 'a': 'System Administrator'}
+        user, _ = User.objects.get_or_create(username='role-' + token)
+        user.groups.add(Group.objects.get_or_create(name=roles[token])[0])
+        client.force_login(user)
+        client.get('/api/auth/csrf/')
+        client.credentials(HTTP_X_CSRFTOKEN=client.cookies['csrftoken'].value)
         return client
 
     def test_viewer_can_read_but_cannot_write(self):
         client = self.client_for('v')
         access = client.get('/api/access/')
-        self.assertEqual(access.data['role'], 'viewer')
-        self.assertFalse(any(access.data['capabilities'].values()))
+        self.assertEqual(access.data['role'], 'Analyst / Tester')
+        self.assertFalse(access.data['can_write'])
         self.assertEqual(client.get('/api/dashboard/').status_code, 200)
         self.assertEqual(client.post('/api/products/', {}, format='json').status_code, 403)
         self.assertEqual(client.post(f'/api/orders/{self.order_id}/approve/', {}, format='json').status_code, 403)
 
     def test_buyer_can_manage_catalog_and_orders_but_cannot_approve_or_delete(self):
         client = self.client_for('b')
-        self.assertEqual(client.get('/api/access/').data['role'], 'buyer')
+        self.assertEqual(client.get('/api/access/').data['role'], 'Purchasing Employee')
         created = client.post('/api/products/', {'product_name': 'Role test product', 'unit_price': '2.25'}, format='json')
         self.assertEqual(created.status_code, 201)
         self.assertEqual(client.patch(f"/api/products/{created.data['product_id']}/", {'unit_price': '3.00'}, format='json').status_code, 200)
@@ -53,13 +59,13 @@ class CredentialRoleTests(FixtureMixin, TestCase):
         self.assertTrue(Product.objects.filter(pk=created.data['product_id']).exists())
         self.assertEqual(PurchaseOrder.objects.get(pk=self.order_id).status, 'Pending')
 
-    def test_approver_can_approve_deliver_and_cancel_but_cannot_edit_catalog(self):
+    def test_manager_can_manage_purchasing_and_catalog(self):
         client = self.client_for('p')
-        self.assertEqual(client.get('/api/access/').data['role'], 'approver')
-        self.assertEqual(client.post('/api/suppliers/', {}, format='json').status_code, 403)
-        self.assertEqual(client.post('/api/products/', {}, format='json').status_code, 403)
-        self.assertEqual(client.post('/api/orders/', self.draft(), format='json').status_code, 403)
-        self.assertEqual(client.patch(f'/api/orders/{self.order_id}/', {}, format='json').status_code, 403)
+        self.assertEqual(client.get('/api/access/').data['role'], 'Purchasing Manager')
+        self.assertEqual(client.post('/api/suppliers/', {}, format='json').status_code, 400)
+        self.assertEqual(client.post('/api/products/', {}, format='json').status_code, 400)
+        self.assertEqual(client.post('/api/orders/', self.draft(), format='json').status_code, 201)
+        self.assertEqual(client.patch(f'/api/orders/{self.order_id}/', {}, format='json').status_code, 200)
         self.assertEqual(client.post(f'/api/orders/{self.order_id}/approve/', {}, format='json').status_code, 200)
         self.assertEqual(client.post(f'/api/orders/{self.order_id}/deliver/', {}, format='json').status_code, 200)
         self.assertEqual(client.post(f'/api/orders/{self.order_id}/deliver/', {}, format='json').status_code, 409)
@@ -69,7 +75,7 @@ class CredentialRoleTests(FixtureMixin, TestCase):
 
     def test_admin_can_delete_unreferenced_zero_stock_records(self):
         client = self.client_for('a')
-        self.assertEqual(client.get('/api/access/').data['role'], 'admin')
+        self.assertEqual(client.get('/api/access/').data['role'], 'System Administrator')
         product = client.post('/api/products/', {'product_name': 'Disposable test', 'unit_price': '0.00'}, format='json')
         self.assertEqual(client.delete(f"/api/products/{product.data['product_id']}/").status_code, 204)
         supplier = client.post('/api/suppliers/', {'supplier_name': 'Disposable test', 'email': 'discard@example.test'}, format='json')
@@ -91,7 +97,7 @@ class CredentialRoleTests(FixtureMixin, TestCase):
             self.assertEqual(client.post('/api/products/', {'product_name': 'Invalid price', 'unit_price': value}, format='json').status_code, 400)
         self.assertEqual(client.post('/api/products/', {'product_name': 'Not JSON'}, format='multipart').status_code, 415)
 
-    def test_bearer_requests_do_not_require_cookie_csrf_but_have_private_cache_policy(self):
+    def test_session_requests_with_csrf_have_private_cache_policy(self):
         client = self.client_for('b')
         response = client.post('/api/products/', {'product_name': 'CSRF boundary test', 'unit_price': '1.00'}, format='json')
         self.assertEqual(response.status_code, 201)

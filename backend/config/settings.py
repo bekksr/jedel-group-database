@@ -4,6 +4,9 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+from .local_environment import load_environment
+if os.getenv('JEDEL_LOAD_DOTENV', 'true').lower() != 'false':
+    load_environment(BASE_DIR / '.env')
 DEBUG = os.getenv('DJANGO_DEBUG', 'false').lower() == 'true'
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', '')
 if not SECRET_KEY:
@@ -17,6 +20,10 @@ def env_list(name, default):
 
 ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,[::1]')
 INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'rest_framework',
@@ -30,9 +37,18 @@ MIDDLEWARE = [
     'apps.purchasing.api.middleware.ApiCachePolicyMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'apps.purchasing.admin_availability.AdminAvailabilityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
 ]
 ROOT_URLCONF = 'config.urls'
-TEMPLATES = []
+TEMPLATES = [{'BACKEND': 'django.template.backends.django.DjangoTemplates', 'APP_DIRS': True, 'OPTIONS': {'context_processors': ['django.template.context_processors.request', 'django.contrib.auth.context_processors.auth', 'django.contrib.messages.context_processors.messages']}}]
+STATIC_URL = 'static/'
+AUTH_PASSWORD_VALIDATORS = [{'NAME': 'django.contrib.auth.password_validation.' + name} for name in ['UserAttributeSimilarityValidator', 'MinimumLengthValidator', 'CommonPasswordValidator', 'NumericPasswordValidator']]
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'
 DATABASES = {
@@ -51,7 +67,7 @@ CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS', 'http://localhost:4200,h
 CORS_URLS_REGEX = r'^/api/.*$'
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': ['rest_framework.permissions.IsAuthenticated', 'apps.purchasing.api.permissions.ReadOrWriteAccess'],
-    'DEFAULT_AUTHENTICATION_CLASSES': ['apps.purchasing.api.authentication.EnvironmentTokenAuthentication'],
+    'DEFAULT_AUTHENTICATION_CLASSES': ['apps.purchasing.api.authentication.AccountSessionAuthentication'],
     'EXCEPTION_HANDLER': 'apps.purchasing.api.exceptions.exception_handler',
     'DEFAULT_PARSER_CLASSES': ['apps.purchasing.api.parsers.LimitedJSONParser'],
     'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
@@ -91,3 +107,16 @@ DATABASES['default']['TEST'] = {'NAME': os.getenv('TEST_DB_NAME', 'test_jedel_ap
 
 X_FRAME_OPTIONS = 'DENY'
 SECURE_REFERRER_POLICY = 'same-origin'
+
+CSRF_TRUSTED_ORIGINS = env_list('CSRF_TRUSTED_ORIGINS', 'http://localhost:4200,http://127.0.0.1:4200' if DEBUG else '')
+
+AUTHENTICATION_BACKENDS = ['apps.purchasing.account_backend.EmailOrUsernameBackend']
+# Optional natural-language catalog interpreter; ordinary ERP/search works without it.
+AI_ENABLED = os.getenv('AI_ENABLED', 'false').lower() == 'true'
+AI_PROVIDER = os.getenv('AI_PROVIDER', 'openai')
+AI_MODEL = os.getenv('AI_MODEL', '').strip()
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+AI_TIMEOUT_SECONDS = min(30, max(1, int(os.getenv('AI_TIMEOUT_SECONDS', '15'))))
+AI_MAX_OUTPUT_TOKENS = min(1024, max(128, int(os.getenv('AI_MAX_OUTPUT_TOKENS', '512'))))
+AI_DAILY_CALL_LIMIT = min(1000, max(1, int(os.getenv('AI_DAILY_CALL_LIMIT', '100'))))
+AI_USER_DAILY_CALL_LIMIT = min(100, max(1, int(os.getenv('AI_USER_DAILY_CALL_LIMIT', '20'))))

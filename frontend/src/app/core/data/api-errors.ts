@@ -29,11 +29,13 @@ export function apiError(error: unknown): string {
   if (error.status === 0)
     return "Cannot reach Django. Check the server, API URL, network, and CORS settings. The outcome of a submitted write may be unknown; refresh before retrying.";
   if (error.status === 401)
-    return "Your API access token is missing or invalid. Reconnect in Settings.";
+    return "Your session has expired or you are signed out. Log in to continue.";
   if (error.status === 403)
-    return "This credential role does not permit that operation. Reconnect with the appropriate Buyer, Approver, or Admin credential.";
+    return "Access denied. Your assigned role does not permit this operation, or the security token has expired. Refresh and try again.";
   if (error.status === 404)
     return "This record no longer exists. Refresh the workspace.";
+  if (error.status === 503 && error.error?.code === 'authentication_setup_required')
+    return 'Accounts are not ready. Ask an administrator to finish database setup.';
   if (error.status >= 500)
     return "The API or database is unavailable. A submitted write may already have committed; refresh and check the record before retrying.";
   return (

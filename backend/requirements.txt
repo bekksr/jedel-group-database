@@ -3,3 +3,5 @@ Django==6.0.10
 djangorestframework==3.17.1
 django-cors-headers==4.9.0
 psycopg2==2.9.10
+# Optional provider dependency, lazily imported; no API call during startup.
+openai==3.49.0

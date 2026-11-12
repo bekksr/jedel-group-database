@@ -1,0 +1,3 @@
+product_id,supplier_id,unit_price,currency,unit,available_quantity,min_order_quantity,delivery_cost,delivery_days,quoted_at,valid_until,source,reference,specifications
+1,1,10.25,KZT,pcs,100,1,5.00,3,2026-11-11T17:16:18.471848+00:00,2026-11-19T17:16:18.471848+00:00,FICTIONAL - approved for interface testing only,FICTIONAL-A,TEST INPUT ONLY - selected product ID; no real supplier specification asserted
+1,1,9.50,KZT,pcs,100,1,20.00,3,2026-11-11T17:16:18.471848+00:00,2026-11-19T17:16:18.471848+00:00,FICTIONAL - approved for interface testing only,FICTIONAL-B,TEST INPUT ONLY - selected product ID; no real supplier specification asserted

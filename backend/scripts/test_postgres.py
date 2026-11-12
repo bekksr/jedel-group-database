@@ -24,6 +24,10 @@ def run(args, *, check=True, **kwargs):
         print('Temporary PostgreSQL cluster: ' + args[-1], flush=True)
         if result.returncode:
             print(logfile.read_text(encoding='utf-8', errors='replace'), flush=True)
+    elif len(args) > 2 and args[1:3] == ['manage.py', 'test']:
+        # Stream diagnostics so a failed/slow browser scenario cannot hide the
+        # completed tests when the outer safety timeout expires.
+        result = subprocess.run(args, stderr=subprocess.STDOUT, **kwargs)
     else:
         result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='replace', **kwargs)
         if result.stdout:
@@ -34,6 +38,8 @@ def run(args, *, check=True, **kwargs):
 
 
 def main():
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     configured = os.getenv('PG_BIN')
     candidates = [Path(configured)] if configured else [Path(r'C:\Program Files\PostgreSQL\17\bin')]
     binary = next((p for p in candidates if (p / ('initdb.exe' if os.name == 'nt' else 'initdb')).exists()), None)
@@ -56,11 +62,13 @@ def main():
         data = work / 'cluster'
         env = os.environ.copy()
         env.update({
-            'DJANGO_SETTINGS_MODULE': 'config.settings', 'DJANGO_DEBUG': 'true',
+            'JEDEL_LOAD_DOTENV': 'false', 'DJANGO_SETTINGS_MODULE': 'config.settings', 'DJANGO_DEBUG': 'true',
             'DB_NAME': 'postgres', 'DB_HOST': '127.0.0.1', 'DB_PORT': str(port),
             'DB_USER': 'jedel_test_admin', 'DB_PASSWORD': password, 'DB_SSLMODE': 'disable',
             'TEST_DB_NAME': 'test_jedel_api', 'JEDEL_ISOLATED_TESTS': '1',
             'ERP_READ_TOKEN': '', 'ERP_WRITE_TOKEN': '', 'ERP_BUYER_TOKEN': '', 'ERP_APPROVER_TOKEN': '', 'PGCONNECT_TIMEOUT': '5',
+            'AI_ENABLED': 'false', 'OPENAI_API_KEY': '', 'AI_MODEL': '',
+            'PYTHONIOENCODING': 'utf-8', 'PYTHONUNBUFFERED': '1',
         })
         flags = {'creationflags': subprocess.CREATE_NO_WINDOW} if os.name == 'nt' else {}
         run([str(binary / ('initdb' + suffix)), '-D', str(data), '-U', 'jedel_test_admin', '--pwfile', str(password_file), '--auth-host=scram-sha-256', '--auth-local=scram-sha-256', '--encoding=UTF8', '--locale=C'], check=True, env=env, **flags)
@@ -70,7 +78,11 @@ def main():
             started = True
             run([str(binary / ('pg_ctl' + suffix)), '-D', str(data), '-l', str(work / 'postgres.log'), '-o', f'-h 127.0.0.1 -p {port} -c jedel.isolated_test_cluster=on', '-w', 'start'], check=True, env=env, **flags)
             started = True
-            result = run([sys.executable, 'manage.py', 'test', *sys.argv[1:], '--noinput', '--verbosity', '2'], check=False, timeout=180, cwd=BACKEND, env=env, **flags)
+            if os.getenv('JEDEL_REHEARSAL_BACKUP'):
+                run([sys.executable, 'scripts/rehearse_auth_migrations.py'], timeout=120, cwd=BACKEND, env=env, **flags)
+            if os.getenv('JEDEL_VERIFY_DEVELOPMENT') == '1':
+                run([sys.executable, 'scripts/verify_development.py'], timeout=90, cwd=BACKEND, env=env, **flags)
+            result = run([sys.executable, 'manage.py', 'test', *sys.argv[1:], '--noinput', '--verbosity', '2'], check=False, timeout=300, cwd=BACKEND, env=env, **flags)
             return result.returncode
         finally:
             if started:

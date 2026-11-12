@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: jedel_dev
+      POSTGRES_USER: jedel_dev
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U jedel_dev -d jedel_dev"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DJANGO_DEBUG: "true"
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set DJANGO_SECRET_KEY in .env}
+      DB_HOST: db
+      DB_NAME: jedel_dev
+      DB_USER: jedel_dev
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      JEDEL_ISOLATED_DEVELOPMENT: "1"
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_MODEL: ${AI_MODEL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-15}
+      AI_MAX_OUTPUT_TOKENS: ${AI_MAX_OUTPUT_TOKENS:-512}
+      AI_DAILY_CALL_LIMIT: ${AI_DAILY_CALL_LIMIT:-100}
+      AI_USER_DAILY_CALL_LIMIT: ${AI_USER_DAILY_CALL_LIMIT:-20}
+    command: [sh, -c, "python manage.py init_development && python manage.py runserver 0.0.0.0:8000"]
+    depends_on:
+      db:
+        condition: service_healthy
+    ports: ["127.0.0.1:8000:8000"]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/')"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports: ["127.0.0.1:4200:4200"]
+volumes:
+  postgres_data:

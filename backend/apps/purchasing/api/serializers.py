@@ -41,6 +41,14 @@ class SupplierSerializer(StrictInputMixin, serializers.ModelSerializer):
         return value
 
 
+class PublicProductSerializer(serializers.ModelSerializer):
+    """Deliberate public allowlist: never reuse the purchasing serializer."""
+    class Meta:
+        model = Product
+        fields = ['product_id', 'product_name', 'category']
+        read_only_fields = fields
+
+
 class ProductSerializer(StrictInputMixin, serializers.ModelSerializer):
     product_name = StrictTextField(max_length=100)
     category = StrictTextField(max_length=50, required=False, allow_null=True, allow_blank=True)

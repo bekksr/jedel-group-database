@@ -60,7 +60,7 @@ class ApiAccessTests(SimpleTestCase):
     def test_read_token_cannot_write_and_invalid_token_is_denied(self):
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION='Bearer ' + 'r' * 40)
-        self.assertEqual(client.post('/api/products/', {}, format='json').status_code, 403)
+        self.assertEqual(client.post('/api/products/', {}, format='json').status_code, 401)
         client.credentials(HTTP_AUTHORIZATION='Bearer invalid')
         self.assertEqual(client.get('/api/suppliers/').status_code, 401)
 
@@ -262,13 +262,16 @@ class BusinessApiTests(FixtureMixin, TestCase):
         self.assertEqual({r['status']: r['count'] for r in statuses}, {'Pending': 0, 'Approved': 0, 'Delivered': 1, 'Cancelled': 1})
         self.assertEqual(self.client.get('/api/dashboard/?low_stock_threshold=-1').status_code, 400)
 
-    @override_settings(ERP_READ_TOKEN='r' * 40, ERP_WRITE_TOKEN='w' * 40)
-    def test_real_bearer_authentication_and_compatibility_alias(self):
-        client = APIClient(); client.credentials(HTTP_AUTHORIZATION='Bearer ' + 'r' * 40)
+    def test_real_session_authentication_and_compatibility_alias(self):
+        from django.contrib.auth.models import User, Group
+        client = APIClient()
+        user = User.objects.create_user('alias-viewer')
+        user.groups.add(Group.objects.get_or_create(name='Analyst / Tester')[0])
+        client.force_login(user)
         self.assertEqual(client.get('/api/suppliers/').status_code, 200)
         self.assertEqual(client.get('/api/v1/suppliers/').status_code, 200)
         self.assertEqual(client.post('/api/suppliers/', {}, format='json').status_code, 403)
-        client.credentials(HTTP_AUTHORIZATION='Bearer ' + 'w' * 40)
+        user.groups.clear(); user.groups.add(Group.objects.get_or_create(name='System Administrator')[0])
         self.assertEqual(client.post('/api/products/', {'product_name': 'Authorized', 'unit_price': '0.00'}, format='json').status_code, 201)
 
     def test_pagination(self):
@@ -335,7 +338,10 @@ class BusinessApiTests(FixtureMixin, TestCase):
 
     @override_settings(ERP_READ_TOKEN='r' * 40, ERP_WRITE_TOKEN='w' * 40)
     def test_complete_authenticated_supplier_to_delivery_flow(self):
-        client = APIClient(); client.credentials(HTTP_AUTHORIZATION='Bearer ' + 'w' * 40)
+        from django.contrib.auth.models import User, Group
+        client = APIClient()
+        user = User.objects.create_user('workflow-admin', password='Workflow-test-only-943!abcd', is_superuser=True)
+        client.force_login(user)
         scope = client.get('/api/access/')
         self.assertEqual(scope.status_code, 200); self.assertTrue(scope.data['can_write'])
         supplier = client.post('/api/suppliers/', {'supplier_name': 'Workflow test supplier', 'email': 'workflow@example.test'}, format='json')
@@ -354,7 +360,9 @@ class BusinessApiTests(FixtureMixin, TestCase):
         self.assertEqual(client.get('/api/dashboard/').data['total_purchasing_value'], '45.00')
         spending = client.get('/api/analytics/supplier-spending/').data['results']
         self.assertEqual(next(row for row in spending if row['supplier_id'] == supplier.data['supplier_id'])['total'], '45.00')
-        client.credentials(HTTP_AUTHORIZATION='Bearer ' + 'r' * 40)
+        viewer = User.objects.create_user('workflow-viewer')
+        viewer.groups.add(Group.objects.get_or_create(name='Analyst / Tester')[0])
+        client.force_login(viewer)
         self.assertFalse(client.get('/api/access/').data['can_write'])
         self.assertEqual(client.post('/api/products/', {}, format='json').status_code, 403)
 

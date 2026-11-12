@@ -1,3 +1,7 @@
+import { of } from 'rxjs';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Auth } from '../auth';
+import { vi } from 'vitest';
 import { provideHttpClient } from "@angular/common/http";
 import { provideHttpClientTesting } from "@angular/common/http/testing";
 import { Store } from "../store";
@@ -23,7 +27,9 @@ describe("Pages", () => {
         {
           provide: ActivatedRoute,
           useValue: {
+            queryParamMap: of(convertToParamMap({mode: 'register'})),
             snapshot: {
+              data: {},
               queryParamMap: convertToParamMap({
                 new: 1,
                 supplier: 2,
@@ -75,9 +81,10 @@ describe("Pages", () => {
       "only once",
     );
   });
-  it("rejects invalid registration and mismatched passwords then clears passwords", () => {
+  it("rejects invalid registration and mismatched passwords then clears passwords", async () => {
+    vi.spyOn(TestBed.inject(Auth), "register").mockResolvedValue(undefined);
     const p = TestBed.createComponent(RegisterPage).componentInstance;
-    p.submit();
+    await p.submit();
     expect(p.success()).toBe(false);
     p.form.setValue({
       name: "Test User",
@@ -85,12 +92,22 @@ describe("Pages", () => {
       password: "test12345",
       confirm: "different",
     });
-    p.submit();
-    expect(p.error()).toContain("match");
+    await p.submit();
+    expect(p.fieldError("confirm")).toContain("match");
     p.form.controls.confirm.setValue("test12345");
-    p.submit();
+    await p.submit();
     expect(p.success()).toBe(true);
     expect(p.form.controls.password.value).toBe("");
     expect(p.form.controls.confirm.value).toBe("");
   });
+  it('never reports successful registration when account schema setup is missing', async () => {
+    vi.spyOn(TestBed.inject(Auth), 'register').mockRejectedValue(new HttpErrorResponse({status: 503, error: {code: 'authentication_setup_required'}}));
+    const page = TestBed.createComponent(RegisterPage).componentInstance;
+    page.form.setValue({name: 'Applicant', email: 'applicant@example.test', password: 'Valid-password-982!x', confirm: 'Valid-password-982!x'});
+    await page.submit();
+    expect(page.success()).toBe(false);
+    expect(page.error()).toContain('database setup');
+    expect(page.form.controls.password.value).toBe('Valid-password-982!x');
+  });
+
 });

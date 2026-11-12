@@ -1,4 +1,5 @@
-import { Component, computed, inject, signal } from "@angular/core";
+import { WorkspaceStatus } from './workspace-status';
+import { Component, computed, effect, inject, signal, untracked } from "@angular/core";
 import { DecimalPipe } from "@angular/common";
 import {
   FormsModule,
@@ -15,8 +16,8 @@ import {
   OrderStatus,
   orderTotal,
 } from "../models";
-@Component({
-  imports: [DecimalPipe, FormsModule, ReactiveFormsModule],
+@Component({selector: "ng-component-orders",
+  imports: [WorkspaceStatus, DecimalPipe, FormsModule, ReactiveFormsModule],
   templateUrl: "./orders.html",
 })
 export class OrdersPage {
@@ -26,6 +27,7 @@ export class OrdersPage {
   readonly transitions = allowedTransitions;
   readonly formOpen = signal(false);
   readonly saving = signal(false);
+  readonly editingId = signal<number | null>(null);
   canCreate() {
     return (
       this.data.canWrite() &&
@@ -65,7 +67,14 @@ export class OrdersPage {
     items: this.fb.array([this.itemGroup()]),
   });
   constructor() {
-    const params = inject(ActivatedRoute).snapshot.queryParamMap;
+    const route = inject(ActivatedRoute);
+    const params = route.snapshot.queryParamMap;
+    let opened = false;
+    effect(() => {
+      if (!opened && route.snapshot.data?.['create'] && this.canCreate()) {
+        opened = true; untracked(() => this.open());
+      }
+    });
     if (params.get("new")) {
       this.open();
       const supplier = Number(params.get("supplier"));
@@ -129,9 +138,21 @@ export class OrdersPage {
         ) / 100
     );
   }
+  edit(id: number) {
+    if (!this.canCreate() || this.data.mode !== 'api') return;
+    const order = this.data.orders().find(o => o.order_id === id);
+    if (!order || order.status !== 'Pending') return;
+    this.open(); this.editingId.set(id);
+    this.form.patchValue({supplier_id: order.supplier_id, order_date: order.order_date, expected_delivery_date: order.expected_delivery_date ?? ''});
+    this.items.clear();
+    for (const item of this.orderItems(id)) {
+      const group = this.itemGroup(); group.patchValue({product_id: item.product_id, quantity: item.quantity}); this.items.push(group);
+    }
+  }
   open() {
+    this.editingId.set(null);
     if (!this.canCreate()) {
-      this.error.set("Connect with Buyer or Admin access, or open demo first.");
+      this.error.set("Your assigned role cannot create orders.");
       return;
     }
     this.form.reset({
@@ -158,10 +179,8 @@ export class OrdersPage {
     this.saving.set(true);
     try {
       const v = this.form.getRawValue();
-      const id = await this.data.createOrder({
-        ...v,
-        expected_delivery_date: v.expected_delivery_date || null,
-      });
+      const draft = {...v, expected_delivery_date: v.expected_delivery_date || null};
+      const id = this.editingId() === null ? await this.data.createOrder(draft) : await this.data.updateOrder(this.editingId()!, draft);
       this.selectedId.set(id);
       this.status.set("");
       this.formOpen.set(false);

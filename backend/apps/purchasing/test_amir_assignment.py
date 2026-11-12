@@ -216,10 +216,13 @@ class AmirConcurrentDeliveryTests(FixtureMixin, TransactionTestCase):
     @override_settings(ERP_APPROVER_TOKEN='t20-isolated-test-approver-credential-only')
     def test_T20_concurrent_delivery_does_not_double_count(self):
         pk = self.create()['order_id']; services.transition_order(pk, 'Approved')
+        from django.contrib.auth.models import User, Group
+        user = User.objects.create_user('concurrent-manager')
+        user.groups.add(Group.objects.get_or_create(name='Purchasing Manager')[0])
         barrier = Barrier(2, timeout=15)
         def deliver(_):
             connections.close_all()
-            client = APIClient(); client.credentials(HTTP_AUTHORIZATION='Bearer t20-isolated-test-approver-credential-only')
+            client = APIClient(); client.force_login(user)
             try:
                 barrier.wait()
                 return client.post(f'/api/orders/{pk}/deliver/', {}, format='json').status_code

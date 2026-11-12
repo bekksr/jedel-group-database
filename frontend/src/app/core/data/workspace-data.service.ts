@@ -69,9 +69,9 @@ export class WorkspaceDataService implements ErpData {
     if (this.mode !== "api") throw new Error("Select API mode first.");
     return this.api.connect(token);
   }
-  disconnect(): void {
+  disconnect(clearNotifications = true): void {
     this.api.disconnect();
-    this.notices.clear();
+    if (clearNotifications) this.notices.clear();
   }
   async refresh(): Promise<void> {
     if (this.mode === "api") await this.api.refresh();
@@ -128,6 +128,10 @@ export class WorkspaceDataService implements ErpData {
         "Order created in memory only. PostgreSQL was not changed.",
       );
     return id;
+  }
+  async updateOrder(id: number, value: OrderDraft): Promise<number> {
+    if (this.mode !== 'api') throw new Error('Order amendment requires the API workspace.');
+    return this.api.updateOrder(id, value);
   }
   transitionOrder(id: number, status: OrderStatus): Promise<void> {
     return this.demoWrite(

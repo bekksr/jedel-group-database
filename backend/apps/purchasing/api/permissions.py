@@ -8,12 +8,15 @@ class ReadOrWriteAccess(BasePermission):
         principal = request.user
         if not principal or not principal.is_authenticated:
             return False
+        from ..accounts import capabilities as account_capabilities
+        capabilities = getattr(principal, 'capabilities', None)
+        if capabilities is None:
+            capabilities = account_capabilities(principal)
         if request.method in SAFE_METHODS:
-            return True
+            return bool(capabilities.get('read', True))
         # Let the view report 405 for unsupported methods after authentication.
         if request.method.lower() not in view.http_method_names or not hasattr(view, request.method.lower()):
             return True
-        capabilities = getattr(principal, 'capabilities', {})
         action = getattr(view, 'action', '')
         if action in {'approve', 'deliver', 'cancel'}:
             return bool(capabilities.get('transition_orders'))

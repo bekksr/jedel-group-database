@@ -5,13 +5,14 @@
   </div>
   <button [disabled]="!canCreate()" (click)="open()">New order</button>
 </div>
+<app-workspace-status />
 @if(message()){
 <p role="status" class="note">{{message()}}</p>
 } @if(error()){
 <p role="alert" class="error">{{error()}}</p>
 } @if(formOpen()){
 <section class="panel">
-  <h2>New purchase order</h2>
+  <h2>{{editingId() === null ? "New purchase order" : "Amend Pending order"}}</h2>
   <form [formGroup]="form" (ngSubmit)="save()">
     <fieldset [disabled]="saving() || data.busy() || data.loading()">
       <div class="form-grid">
@@ -74,9 +75,10 @@
       <button class="secondary" type="button" (click)="items.push(itemGroup())">
         Add product
       </button>
+      <p class="hint">Existing products retain their captured order prices when amended; this catalog estimate may differ.</p>
       <p class="total">Estimated total: {{draftTotal() | number:'1.2-2'}} ₸</p>
       <div class="actions">
-        <button type="submit" [disabled]="!canCreate()">Create order</button
+        <button type="submit" [disabled]="!canCreate()">{{editingId() === null ? "Create order" : "Save amendment"}}</button
         ><button
           class="secondary"
           type="button"
@@ -134,7 +136,7 @@
       </tr>
       }@empty{
       <tr>
-        <td colspan="6">No orders match this filter.</td>
+        <td colspan="6">@if(!data.loading() && !data.error()) {No orders match this filter.}</td>
       </tr>
       }
     </tbody>
@@ -162,7 +164,10 @@
     }
   </ul>
   <p class="total">Total: {{total(o.order_id) | number:'1.2-2'}} ₸</p>
-  @if(transitions(o.status).length){
+  @if(o.status === 'Pending' && data.mode === 'api' && canCreate()) {
+    <button (click)="edit(o.order_id)">Edit Pending order</button>
+  }
+  @if(transitions(o.status).length && data.permissions().transitionOrders){
   <p class="hint">
     {{data.mode === 'demo' ? 'Demo delivery updates sample stock once.' :
     'Delivery is applied by the backend. Displayed stock updates after a
@@ -171,7 +176,7 @@
   <div class="actions">
     @for(s of transitions(o.status);track s){<button
       class="secondary"
-      (click)="transition(o.order_id,s)"
+      [disabled]="!canTransition()" (click)="transition(o.order_id,s)"
     >
       Mark {{s}}</button
     >}

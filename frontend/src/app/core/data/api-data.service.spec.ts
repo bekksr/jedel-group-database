@@ -1,3 +1,5 @@
+import { By } from '@angular/platform-browser';
+import { Auth } from '../../auth';
 import { OrdersPage } from '../../pages/orders';
 import { provideRouter } from "@angular/router";
 import { RouterTestingHarness } from "@angular/router/testing";
@@ -87,6 +89,7 @@ describe("Angular to Django API contract and state safety", () => {
         { provide: ERP_DATA, useExisting: WorkspaceDataService },
       ],
     });
+    TestBed.inject(Auth).user.set({username: 'test', name: 'Test', email: 'test@example.test', role: 'Analyst / Tester', capabilities: {read: true}});
     http = TestBed.inject(HttpTestingController);
     api = TestBed.inject(ApiDataService);
     workspace = TestBed.inject(WorkspaceDataService);
@@ -159,7 +162,7 @@ describe("Angular to Django API contract and state safety", () => {
     for (const [url, response] of Object.entries(responses)) {
       const request = http.expectOne(url);
       expect(request.request.headers.get("Authorization")).toBe(
-        "Bearer test-access-token",
+        null,
       );
       if (options.fail === url)
         request.flush(
@@ -307,7 +310,7 @@ describe("Angular to Django API contract and state safety", () => {
     await expect(pending).rejects.toThrow("outcome");
     expect(workspace.suppliers()).toEqual([]);
     expect(workspace.canWrite()).toBe(false);
-    await expect(workspace.deleteSupplier(11)).rejects.toThrow("write-scoped");
+    await expect(workspace.deleteSupplier(11)).rejects.toThrow("account cannot change");
   });
   it("refreshes current records on a constraint/status conflict and preserves the error", async () => {
     await connect();
@@ -331,7 +334,7 @@ describe("Angular to Django API contract and state safety", () => {
         category: "",
         unit_price: 1,
       }),
-    ).rejects.toThrow("write-scoped");
+    ).rejects.toThrow("account cannot change");
     await workspace.useDemo();
     expect(workspace.mode).toBe("demo");
     expect(workspace.suppliers().length).toBe(3);
@@ -389,7 +392,8 @@ describe("Angular to Django API contract and state safety", () => {
   it('disables creating orders for a Viewer and transitions for a Buyer', async () => {
     await connect({canWrite:false});
     const harness=await RouterTestingHarness.create();
-    const component=await harness.navigateByUrl('/orders',OrdersPage);
+    await harness.navigateByUrl('/orders');
+    const component = harness.routeDebugElement!.query(By.directive(OrdersPage)).componentInstance as OrdersPage;
     expect(component.canCreate()).toBe(false);
     expect(component.canTransition()).toBe(false);
     await component.save();
@@ -403,7 +407,8 @@ describe("Angular to Django API contract and state safety", () => {
   it('keeps the new order form and values after a server validation error', async () => {
     await connect();
     const harness=await RouterTestingHarness.create();
-    const component=await harness.navigateByUrl('/orders?new=1&supplier=11&product=21',OrdersPage);
+    await harness.navigateByUrl('/orders?new=1&supplier=11&product=21');
+    const component = harness.routeDebugElement!.query(By.directive(OrdersPage)).componentInstance as OrdersPage;
     const pending=component.save();
     http.expectOne('/api/orders/').flush({items:['Rejected test quantity']},{status:400,statusText:'Bad Request'});
     await pending;
@@ -415,7 +420,8 @@ describe("Angular to Django API contract and state safety", () => {
   it('closes the form without a false success message when a committed create cannot refresh', async () => {
     await connect();
     const harness=await RouterTestingHarness.create();
-    const component=await harness.navigateByUrl('/orders?new=1&supplier=11&product=21',OrdersPage);
+    await harness.navigateByUrl('/orders?new=1&supplier=11&product=21');
+    const component = harness.routeDebugElement!.query(By.directive(OrdersPage)).componentInstance as OrdersPage;
     const pending=component.save();
     const request=http.expectOne('/api/orders/');
     expect(request.request.body.items[0]).toEqual({product_id:21,quantity:1});

@@ -151,4 +151,5 @@ class OrderStatusView(APIView):
 
 class AccessView(APIView):
     def get(self, request):
-        return Response({'can_write': bool(request.user.can_write), 'authentication': 'shared_bearer_token', 'role_based_security': True, 'role': request.user.role, 'capabilities': request.user.capabilities})
+        from ..accounts import profile
+        return Response({**profile(request.user), 'authentication': 'session', 'role_based_security': True})

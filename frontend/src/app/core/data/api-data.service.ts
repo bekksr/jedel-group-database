@@ -130,7 +130,7 @@ export class ApiDataService implements ErpData {
   readonly loading = signal(false);
   readonly busy = signal(false);
   readonly error = signal(
-    "API not connected. Open Settings to enter an access token and connect to PostgreSQL through Django.",
+    "API not connected. Log in to load the PostgreSQL workspace.",
   );
   readonly suppliers = computed(() => this.state().suppliers);
   readonly products = computed(() => this.state().products);
@@ -146,7 +146,7 @@ export class ApiDataService implements ErpData {
     return `${this.baseUrl}/${path}`;
   }
   private headers(): HttpHeaders {
-    return new HttpHeaders({ Authorization: `Bearer ${this.token}` });
+    return new HttpHeaders();
   }
   private get<T>(path: string): Promise<T> {
     return firstValueFrom(
@@ -165,13 +165,10 @@ export class ApiDataService implements ErpData {
     }
     throw new Error("The result set is too large to load. Contact support.");
   }
-  async connect(token: string): Promise<void> {
+  async connect(_token = ""): Promise<void> {
     if (this.busy() || this.loading())
       throw new Error("Wait for the current request to finish.");
     this.disconnect();
-    this.token = token.trim();
-    if (!this.token || /\s/.test(this.token))
-      throw new Error("Enter a valid bearer access token.");
     await this.refresh();
   }
   disconnect(): void {
@@ -195,10 +192,6 @@ export class ApiDataService implements ErpData {
       throw new Error(
         "The workspace is already refreshing. Wait for it to finish.",
       );
-    if (!this.token) {
-      this.error.set("API not connected. Connect in Settings.");
-      throw new Error(this.error());
-    }
     const epoch = ++this.epoch;
     this.loading.set(true);
     try {
@@ -290,7 +283,7 @@ export class ApiDataService implements ErpData {
       throw new Error("Wait for the current request to finish.");
     if (!this.connected() || !this.canWrite())
       throw new Error(
-        "Connect with a write-scoped token in Settings before changing records.",
+        "Your account cannot change records.",
       );
     this.busy.set(true);
     try {
@@ -385,6 +378,10 @@ export class ApiDataService implements ErpData {
       value,
       "Purchase order creation",
     );
+    return response.order_id;
+  }
+  async updateOrder(id: number, value: OrderDraft): Promise<number> {
+    const response = await this.write<ApiOrder>('PATCH', `orders/${id}/`, value, 'Pending order amendment');
     return response.order_id;
   }
   async transitionOrder(id: number, status: OrderStatus): Promise<void> {

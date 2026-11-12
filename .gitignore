@@ -47,3 +47,7 @@ pgpass.conf
 *.swo
 *~
 .cache/
+
+# Browser test artifacts (may contain local test session cookies)
+frontend/test-results/
+frontend/playwright-report/

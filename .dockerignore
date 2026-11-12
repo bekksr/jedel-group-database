@@ -1,0 +1,9 @@
+**/node_modules
+**/.venv
+**/.runtime
+**/__pycache__
+**/dist
+**/.angular
+.git
+**/.env
+database/backups
