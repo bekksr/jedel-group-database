@@ -1,3 +1,5 @@
+> Historical verification record. The provider configuration below predates the Groq-only conversion. Use [AI_COPILOT.md](AI_COPILOT.md) and [GROQ_CONVERSION_RESULTS.md](GROQ_CONVERSION_RESULTS.md) for current setup and results.
+
 # Copilot testability diagnosis and results
 
 Date: 2026-11-12. Branch: feature/fullstack-integration-auth; existing dirty work preserved. No commit/push/migration or live business/account/permission write.

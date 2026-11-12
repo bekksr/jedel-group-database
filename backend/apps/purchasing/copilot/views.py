@@ -12,7 +12,7 @@ from ..accounts import capabilities
 from ..api.parsers import PayloadTooLarge
 from . import tools
 from .offers import compare_supplier_offers
-from .provider import configured, get_provider, reserve_budget
+from .provider import readiness, get_provider, reserve_budget
 from .validation import ChatInput
 from .orchestration import local_request
 
@@ -27,7 +27,7 @@ class CopilotThrottle(SimpleRateThrottle):
 
 class ChatThrottle(CopilotThrottle):
     scope = 'copilot-chat'
-    def get_rate(self): return '5/min'
+    def get_rate(self): return f'{settings.AI_CHAT_REQUESTS_PER_MINUTE}/min'
 
 
 class CopilotParser(JSONParser):
@@ -50,8 +50,10 @@ class CapabilitiesView(CopilotView):
         caps = capabilities(request.user) if private else {}
         return Response({'product_search': True, 'offer_comparison': bool(caps.get('read')), 'inventory': bool(caps.get('read')),
                          'order_draft': bool(caps.get('create_orders')), 'order_status': bool(caps.get('read')),
-                         'chat_configured': configured(), 'chat_requires_login': True,
-                         'chat_scope': 'Optional natural-language public-catalog search only. Your submitted message is sent to OpenAI; private ERP data is never sent.',
+                         'chat_configured': readiness() == 'configured_unverified', 'chat_requires_login': True,
+                         'chat_status': readiness(),
+                         'provider': 'groq',
+                         'chat_scope': 'Only your current consented message goes to Groq. Private ERP records and tool results never leave Django. No conversation history is transmitted.',
                          'quotation_storage': 'Request only; nothing is persisted.', 'low_stock_threshold': 20,
                          'threshold_basis': 'Proposed per-request threshold; not stored product reorder levels.'})
 
@@ -96,8 +98,19 @@ class ChatView(InventoryView):
             raise PermissionDenied('Confirm consent to send this message to the configured AI provider. Do not include confidential information.')
         provider = get_provider()
         reserve_budget(request.user.pk)
-        # One interpretation call, one whitelisted read; no recursive agent loop,
-        # arbitrary tool dispatch, provider prose, external search or writes.
+        # One cloud request, at most one local tool. Never send tool results back.
         plan = provider.interpret(data['message'])
+        tool = plan.get('tool')
+        if tool == 'conversation':
+            return Response({'kind': 'conversation', 'message': plan['message'], 'source': 'Groq general conversation; not PostgreSQL facts'})
+        if tool == 'inventory':
+            return Response({'kind': 'inventory', 'inventory': tools.get_authorized_inventory(request.user, **plan['arguments']), 'message': 'Source: PostgreSQL inventory. Groq interpreted the question; database results remain local.'})
+        if tool == 'order_status':
+            return Response({'kind': 'order_status', 'order_status': tools.get_authorized_order_status(request.user, **plan['arguments']), 'message': 'Source: PostgreSQL purchase orders. Read only; results remain local.'})
+        if tool == 'draft':
+            return Response({'kind': 'draft', 'draft': tools.propose_order(request.user, **plan['arguments']), 'message': 'Review-only local draft. Nothing was saved or sent to Groq.'})
+        if tool == 'compare_quotations':
+            tools.require(request.user)
+            return Response({'kind': 'guidance', 'message': 'Select a product and use Best offer finder with approved quotation CSV and confirmed equivalent specifications. Comparison uses Decimal locally; quotations are never sent to Groq.', 'source': 'Local comparison guidance'})
         result = tools.search_products(request.user, **plan)
         return Response({'kind': 'ai_interpreted_catalog_search', 'message': f"Found {len(result['results'])} matching catalog records. Results below come from PostgreSQL; the model only interpreted the search filters.", **result})

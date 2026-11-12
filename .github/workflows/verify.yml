@@ -1,0 +1,95 @@
+name: ERP portability
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Source and secret-template guard
+        run: python scripts/check_configuration_safety.py
+      - name: PostgreSQL 17 tools (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-17 libpq-dev
+          echo 'PG_BIN=/usr/lib/postgresql/17/bin' >> "$GITHUB_ENV"
+      - name: PostgreSQL 17 tools (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install postgresql@17
+          echo "PG_BIN=$(brew --prefix postgresql@17)/bin" >> "$GITHUB_ENV"
+          echo "$(brew --prefix postgresql@17)/bin" >> "$GITHUB_PATH"
+      - name: PostgreSQL 17 tools (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'C:/Program Files/PostgreSQL/17/bin/initdb.exe')) {
+            throw 'This runner lacks PostgreSQL 17 tools. Update the runner image/tool-install step; no shared service or credential fallback is allowed.'
+          }
+          'PG_BIN=C:/Program Files/PostgreSQL/17/bin' >> $env:GITHUB_ENV
+      - name: Install locked dependencies
+        shell: bash
+        run: |
+          python -m venv backend/.venv
+          if [ "$RUNNER_OS" = Windows ]; then task_python=backend/.venv/Scripts/python.exe; else task_python=backend/.venv/bin/python; fi
+          "$task_python" -m pip install -r backend/requirements.txt
+          cd frontend
+          npm ci
+      - name: Frontend tests and production build
+        working-directory: frontend
+        run: |
+          npm test -- --watch=false
+          npm run build
+      - name: Dependency advisory check (high/critical gate)
+        working-directory: frontend
+        run: npm audit --audit-level=high
+      - name: Fresh initialization, restart and backend regressions
+        shell: bash
+        env:
+          JEDEL_VERIFY_DEVELOPMENT: '1'
+        run: |
+          cd backend
+          if [ "$RUNNER_OS" = Windows ]; then task_python=.venv/Scripts/python.exe; else task_python=.venv/bin/python; fi
+          "$task_python" scripts/test_postgres.py
+      - name: Real browser regression (Ubuntu)
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          JEDEL_BROWSER_TESTS: '1'
+        run: |
+          cd frontend
+          npx playwright install --with-deps chromium
+          cd ../backend
+          .venv/bin/python scripts/test_postgres.py apps.purchasing.test_browser
+  compose:
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROJECT_NAME: jedel-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      JEDEL_COMPOSE_SMOKE: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate private config and validate Compose
+        run: bash scripts/setup-docker.sh
+      - name: Fresh container build and health checks
+        run: docker compose up --build -d --wait --wait-timeout 240
+      - name: Explicit fictional catalog and persistence smoke
+        run: |
+          docker compose exec -T backend python manage.py seed_demo --confirm
+          python3 scripts/smoke_compose.py --project "$COMPOSE_PROJECT_NAME"
+      - name: Stop this ephemeral project
+        if: always()
+        run: docker compose down

@@ -111,12 +111,13 @@ SECURE_REFERRER_POLICY = 'same-origin'
 CSRF_TRUSTED_ORIGINS = env_list('CSRF_TRUSTED_ORIGINS', 'http://localhost:4200,http://127.0.0.1:4200' if DEBUG else '')
 
 AUTHENTICATION_BACKENDS = ['apps.purchasing.account_backend.EmailOrUsernameBackend']
-# Optional natural-language catalog interpreter; ordinary ERP/search works without it.
+# Groq-only optional conversation/tool planner; local ERP tools work without it.
 AI_ENABLED = os.getenv('AI_ENABLED', 'false').lower() == 'true'
-AI_PROVIDER = os.getenv('AI_PROVIDER', 'openai')
-AI_MODEL = os.getenv('AI_MODEL', '').strip()
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+AI_PROVIDER = os.getenv('AI_PROVIDER', 'groq')
+AI_MODEL = os.getenv('AI_MODEL', 'openai/gpt-oss-20b').strip()
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
 AI_TIMEOUT_SECONDS = min(30, max(1, int(os.getenv('AI_TIMEOUT_SECONDS', '15'))))
 AI_MAX_OUTPUT_TOKENS = min(1024, max(128, int(os.getenv('AI_MAX_OUTPUT_TOKENS', '512'))))
 AI_DAILY_CALL_LIMIT = min(1000, max(1, int(os.getenv('AI_DAILY_CALL_LIMIT', '100'))))
 AI_USER_DAILY_CALL_LIMIT = min(100, max(1, int(os.getenv('AI_USER_DAILY_CALL_LIMIT', '20'))))
+AI_CHAT_REQUESTS_PER_MINUTE = min(20, max(1, int(os.getenv('AI_CHAT_REQUESTS_PER_MINUTE', '5'))))

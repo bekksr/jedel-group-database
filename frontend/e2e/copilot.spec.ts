@@ -7,6 +7,34 @@ async function login(page: import('@playwright/test').Page, username: string) {
   await page.locator('form').getByRole('button',{name:'Log in',exact:true}).click();
   await expect(page).toHaveURL(/\/$/);
 }
+
+test('Groq consent checkbox stays visible and enables Ask without external requests',async({browser})=>{
+  if(process.env['JEDEL_ISOLATED_BROWSER']!=='1') throw new Error('Use isolated PostgreSQL harness.');
+  const context=await browser.newContext({extraHTTPHeaders:{'X-Forwarded-For':'198.51.100.29'}});
+  const page=await context.newPage();
+  await login(page,'browser-basic-pages');
+  // Configuration fixture only: never invoke or fake a cloud answer.
+  await page.route('**/api/ai/capabilities/',async route=>{
+    const response=await route.fetch();
+    await route.fulfill({response,json:{...await response.json(),chat_configured:true}});
+  });
+  await page.route('**/api/ai/chat/',()=>{throw new Error('Consent-only test must not submit a cloud request');});
+  await page.goto('/ai-assistant');
+  const consent=page.getByRole('checkbox',{name:/I agree to send this message to Groq/});
+  const ask=page.getByRole('button',{name:'Ask Copilot',exact:true});
+  for(const width of [1440,390]) {
+    await page.setViewportSize({width,height:900});
+    await expect(consent).toBeVisible();
+    await expect(consent).toBeEnabled();
+    await page.getByLabel('Message',{exact:true}).fill('can you find electronics');
+    const box=await consent.boundingBox();expect(box!.width).toBeGreaterThanOrEqual(20);expect(box!.height).toBeGreaterThanOrEqual(20);
+    await expect(ask).toBeDisabled();
+    await consent.focus();await page.keyboard.press('Space');
+    await expect(consent).toBeChecked();await expect(ask).toBeEnabled();
+    await consent.uncheck();await expect(ask).toBeDisabled();
+  }
+  await context.close();
+});
 test('anonymous and Basic use real safe Copilot search on desktop and mobile',async({browser})=>{
   if(process.env['JEDEL_ISOLATED_BROWSER']!=='1') throw new Error('Use isolated PostgreSQL harness.');
   for(const username of ['', 'browser-basic-pages']) {
@@ -21,7 +49,7 @@ test('anonymous and Basic use real safe Copilot search on desktop and mobile',as
     await page.getByRole('button',{name:'Search catalog',exact:true}).click();
     await expect(page.getByRole('heading',{name:'Public catalog hardware',exact:true})).toBeVisible();
     await expect(page.getByRole('heading',{name:'Public catalog office',exact:true})).toHaveCount(0);
-    await expect(page.getByText('AI chat is not configured.',{exact:false})).toBeVisible();
+    await expect(page.getByText('Groq chat is not configured.',{exact:false})).toBeVisible();
     await expect(page.getByRole('heading',{name:'Best offer finder',exact:true})).toHaveCount(0);
     const safe=await page.request.post('/api/ai/products/search/',{data:{query:'Public catalog'},headers:{'X-CSRFToken':(await context.cookies()).find(cookie=>cookie.name==='csrftoken')!.value}});
     expect(safe.status()).toBe(200);

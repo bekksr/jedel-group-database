@@ -92,7 +92,7 @@ export class CopilotPage {
   });}
   localCapability(): 'inventory' | 'order_draft' | 'order_status' | null {
     const text = this.message.trim().replace(/[.?!]+$/, '').trim();
-    if (/^(which products have low stock|what items should we consider purchasing|show low stock)$/i.test(text) || /^show inventory levels for category .{1,50}$/i.test(text)) return 'inventory';
+    if (/^(which products have low stock|what items should we consider purchasing|show low stock|\u043a\u0430\u043a\u0438\u0435 \u0442\u043e\u0432\u0430\u0440\u044b \u0437\u0430\u043a\u0430\u043d\u0447\u0438\u0432\u0430\u044e\u0442\u0441\u044f|\u043f\u043e\u043a\u0430\u0436\u0438 \u0442\u043e\u0432\u0430\u0440\u044b \u0441 \u043d\u0438\u0437\u043a\u0438\u043c \u043e\u0441\u0442\u0430\u0442\u043a\u043e\u043c)$/i.test(text) || /^show inventory levels for category .{1,50}$/i.test(text)) return 'inventory';
     if (/^(?:help me )?prepare a purchase order for \d{1,7} units of product #?\d{1,10} from supplier #?\d{1,10}$/i.test(text)) return 'order_draft';
     if (/^show purchase order #?\d{1,10} status$/i.test(text)) return 'order_status';
     return null;
@@ -108,20 +108,20 @@ export class CopilotPage {
     if (!this.auth.user()) return 'Log in to submit a question. Public catalog filters work without login.';
     if (!this.message.trim()) return 'Enter a question, or choose an available local example below.';
     const local = this.localCapability();
-    if (local) return this.caps()?.[local] ? 'Ready: this question runs locally in Django. No OpenAI key, consent or API credits are needed.' : 'Your assigned role cannot use this local tool. Request access from your administrator; logging in again does not grant permission.';
+    if (local) return this.caps()?.[local] ? 'Ready: this question runs locally in Django. No Groq key, consent or API credits are needed.' : 'Your assigned role cannot use this local tool. Request access from your administrator; logging in again does not grant permission.';
     if (!this.caps()?.chat_configured) return 'This wording needs optional AI interpretation, which is not configured. Use catalog filters or one of the supported local questions.';
-    if (!this.consent) return 'To use OpenAI, confirm consent below. Do not include confidential information.';
-    return 'Ready: this message will be sent to the configured OpenAI provider and may incur usage charges.';
+    if (!this.consent) return 'Select the Groq consent checkbox above to enable Ask Copilot. Do not include confidential information.';
+    return 'Ready: this message will be sent to the configured Groq provider and uses your Groq account quota; no provider fallback is used.';
   }
   suggestInventory() {this.message = 'Which products have low stock?';}
   chat() {const text = this.message.trim(); if (!text) return; const generation = this.generation; return this.run(async () => {
     const result = await this.api.post<ChatResult>('chat', {message: text, consent_to_provider: this.consent});
     if (generation === this.generation) {
-      this.messages.update(messages => [...messages.slice(-8), {kind: 'user', text}, {kind: 'assistant', text: result.message ?? 'Catalog search completed.'}]);
+      this.messages.update(messages => [...messages.slice(-8), {kind: 'user', text}, {kind: 'assistant', text: (result.kind === 'conversation' ? 'Groq - General conversation (not database facts): ' : '') + (result.message ?? 'Catalog search completed.')}]);
       if(result.kind === 'inventory') this.inventory.set(result.inventory);
       else if(result.kind === 'draft') this.draft.set(result.draft);
       else if(result.kind === 'order_status') this.status.set(result.order_status);
-      else this.searchResult.set(result);
+      else if(result.kind === 'ai_interpreted_catalog_search') this.searchResult.set(result);
       this.message = '';
     }
   });}

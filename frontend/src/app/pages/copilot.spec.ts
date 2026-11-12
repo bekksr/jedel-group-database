@@ -22,7 +22,7 @@ async function setup(authorized=false) {
 async function csrf() {http.expectOne('/api/auth/csrf/').flush({});await new Promise(resolve=>setTimeout(resolve,0));}
 it('renders useful public tools without provider or private data requests',async()=>{
   const fixture=await setup();const text=fixture.nativeElement.textContent;
-  expect(text).toContain('AI Procurement Copilot');expect(text).toContain('AI chat is not configured');
+  expect(text).toContain('AI Procurement Copilot');expect(text).toContain('Groq chat is not configured');
   expect(text).toContain('Search the product catalog');expect(text).not.toContain('Best offer finder');expect(text).not.toContain('Inventory assistant');
   http.expectNone('/api/ai/suppliers/');
 });
@@ -60,6 +60,31 @@ it('chat uses explicit consent and displays backend-grounded messages',async()=>
   request.flush({results:[product],source:'PostgreSQL',kind:'ai_interpreted_catalog_search',truncated:false,filters:{query:'laptop',category:'',match:'partial'},message:'Found 1 matching catalog records.'});await action;await fixture.whenStable();
   expect(fixture.nativeElement.textContent).toContain('Found 1 matching catalog records.');expect(fixture.nativeElement.textContent).toContain('You:');
 });
+it('labels Groq conversation without treating prose as catalog results or sending history',async()=>{
+  const fixture=await setup();const page=fixture.componentInstance;
+  page.caps.set({...publicCaps,chat_configured:true});page.message='Hello';page.consent=true;
+  page.messages.set([{kind:'assistant',text:'Previously shown private local result'}]);
+  const action=page.chat();await csrf();const request=http.expectOne('/api/ai/chat/');
+  expect(Object.keys(request.request.body).sort()).toEqual(['consent_to_provider','message']);
+  request.flush({kind:'conversation',message:'Hello! I can explain procurement.',source:'Groq general conversation; not PostgreSQL facts'});
+  await action;await fixture.whenStable();
+  expect(fixture.nativeElement.textContent).toContain('AI Assistant is ready');
+  expect(fixture.nativeElement.textContent).toContain('not database facts');
+  expect(page.searchResult()).toBeNull();
+});
+it('recognizes Russian local stock questions without cloud configuration or consent',async()=>{
+  const fixture=await setup(true);fixture.componentInstance.message='Какие товары заканчиваются?';
+  expect(fixture.componentInstance.localCapability()).toBe('inventory');
+  expect(fixture.componentInstance.canSend()).toBe(true);
+});
+it('explains a missing backend SDK and keeps cloud submission disabled',async()=>{
+  const fixture=await setup();const page=fixture.componentInstance;
+  page.caps.set({...publicCaps,chat_status:'missing_sdk'});page.message='Hello';page.consent=true;
+  await fixture.whenStable();
+  expect(page.canSend()).toBe(false);
+  expect(fixture.nativeElement.textContent).toContain('missing the Groq-compatible SDK');
+  expect(fixture.nativeElement.textContent).toContain('Search the product catalog');
+});
 it('renders a review-only draft and inventory with explicit threshold',async()=>{
   const fixture=await setup(true);fixture.componentInstance.choose(product);fixture.componentInstance.supplierId=2;
   let action=fixture.componentInstance.prepare();await csrf();http.expectOne('/api/ai/orders/draft/').flush({draft_only:true,persisted:false,supplier:{supplier_id:2,supplier_name:'Authorized supplier'},items:[{product_id:1,product_name:product.product_name,quantity:1,unit_price:'10.25',subtotal:'10.25'}],currency:'KZT',source:'Catalog price',warnings:['No order was changed.']});await action;await fixture.whenStable();
@@ -87,7 +112,7 @@ it('explains disabled external chat and distinguishes local query permissions',a
   const fixture=await setup();const page=fixture.componentInstance;
   page.message='Find Laptop Dell';expect(page.canSend()).toBe(false);expect(page.sendHint()).toContain('not configured');
   page.message='Which products have low stock?';expect(page.canSend()).toBe(false);expect(page.sendHint()).toContain('assigned role');
-  page.caps.set({...publicCaps,inventory:true});expect(page.canSend()).toBe(true);expect(page.sendHint()).toContain('No OpenAI key');
+  page.caps.set({...publicCaps,inventory:true});expect(page.canSend()).toBe(true);expect(page.sendHint()).toContain('No Groq key');
   page.message='What is inventory?';expect(page.canSend()).toBe(false);
   page.message='Show inventory levels for category Electronics.';expect(page.canSend()).toBe(true);
   page.message='Prepare a purchase order for 20 units of product 1 from supplier 1.';expect(page.canSend()).toBe(false);

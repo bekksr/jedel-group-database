@@ -2,6 +2,8 @@
 
 # Team development setup
 
+> Current setup scripts and maintained copy-paste commands are in the [root README](../README.md). Use `scripts/setup-docker.ps1` or `bash scripts/setup-docker.sh` for first-time secret generation, and the native `setup-windows.ps1` / `setup-macos.sh` scripts instead of repeating the older manual environment-variable procedure below. The procedures below remain historical/manual alternatives; never overwrite an existing `.env`. See [current portability evidence](PORTABILITY_REPORT.md).
+
 Use Python 3.13, Node 22 (22.12 or later), npm, and PostgreSQL 17. Docker Desktop with Compose is the easiest cross-platform option; install the correct Docker Desktop build for Apple Silicon or Intel. These are development servers, not a production deployment.
 
 ## Docker: Windows or macOS

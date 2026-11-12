@@ -63,11 +63,14 @@ def main():
         env = os.environ.copy()
         env.update({
             'JEDEL_LOAD_DOTENV': 'false', 'DJANGO_SETTINGS_MODULE': 'config.settings', 'DJANGO_DEBUG': 'true',
+            'DJANGO_SECRET_KEY': secrets.token_urlsafe(48),
             'DB_NAME': 'postgres', 'DB_HOST': '127.0.0.1', 'DB_PORT': str(port),
             'DB_USER': 'jedel_test_admin', 'DB_PASSWORD': password, 'DB_SSLMODE': 'disable',
             'TEST_DB_NAME': 'test_jedel_api', 'JEDEL_ISOLATED_TESTS': '1',
             'ERP_READ_TOKEN': '', 'ERP_WRITE_TOKEN': '', 'ERP_BUYER_TOKEN': '', 'ERP_APPROVER_TOKEN': '', 'PGCONNECT_TIMEOUT': '5',
-            'AI_ENABLED': 'false', 'OPENAI_API_KEY': '', 'AI_MODEL': '',
+            'AI_ENABLED': 'false', 'GROQ_API_KEY': '', 'AI_MODEL': '',
+            'AI_PROVIDER': 'groq',
+            'JEDEL_TEST_CLUSTER_DATA': str(data), 'JEDEL_TEST_PG_BIN': str(binary),
             'PYTHONIOENCODING': 'utf-8', 'PYTHONUNBUFFERED': '1',
         })
         flags = {'creationflags': subprocess.CREATE_NO_WINDOW} if os.name == 'nt' else {}

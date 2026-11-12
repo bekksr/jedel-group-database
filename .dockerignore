@@ -6,4 +6,11 @@
 **/.angular
 .git
 **/.env
+**/.env.*
+**/*.backup
+**/*.dump
+**/*.pem
+**/*.key
+**/test-results
+**/playwright-report
 database/backups

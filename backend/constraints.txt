@@ -1,0 +1,22 @@
+# Resolved on Python 3.13; constraints pin transitive dependencies without forcing platform-only packages.
+annotated-types==0.8.0
+anyio==4.16.0
+asgiref==3.13.0
+django-cors-headers==4.9.0
+Django==6.0.10
+djangorestframework==3.17.1
+h11==0.16.0
+httpcore2==2.16.0
+httpx2==2.16.0
+idna==3.20
+jiter==0.19.0
+openai==3.49.0
+psycopg2==2.9.10
+pydantic==2.14.3
+pydantic_core==2.50.4
+sniffio==1.3.1
+sqlparse==0.6.1
+truststore==0.10.5
+typing-inspection==0.4.5
+typing_extensions==4.16.0
+tzdata==2026.6

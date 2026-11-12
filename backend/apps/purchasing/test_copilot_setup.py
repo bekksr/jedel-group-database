@@ -7,7 +7,14 @@ from .management.commands.copilot_status import status_report
 
 
 class CopilotSetupTests(SimpleTestCase):
-    @override_settings(OPENAI_API_KEY='test-secret-sentinel', AI_MODEL='private-model-sentinel', AI_ENABLED=True, AI_PROVIDER='openai')
+    def test_smoke_requires_explicit_opt_in_and_never_calls_provider_by_default(self):
+        from unittest.mock import patch
+        with patch('apps.purchasing.management.commands.copilot_smoke.get_provider') as provider:
+            with self.assertRaises(CommandError):
+                call_command('copilot_smoke')
+            provider.assert_not_called()
+
+    @override_settings(GROQ_API_KEY='test-secret-sentinel', AI_MODEL='openai/gpt-oss-20b', AI_ENABLED=True, AI_PROVIDER='groq')
     def test_status_never_exposes_credentials_or_model_values_or_queries_database(self):
         output = StringIO()
         call_command('copilot_status', stdout=output)
@@ -15,11 +22,11 @@ class CopilotSetupTests(SimpleTestCase):
         self.assertNotIn('private-model-sentinel', output.getvalue())
         self.assertIn('provider availability unverified', output.getvalue())
 
-    @override_settings(OPENAI_API_KEY='', AI_MODEL='', AI_ENABLED=False)
+    @override_settings(GROQ_API_KEY='', AI_MODEL='', AI_ENABLED=False)
     def test_missing_configuration_is_explicit(self):
         result = status_report()
         self.assertFalse(result['provider_configuration_complete'])
-        self.assertEqual(result['settings']['OPENAI_API_KEY']['status'], 'missing')
+        self.assertEqual(result['settings']['GROQ_API_KEY']['status'], 'missing')
 
     def test_fictional_csv_has_exact_schema_and_refuses_overwrite(self):
         import csv

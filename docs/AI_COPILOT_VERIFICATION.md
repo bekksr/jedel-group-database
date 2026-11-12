@@ -1,3 +1,5 @@
+> Historical verification record. The provider configuration below predates the Groq-only conversion. Use [AI_COPILOT.md](AI_COPILOT.md) and [GROQ_CONVERSION_RESULTS.md](GROQ_CONVERSION_RESULTS.md) for current setup and results.
+
 # Copilot delivery and verification
 
 The architecture, endpoints, role matrix, configuration, CSV schema/calculations, startup commands, test commands and limitations are in [AI_COPILOT.md](AI_COPILOT.md).

@@ -1,6 +1,6 @@
 # Jedel Procurement Copilot: implementation and operation
 
-The MVP adds `/ai-assistant` and read-only Django tools without database migrations. It is useful with no AI key: real catalog filtering, approved CSV quotation comparison, authorized inventory questions and review-only order proposals work locally. Optional natural-language catalog interpretation uses an OpenAI provider adapter. No model can approve, deliver, cancel, create orders or edit inventory.
+The MVP adds `/ai-assistant` and read-only Django tools without database migrations. It is useful with no AI key: real catalog filtering, approved CSV quotation comparison, authorized inventory questions and review-only order proposals work locally. GroqCloud is the only cloud provider. English/Russian conversation and tool selection reuse the existing assistant. No model can approve, deliver, cancel, create orders or edit inventory.
 
 ## Audit and available evidence
 
@@ -19,7 +19,7 @@ flowchart TD
   API --> CSV[Request-scoped quotation validation and Decimal ranking]
   CSV --> Tools
   API --> Provider[Optional provider interface: one search interpretation]
-  Provider --> OpenAI[Responses API]
+  Provider --> Groq[Groq Responses API]
   Provider --> Safe[Validated public catalog filters only]
   Safe --> Tools
 ```
@@ -35,9 +35,14 @@ Private local questions are handled before provider configuration/consent checks
 
 Use actual IDs; these examples are syntax, not assertions that those records exist. Category inventory returns all matching stock levels, at most 20. Low-stock requests use the explicitly proposed threshold 20; structured inventory controls allow a different request threshold. There is no stored product reorder point or forecast. Unsupported private purchasing instructions are rejected locally and never forwarded to the provider. There is no general SQL, filesystem, URL fetch, marketplace scraper or arbitrary tool dispatcher.
 
-Catalog interpretation sends only the user's explicitly consented message to OpenAI. It requests exactly one strict `search_products` function call; parameters are validated again by Django and executed with the public projection. No product rows, supplier details, quotations, inventory or orders are sent to the model. Provider prose is ignored; explanations and result cards are composed from actual tool results. No second inference call or recursive tool loop exists. The provider protocol allows another interpreter adapter later.
+Only the current explicitly consented user message is sent to Groq. One Responses request can return general prose or one validated function call: public catalog search, authorized inventory/status reads, review-only draft, or quotation-comparison guidance. Django executes the tool and renders results locally; no database rows, quotations, supplier contacts, prices or tool outputs are returned to the model. Existing structured CSV comparison still uses Decimal locally and requires source/equivalence confirmation. Quotation comparison through chat directs the user to this form instead of transmitting CSV.
 
-Source documentation used: [official function-calling guide](https://developers.openai.com/api/docs/guides/function-calling) and [Responses create reference](https://developers.openai.com/api/reference/python/resources/responses/methods/create). OpenAI SDK **3.49.0** was discovered from the package index, pinned and installed in the project virtual environment. Its actual Responses method signature was inspected for the implemented parameters without making a model request. No model ID is hardcoded: operators must configure a currently available model that supports these Responses/function-calling options.
+General prose is labeled Groq conversation, not PostgreSQL facts. Model output is untrusted: all tool names and arguments are validated and every private tool rechecks the current user's permissions. There are no write tools, arbitrary SQL, built-in browser search, code execution, MCP, recursive loops or fallback providers.
+
+[Groq Responses documentation](https://console.groq.com/docs/responses-api) lists `previous_response_id`, `store`, `truncation` and `include` as unsupported. None is sent. Only one current message is sent (zero prior turns); the bounded ten-message UI transcript is display-only and cleared on account change. No server-side chaining or tool-result follow-up request is used. Ask standalone questions with explicit IDs. This intentionally avoids leaking previously displayed private results through chat history.
+
+[Groq's model page](https://console.groq.com/docs/model/openai/gpt-oss-20b) documents tool calling for `openai/gpt-oss-20b`. This is the only reviewed model accepted by the adapter. The pinned `openai==3.49.0` package is merely the compatible HTTP client; the fixed base URL is `https://api.groq.com/openai/v1`, so inference goes only to Groq. No OpenAI account/key is required. No live provider request has been made during this conversion.
+
 
 ## Role policy
 
@@ -102,31 +107,45 @@ Proposals validate a real product, real supplier and quantity, and show the curr
 
 ## Installation and configuration
 
-Backend `.env` is loaded by the existing environment loader. Root `.env` supplies Compose configuration. Both examples contain empty secret/model fields and disabled defaults:
+Backend `.env` is loaded by the existing environment loader. Root `.env` supplies Compose configuration. The backend example keeps the secret empty and cloud requests disabled by default:
 
 ```dotenv
 AI_ENABLED=false
-AI_PROVIDER=openai
-OPENAI_API_KEY=
-AI_MODEL=
+AI_PROVIDER=groq
+GROQ_API_KEY=
+AI_MODEL=openai/gpt-oss-20b
 AI_TIMEOUT_SECONDS=15
 AI_MAX_OUTPUT_TOKENS=512
 AI_DAILY_CALL_LIMIT=100
 AI_USER_DAILY_CALL_LIMIT=20
+AI_CHAT_REQUESTS_PER_MINUTE=5
 ```
 
-For optional external interpretation, an authorized operator supplies their server-side key/model and explicitly enables AI. Do not put keys into Angular. Enabling the configuration and consented use can incur provider costs; this implementation/testing did not make any paid call. Without a key/model or when disabled, core Django, Angular and deterministic tools work; the UI clearly states chat is unconfigured. Local inventory/order questions remain available according to role. The provider is lazily imported so the core also starts without the SDK installed, although the repository requirements include its pinned version.
+To activate Groq, privately edit **backend/.env**: set `AI_ENABLED=true`, `AI_PROVIDER=groq`, `AI_MODEL=openai/gpt-oss-20b`, and paste your key only into `GROQ_API_KEY`. Restart Django. This task did not edit your private file or credentials. Existing shell environment variables take precedence over the file. Never put the key in Angular, screenshots, Git or chat.
 
-Provider safeguards: one inference attempt per chat, no SDK retries, 15-second default timeout (bounded 1–30), 512 default output tokens (bounded 128–1024), parallel tools disabled and `store=false`. General Copilot requests are limited to 30/minute per user or anonymous IP; chat to 5/minute per user. Provider attempts, including failures, consume rolling 24-hour global/per-user call budgets (100/20 default, configurable and bounded). These are request/token ceilings, not a currency-denominated spending guarantee. Configure provider-project spending controls separately.
+Run `python manage.py copilot_status` in the activated backend virtual environment. It reports provider/model, key presence, enabled state and local tools without making network/database requests. Configuration readiness is not a successful connectivity test. The inspected local file loads correctly, but AI is disabled and the Groq key is missing. The compatible SDK exists in `.venv`; system Python may lack it.
 
-The development cache is Django LocMemCache: limits are per process and reset on restart. A production multiworker deployment requires a shared cache with atomic add/incr and appropriate edge/IP throttling; the MVP is not a distributed billing-control service. No prompts, keys or private results are included in operational logs. Conversations are bounded browser memory only and are cleared with private results on account change/logout. No AI-history database schema is introduced. Server-side provider storage is disabled in requests; provider account retention controls are separate.
+Keep your Groq project/account on Free Tier; do not enable paid billing. The application cannot inspect or enforce your provider account's billing tier. It does not upgrade accounts or enable paid features and has no fallback. HTTP 429 returns an actionable limit message; invalid credentials, timeouts and outages return sanitized errors. Ordinary PostgreSQL/Decimal tools remain usable independently.
+
+Safeguards: one inference attempt and at most one local tool per chat; no retries, 15-second default timeout (bounded 1-30), 512 output tokens (bounded 128-1024), input at most 1000 characters. Chat rate is configurable (default 5/min per user, max 20). General local Copilot requests retain 30/min per user or anonymous IP. Provider attempts, including failures, consume rolling 24-hour global/per-user budgets (100/20 default). The development LocMemCache resets on restart and is per process; multiworker deployment needs a shared atomic cache and edge throttling. These application ceilings do not prove a free provider billing tier.
+
+Private tool results are not sent to the provider. Only the currently consented user message leaves Django; never type confidential data into external chat. Recognizable credentials, email addresses and mutation commands are rejected before transmission, but this is not comprehensive data-loss prevention. No prompt/key/tool-result logging is added. Provider retention policies are controlled by Groq; unsupported `store` is omitted, not set to false.
+
+Optional smoke test, **only after separate explicit approval**:
+
+```powershell
+python manage.py copilot_smoke --confirm-external-request
+```
+
+It sends one harmless greeting with 64 output tokens, no database reads/data, no retries, and sanitized failure reporting. Without the flag it refuses to send anything. It was not executed with that flag during this task. No real Groq connectivity or live response quality has been verified.
 
 Windows PowerShell (existing configured PostgreSQL required; do not migrate the live database):
 
 ```powershell
 cd D:\BIS_project\jedel-group-database\backend
 .venv\Scripts\python.exe -m pip install -r requirements.txt
-.venv\Scripts\python.exe manage.py runserver
+.\.venv\Scripts\Activate.ps1
+python manage.py runserver
 ```
 
 Your existing activated/interpreter setup also continues to support `python manage.py runserver`.
@@ -181,7 +200,7 @@ Manual browser checks:
 
 ## Limitations and verification record
 
-There is no live marketplace/Kaspi integration, FX feed, persistent quotation history, automatic specification matching, supplier-product relation, demand forecasting or provider conversation memory. Natural-language private intents use the documented narrow grammar; other private requests must use the structured forms. The optional LLM is a catalog-query interpreter, not an unrestricted business agent. Live OpenAI model availability/output quality and paid inference remain unverified. No new migration or live database modification is required or performed.
+There is no live marketplace/Kaspi integration, FX feed, persistent quotation history, automatic specification matching, supplier-product relation, demand forecasting or provider conversation memory. Natural-language private intents use the documented narrow grammar; other private requests must use the structured forms. The optional Groq model supports general conversation and validated tool selection. Live Groq connectivity, free-tier account eligibility and answer quality remain unverified. No new migration or live database modification is required or performed.
 
 Final test counts, exact file list and browser results are recorded in AI_COPILOT_VERIFICATION.md after execution.
 

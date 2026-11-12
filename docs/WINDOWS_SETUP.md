@@ -1,5 +1,21 @@
 # Windows 10/11 setup
 
+Current automated setup from the repository root:
+
+```powershell
+.\scripts\setup-docker.ps1
+docker compose up --build
+```
+
+Native alternative (Python 3.13, Node 22.12+/24 and PostgreSQL 17 installed):
+
+```powershell
+.\scripts\setup-windows.ps1
+.\scripts\start-windows.ps1
+```
+
+The first native run may stop with instructions to initialize a **new isolated jedel_dev**. Follow the [current README](../README.md#native-windows-first-time) before launching. Existing `.env` files are preserved. Never initialize the existing `jedel_group_db`. Older manual steps below are alternatives, not additional required steps.
+
 Follow [the complete development guide](DEVELOPMENT.md#windows-native) for first-time Python, PostgreSQL, environment variables and account bootstrap. For Docker Desktop use [the Docker procedure](DEVELOPMENT.md#docker-windows-or-macos):
 
 ```powershell

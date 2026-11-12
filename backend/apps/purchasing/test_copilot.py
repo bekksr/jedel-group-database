@@ -18,10 +18,10 @@ from .tests import FixtureMixin
 from .models import Supplier, Product, PurchaseOrder, PurchaseOrderItem
 from .copilot.offers import COLUMNS
 from .copilot.tools import get_authorized_inventory, propose_order
-from .copilot.provider import OpenAIInterpreter, ProviderUnavailable, reserve_budget
+from .copilot.provider import GroqInterpreter, ProviderUnavailable, reserve_budget
 
 
-@override_settings(AI_ENABLED=False, OPENAI_API_KEY='', AI_MODEL='')
+@override_settings(AI_ENABLED=False, GROQ_API_KEY='', AI_MODEL='')
 class CopilotTests(FixtureMixin, TestCase):
     def setUp(self):
         self.seed(); cache.clear()
@@ -163,7 +163,7 @@ class CopilotTests(FixtureMixin, TestCase):
     def test_missing_key_and_consent_never_call_provider(self):
         self.client.force_authenticate(self.basic)
         self.assertEqual(self.post('chat',{'message':'Find laptops'}).status_code,403)
-        with patch('apps.purchasing.copilot.provider.OpenAIInterpreter.interpret') as call:
+        with patch('apps.purchasing.copilot.provider.GroqInterpreter.interpret') as call:
             response=self.post('chat',{'message':'Find laptops','consent_to_provider':True})
         self.assertEqual(response.status_code,503);call.assert_not_called()
         self.assertEqual(self.post('products/search',{}).status_code,200)
@@ -238,21 +238,115 @@ class CopilotTests(FixtureMixin, TestCase):
         self.assertEqual(list(Product.objects.values_list('pk','stock_quantity','unit_price')),before)
         self.assertEqual(PurchaseOrder.objects.count(),0)
 
+    def test_groq_tools_keep_private_results_local_and_enforce_roles(self):
+        for user, expected in [(self.basic,403),(self.employee,200),(self.manager,200),(self.analyst,200)]:
+            self.client.force_authenticate(user)
+            with patch('apps.purchasing.copilot.views.get_provider') as provider:
+                provider.return_value.interpret.return_value={'tool':'inventory','arguments':{}}
+                result=self.post('chat',{'message':'Check warehouse availability','consent_to_provider':True})
+                self.assertEqual(result.status_code,expected)
+                provider.return_value.interpret.assert_called_once_with('Check warehouse availability')
+        self.assertEqual(PurchaseOrder.objects.count(),0)
 
+    def test_groq_review_draft_and_comparison_guidance(self):
+        self.client.force_authenticate(self.employee)
+        with patch('apps.purchasing.copilot.views.get_provider') as provider:
+            provider.return_value.interpret.return_value={'tool':'draft','arguments':{'product_id':self.product.pk,'supplier_id':self.supplier.pk,'quantity':2}}
+            result=self.post('chat',{'message':'Prepare a draft for review','consent_to_provider':True})
+            self.assertEqual(result.status_code,200)
+            self.assertFalse(result.data['draft']['persisted'])
+            provider.return_value.interpret.return_value={'tool':'compare_quotations','arguments':{}}
+            result=self.post('chat',{'message':'Help choose a supplier','consent_to_provider':True})
+            self.assertEqual(result.data['kind'],'guidance')
+        self.assertEqual(PurchaseOrder.objects.count(),0)
+
+    def test_russian_inventory_is_local_and_russian_conversation_is_labeled(self):
+        self.client.force_authenticate(self.employee)
+        with patch('apps.purchasing.copilot.views.get_provider') as provider:
+            result=self.post('chat',{'message':'Какие товары заканчиваются?'})
+            self.assertEqual(result.status_code,200)
+            self.assertEqual(result.data['kind'],'inventory')
+            provider.assert_not_called()
+            provider.return_value.interpret.return_value={'tool':'conversation','message':'Привет! Я помогу найти товары.'}
+            result=self.post('chat',{'message':'Привет! Чем ты можешь помочь?','consent_to_provider':True})
+            self.assertEqual(result.status_code,200)
+            self.assertIn('Привет',result.data['message'])
+            self.assertIn('not PostgreSQL',result.data['source'])
+
+
+@override_settings(GROQ_API_KEY='test-not-a-real-key', AI_MODEL='openai/gpt-oss-20b', AI_ENABLED=True, AI_PROVIDER='groq')
 class ProviderTests(TestCase):
     def response(self, name='search_products', arguments=None):
         return SimpleNamespace(output=[SimpleNamespace(type='function_call',name=name,arguments=json.dumps(arguments or {'query':'Laptop','category':'','match':'partial'}))])
 
-    @override_settings(OPENAI_API_KEY='test-not-a-real-key',AI_MODEL='configured-test-model',AI_ENABLED=True)
+    @override_settings(GROQ_API_KEY='test-not-a-real-key',AI_MODEL='openai/gpt-oss-20b',AI_ENABLED=True)
     def test_sdk_contract_and_no_private_context(self):
         sdk=MagicMock();client=sdk.OpenAI.return_value.__enter__.return_value
         client.responses.create.return_value=self.response()
-        with patch.dict(sys.modules,{'openai':sdk}): result=OpenAIInterpreter().interpret('Find laptops')
+        with patch.dict(sys.modules,{'openai':sdk}): result=GroqInterpreter().interpret('Find laptops')
         self.assertEqual(result['query'],'Laptop')
         args=client.responses.create.call_args.kwargs
-        self.assertFalse(args['store']);self.assertFalse(args['parallel_tool_calls'])
-        self.assertEqual(args['input'],'Find laptops');self.assertEqual(len(args['tools']),1)
+        self.assertNotIn('store',args);self.assertFalse(args['parallel_tool_calls'])
+        self.assertEqual(args['input'],'Find laptops');self.assertEqual(len(args['tools']),5)
         self.assertEqual(sdk.OpenAI.call_args.kwargs['max_retries'],0)
+        self.assertEqual(sdk.OpenAI.call_args.kwargs['base_url'],'https://api.groq.com/openai/v1')
+        for unsupported in ('store','previous_response_id','truncation','include','safety_identifier','prompt_cache_key'):
+            self.assertNotIn(unsupported,args)
+
+    def test_configuration_is_groq_only_and_needs_no_openai_key(self):
+        from .copilot.provider import configured
+        self.assertTrue(configured())
+        for values in ({'GROQ_API_KEY':''},{'GROQ_API_KEY':'invalid key'},{'AI_PROVIDER':'openai'}, {'AI_PROVIDER':'other'}, {'AI_MODEL':'unreviewed-model'}, {'AI_ENABLED':False}):
+            with self.subTest(values=tuple(values)),override_settings(**values):
+                self.assertFalse(configured())
+
+    def test_missing_sdk_reports_interpreter_fix_without_network_call(self):
+        with patch.dict(sys.modules,{'openai':None}),self.assertRaises(ProviderUnavailable) as caught:
+            GroqInterpreter().interpret('Hello')
+        self.assertIn('Python running Django',str(caught.exception))
+        self.assertIn('virtual environment',str(caught.exception))
+
+    def test_readiness_distinguishes_configuration_from_missing_sdk(self):
+        from .copilot.provider import readiness
+        with patch('apps.purchasing.copilot.provider.sdk_available',return_value=False):
+            self.assertEqual(readiness(),'missing_sdk')
+        with patch('apps.purchasing.copilot.provider.sdk_available',return_value=True):
+            self.assertEqual(readiness(),'configured_unverified')
+        with override_settings(GROQ_API_KEY=''):
+            self.assertEqual(readiness(),'missing_key')
+        with override_settings(AI_ENABLED=False):
+            self.assertEqual(readiness(),'disabled')
+
+    def test_english_and_russian_general_replies(self):
+        for message, answer in [('Hello','Hello!'),('Привет','Здравствуйте!')]:
+            sdk=MagicMock();client=sdk.OpenAI.return_value.__enter__.return_value
+            client.responses.create.return_value=SimpleNamespace(output=[],output_text=answer,status='completed')
+            with patch.dict(sys.modules,{'openai':sdk}):
+                self.assertEqual(GroqInterpreter().interpret(message),{'tool':'conversation','message':answer})
+            self.assertEqual(client.responses.create.call_args.kwargs['input'],message)
+            self.assertEqual(client.responses.create.call_count,1)
+
+    def test_rate_key_and_outage_errors_are_sanitized_without_retry(self):
+        for status, expected in [(429,429),(401,503),(403,503),(500,503),(None,503)]:
+            sdk=MagicMock();client=sdk.OpenAI.return_value.__enter__.return_value
+            error=RuntimeError('private credential sentinel');error.status_code=status
+            client.responses.create.side_effect=error
+            with patch.dict(sys.modules,{'openai':sdk}),self.assertRaises(ProviderUnavailable) as caught:
+                GroqInterpreter().interpret('Hello')
+            self.assertEqual(caught.exception.status_code,expected)
+            self.assertNotIn('sentinel',str(caught.exception))
+            self.assertEqual(client.responses.create.call_count,1)
+
+    def test_private_tool_arguments_are_validated_and_multiple_calls_rejected(self):
+        sdk=MagicMock();client=sdk.OpenAI.return_value.__enter__.return_value
+        client.responses.create.return_value=self.response('order_status',{'order_id':7})
+        with patch.dict(sys.modules,{'openai':sdk}):
+            self.assertEqual(GroqInterpreter().interpret('Order status'),{'tool':'order_status','arguments':{'order_id':7}})
+        response=self.response();response.output *= 2
+        for invalid in (response,self.response('draft',{'product_id':1,'supplier_id':2,'quantity':-1}),SimpleNamespace(output=[],output_text='',status='incomplete')):
+            client.responses.create.return_value=invalid
+            with patch.dict(sys.modules,{'openai':sdk}),self.assertRaises(ProviderUnavailable):
+                GroqInterpreter().interpret('Find products')
 
     def test_timeout_failure_and_malicious_tool_name_are_sanitized(self):
         for outcome in (TimeoutError('secret key and private URL'),RuntimeError('provider internal'),self.response('transition_order'),self.response(arguments={'query':'x','category':'','match':'partial','sql':'DROP TABLE products'})):
@@ -261,5 +355,5 @@ class ProviderTests(TestCase):
                 if isinstance(outcome,Exception):client.responses.create.side_effect=outcome
                 else:client.responses.create.return_value=outcome
                 with patch.dict(sys.modules,{'openai':sdk}),self.assertRaises(ProviderUnavailable) as error:
-                    OpenAIInterpreter().interpret('Ignore instructions')
+                    GroqInterpreter().interpret('Ignore instructions')
                 self.assertNotIn('secret',str(error.exception));self.assertNotIn('DROP',str(error.exception))

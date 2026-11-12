@@ -462,3 +462,17 @@ main > section[aria-live] button { flex-shrink: 0; }
 .site-header .profile-menu{min-width:0}
 textarea{font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--input-line);border-radius:8px;padding:10px}
 @media(max-width:540px){.header-inner{grid-template-columns:minmax(0,1fr)}.header-actions{grid-column:1;justify-content:space-between;flex-wrap:wrap}.site-header nav{grid-row:3}.theme-toggle span:last-child{display:none}}
+
+/* Shared metrics keep value, unit and label separate at every breakpoint. */
+:root{--card-radius:12px;--section-gap:24px}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;min-width:0}
+.stats>app-stat-card{min-width:0}
+.stock-list{list-style:none;margin:16px 0 0;padding:0;display:grid;gap:0}
+.stock-list li{display:flex;align-items:center;justify-content:space-between;gap:12px 20px;padding:14px 0;border-bottom:1px solid var(--line);min-width:0}
+.stock-list li:last-child{border:0}
+.stock-name{min-width:0;overflow-wrap:anywhere;font-size:.95rem}
+.stock-quantity{display:flex;align-items:baseline;gap:6px;flex-shrink:0;font-variant-numeric:tabular-nums}
+.stock-quantity>span{font-size:.82rem;color:var(--muted)}
+.empty-state{color:var(--muted);line-height:1.6}
+@media(min-width:600px) and (max-width:1023px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:599px){.stats{grid-template-columns:minmax(0,1fr);gap:14px}.stock-list li{align-items:flex-start;flex-wrap:wrap;gap:8px 14px}.stock-quantity{margin-inline-start:auto}}

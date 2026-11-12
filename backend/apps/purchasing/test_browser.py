@@ -41,6 +41,15 @@ class BrowserWorkflowTests(StaticLiveServerTestCase):
         from .services import create_order
         from django.utils import timezone
         create_order(supplier_id=directory_supplier.pk, order_date=timezone.localdate(), items=[{'product_id': hardware.pk, 'quantity': 1}])
+        if os.getenv('JEDEL_VISUAL_PHASE'):
+            # Identical synthetic database fixtures for before/after screenshots.
+            # No live data or API response substitution is used.
+            long_supplier = Supplier.objects.create(supplier_name='Visual supplier with an intentionally long business name for responsive report verification', email='visual-only@example.test')
+            visual_product = Product.objects.create(product_name='Visual low-stock fixture with an intentionally long catalog name', category='Visual fixture', unit_price='12.50', stock_quantity=3)
+            visual_order = create_order(supplier_id=long_supplier.pk, order_date=timezone.localdate(), items=[{'product_id': visual_product.pk, 'quantity': 3}])
+            from .services import transition_order
+            transition_order(visual_order.pk, PurchaseOrder.Status.APPROVED)
+            transition_order(visual_order.pk, PurchaseOrder.Status.DELIVERED)
         viewer = User.objects.create_user('browser-viewer', password=password)
         viewer.groups.add(Group.objects.get_or_create(name='Analyst / Tester')[0])
         with socket.socket() as probe:
@@ -67,7 +76,10 @@ class BrowserWorkflowTests(StaticLiveServerTestCase):
                             time.sleep(.5)
                     else:
                         log.seek(0); self.fail('Angular startup timed out: ' + log.read())
-                    result = subprocess.run([node, str(frontend / 'node_modules/@playwright/test/cli.js'), 'test'], cwd=frontend, env=env, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=150, **flags)
+                    browser_command = [node, str(frontend / 'node_modules/@playwright/test/cli.js'), 'test']
+                    if env.get('JEDEL_E2E_GREP'):
+                        browser_command += ['--grep', env['JEDEL_E2E_GREP']]
+                    result = subprocess.run(browser_command, cwd=frontend, env=env, capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=150, **flags)
                     self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                     print(result.stdout, flush=True)
                 finally:
@@ -79,6 +91,10 @@ class BrowserWorkflowTests(StaticLiveServerTestCase):
                         process.terminate()
                     try: process.wait(timeout=15)
                     except subprocess.TimeoutExpired: process.kill(); process.wait()
+        if os.getenv('JEDEL_E2E_GREP'):
+            # Targeted visual capture does not run registration/CRUD scenarios.
+            # Full-suite runs retain every post-workflow persistence assertion.
+            return
         applicant = User.objects.get(username='browser-applicant@example.test')
         self.assertTrue(applicant.is_active)
         self.assertTrue(applicant.check_password(password))

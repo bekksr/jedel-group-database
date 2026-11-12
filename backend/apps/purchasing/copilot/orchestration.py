@@ -6,7 +6,7 @@ from . import tools
 
 def local_request(user, message):
     text = message.strip().rstrip('.?!').strip()
-    if re.fullmatch(r'(which products have low stock|what items should we consider purchasing|show low stock)', text, re.I):
+    if re.fullmatch(r'(which products have low stock|what items should we consider purchasing|show low stock|какие товары заканчиваются|покажи товары с низким остатком)', text, re.I):
         inventory = tools.get_authorized_inventory(user)
         return {'kind': 'inventory', 'inventory': inventory, 'message': 'Inventory read from PostgreSQL using the proposed threshold 20. No forecast or purchase was created.'}
     category = re.fullmatch(r'show inventory levels for category (.{1,50})', text, re.I)
@@ -21,7 +21,7 @@ def local_request(user, message):
     if status:
         result = tools.get_authorized_order_status(user, order_id=int(status.group(1)))
         return {'kind': 'order_status', 'order_status': result, 'message': 'Current order status read from PostgreSQL. No provider was contacted.'}
-    # Do not forward attempted private procurement instructions to a public-search model.
-    if re.search(r'\b(supplier|suppliers|order|orders|stock|inventory|price|prices|cost|costs|approve|deliver|cancel)\b', text, re.I):
+    # Refuse mutations and recognizable secrets before any external transmission.
+    if re.search(r'\b(approve|deliver|cancel|delete|update|password|secret|token|api[_ ]?key)\b|одобри|отмени|удали|пароль|секрет|[\w.+-]+@[\w.-]+\.[a-z]{2,}', text, re.I):
         raise ValidationError('Use the authorized structured tools for private purchasing data. This message was not sent to an AI provider.')
     return None

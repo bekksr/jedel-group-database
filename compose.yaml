@@ -25,13 +25,14 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       JEDEL_ISOLATED_DEVELOPMENT: "1"
       AI_ENABLED: ${AI_ENABLED:-false}
-      AI_PROVIDER: ${AI_PROVIDER:-openai}
-      AI_MODEL: ${AI_MODEL:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AI_PROVIDER: ${AI_PROVIDER:-groq}
+      AI_MODEL: ${AI_MODEL:-openai/gpt-oss-20b}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
       AI_TIMEOUT_SECONDS: ${AI_TIMEOUT_SECONDS:-15}
       AI_MAX_OUTPUT_TOKENS: ${AI_MAX_OUTPUT_TOKENS:-512}
       AI_DAILY_CALL_LIMIT: ${AI_DAILY_CALL_LIMIT:-100}
       AI_USER_DAILY_CALL_LIMIT: ${AI_USER_DAILY_CALL_LIMIT:-20}
+      AI_CHAT_REQUESTS_PER_MINUTE: ${AI_CHAT_REQUESTS_PER_MINUTE:-5}
     command: [sh, -c, "python manage.py init_development && python manage.py runserver 0.0.0.0:8000"]
     depends_on:
       db:
@@ -50,5 +51,10 @@ services:
       backend:
         condition: service_healthy
     ports: ["127.0.0.1:4200:4200"]
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:4200/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
 volumes:
   postgres_data:

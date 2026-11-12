@@ -1,6 +1,6 @@
 # Beginner checklist: test the Copilot safely
 
-Open **http://localhost:4200/ai-assistant**. Testing catalog search, inventory, quotation arithmetic and draft proposals does not require OpenAI. No step below creates an order or changes stock. Do not click Create order or any purchasing approval/delivery action while following this checklist.
+Open **http://localhost:4200/ai-assistant**. Testing catalog search, inventory, quotation arithmetic and draft proposals does not require Groq. No step below creates an order or changes stock. Do not click Create order or any purchasing approval/delivery action while following this checklist.
 
 ## What the diagnosis found
 
@@ -10,12 +10,12 @@ Checked on 2026-11-12 using read-only diagnostics:
 |---|---|
 | backend/.env | Present; automatic loading enabled |
 | AI_ENABLED | No file entry; disabled by default |
-| AI_PROVIDER | No file entry; supported OpenAI default applies |
-| AI_MODEL | Missing |
-| OPENAI_API_KEY | Missing |
+| AI_PROVIDER | No file entry; supported Groq default applies |
+| AI_MODEL | Default: openai/gpt-oss-20b |
+| GROQ_API_KEY | Missing |
 | Optional timeout/token/call-limit settings | No file entries; bounded defaults apply |
-| OpenAI SDK in plain python | Missing |
-| OpenAI SDK in backend/.venv | Installed: 3.49.0 |
+| Compatible SDK in plain python | Missing |
+| Compatible SDK in backend/.venv | Installed: 3.49.0 |
 
 No credential values were displayed, modified or authenticated. The file loader reads `backend/.env`; existing PowerShell/process environment values take precedence. Root `.env` is for Docker Compose, not native Django. Restart Django after editing settings; an already running process does not reliably reload `.env` edits automatically.
 
@@ -89,7 +89,7 @@ For an empty-state test enter Product name `NO-SUCH-COPILOT-TEST-ITEM`, clear Ca
 Log in through Account with an existing Employee/Manager/Analyst/System Administrator account, return to AI Assistant and wait for loading to finish.
 
 - Click **Use local low-stock question**, or enter exactly `Which products have low stock?` in **Message**.
-- Leave OpenAI consent unchecked. It is not required and is disabled for local questions.
+- Leave Groq consent unchecked. It is not required and is disabled for local questions.
 - The page should say the question runs locally and needs no API key or credits; **Ask Copilot** should be enabled.
 - Click **Ask Copilot**. Expected: a conversation response explicitly identifying PostgreSQL, and the Inventory assistant section showing actual eligible records or a genuine empty result.
 - Default low-stock threshold is the proposed request value **20**, not a stored reorder point or demand forecast.
@@ -120,7 +120,7 @@ Expected deterministic calculations:
 | FICTIONAL-A | 10 × 10.25 + 5.00 | 107.50 KZT | 10.7500 |
 | FICTIONAL-B | 10 × 9.50 + 20.00 | 115.00 KZT | 11.5000 |
 
-A ranks first despite B's lower unit price, because delivery is included. Source and quote/import timestamps must be visible. These values come from **Python Decimal arithmetic on the uploaded test CSV**, not PostgreSQL purchasing prices or OpenAI. No quotation or business record is saved.
+A ranks first despite B's lower unit price, because delivery is included. Source and quote/import timestamps must be visible. These values come from **Python Decimal arithmetic on the uploaded test CSV**, not PostgreSQL purchasing prices or Groq. No quotation or business record is saved.
 
 The supplied file has a limited validity window and will eventually expire. Generate a fresh fictional file without any database access:
 
@@ -143,30 +143,30 @@ Keep selected product #1 and quantity `10`. In **Purchase order assistant**, cho
 
 Expected: **Draft proposal — not saved**, real product/supplier identifiers, actual current internal catalog price and calculated subtotal in KZT. This price is distinct from the fictional quotation prices above. Availability, taxes and supplier-product relationship remain unverified. There is no new order ID, no order creation and no stock receipt.
 
-Local chat alternative: `Prepare a purchase order for 10 units of product 1 from supplier 1.` Click Ask Copilot without OpenAI consent. Do not click through to create a real order during this checklist.
+Local chat alternative: `Prepare a purchase order for 10 units of product 1 from supplier 1.` Click Ask Copilot without Groq consent. Do not click through to create a real order during this checklist.
 
 Analyst cannot draft even though it can compare quotes and read inventory. Basic/Security cannot draft. These restrictions are enforced by Django.
 
 For **Check an existing order**, copy an allowed existing ID from your protected Orders page into **Purchase order ID**, click **Check order status**. Expected: its actual PostgreSQL state, unchanged. The local equivalent is `Show purchase order N status.` with a real ID substituted for N. No order data is exposed to Basic User.
 
-### 5. Optional OpenAI interpretation: configuration only until cost approval
+### 5. Optional Groq chat: configuration only until separate request approval
 
-The implementation uses OpenAI Python SDK 3.49.0 and **Responses API**, not legacy Chat Completions. It passes `model=settings.AI_MODEL`; there is no hardcoded model and no backend model-ID allowlist. The selected model must be available to your OpenAI project and support Responses strict function calling, forced function choice and the configured output limit. Presence is not proof of model availability, billing or key validity. No credential authentication or model listing request was made during this diagnosis.
+The only cloud provider is Groq, using the installed OpenAI-compatible Python SDK 3.49.0 with its base URL fixed to `https://api.groq.com/openai/v1`. The reviewed model is `openai/gpt-oss-20b`. No OpenAI API key or fallback is used. Unsupported Responses fields (including `store` and `previous_response_id`) are omitted. Each question is independent; private tool results and prior conversation are never sent to Groq.
 
 Edit **backend/.env locally in your editor**. Preserve all existing database/Django entries. Add these entries; replace placeholders privately, never in chat, screenshots, Git or PowerShell history:
 
 ```dotenv
 AI_ENABLED=true
-AI_PROVIDER=openai
-OPENAI_API_KEY=YOUR_PRIVATE_PROJECT_KEY
-AI_MODEL=YOUR_PROJECT_ENABLED_RESPONSES_MODEL_ID
+AI_PROVIDER=groq
+GROQ_API_KEY=YOUR_PRIVATE_PROJECT_KEY
+AI_MODEL=openai/gpt-oss-20b
 AI_TIMEOUT_SECONDS=15
 AI_MAX_OUTPUT_TOKENS=512
 AI_DAILY_CALL_LIMIT=100
 AI_USER_DAILY_CALL_LIMIT=20
 ```
 
-The uppercase key/model strings above are placeholders, not working credentials/model IDs. Select a supported model from your project's available models using the [official model documentation](https://developers.openai.com/api/docs/models). Set project spending controls before enabling usage. Configuring a key does not require sharing it with anyone here. This task has not edited the real `.env` or enabled the provider.
+The key placeholder is not a working credential. Keep your Groq account on Free Tier; do not enable billing. Application limits cannot verify your provider billing tier. See [Groq model documentation](https://console.groq.com/docs/model/openai/gpt-oss-20b). This task has not edited your real `.env` or enabled the provider.
 
 Restart Django using the `.venv` interpreter, then run the safe diagnostic:
 
@@ -174,13 +174,13 @@ Restart Django using the `.venv` interpreter, then run the safe diagnostic:
 .\.venv\Scripts\python.exe manage.py copilot_status
 ```
 
-It prints only setting presence/validity, SDK version and whether configuration is complete. It never prints a key or model value, contacts OpenAI or queries the database. `provider_configuration_complete=true` is a local configuration check only; availability remains unverified. Existing process variables override file settings, so use a fresh terminal if a stale override is suspected. Do not display your environment or dump settings to troubleshoot secrets.
+It prints only setting presence/validity, SDK version and whether configuration is complete. It prints the approved model identifier, but never a key; it does not contact Groq or query the database. `provider_configuration_complete=true` is a local configuration check only; availability remains unverified. Existing process variables override file settings, so use a fresh terminal if a stale override is suspected. Do not display your environment or dump settings to troubleshoot secrets.
 
-**Stop before clicking an external AI request until usage costs are explicitly approved.** After such approval, log in, type one of the first two catalog queries below, check consent and click Ask Copilot. Expected: backend message says the model interpreted search filters and returned cards come from PostgreSQL. No product records, quotes, inventory or order data are sent to the model. A configured provider can still return an honest timeout/service error if billing, model access or network access is unavailable.
+**Obtain separate approval before making a real provider test request.** After such approval, log in, type one of the first two catalog queries below, check consent and click Ask Copilot. Expected: backend message says the model interpreted search filters and returned cards come from PostgreSQL. No product records, quotes, inventory or order data are sent to the model. A configured provider can still return an honest timeout/service error if billing, model access or network access is unavailable.
 
 Three examples grounded in the audited catalog:
 
-| Query | How to test without paid AI | Source |
+| Query | How to test without cloud AI | Source |
 |---|---|---|
 | Find Laptop Dell in our product catalog. | Product name Laptop Dell; category Electronics; Exact name; Search catalog | PostgreSQL; optional model only interprets wording |
 | Show products in the Electronics category. | Clear Product name; category Electronics; Search catalog | PostgreSQL; expected Laptop Dell / Office Monitor |
