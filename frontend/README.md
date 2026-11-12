@@ -13,3 +13,7 @@ All API requests use the relative /api development proxy; no bearer credential e
 Products now renders a separate public-safe catalog for anonymous, Basic User and other accounts without private-business read. It shows IDs/names/categories with server-backed search, category facets, relative pagination, loading/empty/error/retry states and request cancellation. Authorized readers keep the business Products screen with prices/stock and capability-gated actions. [Current catalog/role verification](../docs/CATALOG_ACCESS_REPORT.md).
 
 The AI Assistant navigation opens /ai-assistant. See [Copilot guide](../docs/AI_COPILOT.md) for safe search, quotations and optional AI configuration.
+
+## Team frontend integration
+
+The responsive purchasing workspace, dark/light theme, catalog details, historical supplier associations and reactive order prefills build on Aslan's frontend contribution. Authentication uses the unified Account page and Django sessions; no shared token entry or demo registration is part of the normal workflow. Descriptions are optional demo-only data until a real API field is separately approved. Supplier history does not establish current offers or product availability.

@@ -10,6 +10,17 @@ const basic = {username: 'basic@example.test', name: 'Basic Member', email: 'bas
 let http: HttpTestingController;
 beforeEach(() => {TestBed.configureTestingModule({providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter(routes)]}); http = TestBed.inject(HttpTestingController);});
 afterEach(() => http.verify());
+it('preserves team theme controls without replacing Account or storing session credentials', async () => {
+  localStorage.removeItem('jedel.theme'); TestBed.inject(Auth).user.set(basic);
+  const fixture = TestBed.createComponent(App); await fixture.whenStable();
+  const button = fixture.nativeElement.querySelector('button[aria-label="Dark theme"]') as HTMLButtonElement;
+  expect(button.getAttribute('aria-pressed')).toBe('false'); button.click(); await fixture.whenStable();
+  expect(button.getAttribute('aria-pressed')).toBe('true'); expect(document.documentElement.dataset['theme']).toBe('dark');
+  expect(localStorage.getItem('jedel.theme')).toBe('dark'); expect(fixture.nativeElement.querySelector('.account-summary').textContent).toContain('Basic User');
+  fixture.destroy(); const restored = TestBed.createComponent(App); await restored.whenStable();
+  expect(restored.componentInstance.darkTheme()).toBe(true);
+  localStorage.removeItem('jedel.theme'); document.documentElement.dataset['theme']='light';
+});
 it('shows exactly one Account link and no separate Register/Log in links in the public header', async () => {
   const fixture = TestBed.createComponent(App); http.expectOne('/api/auth/me/').flush({}, {status: 401,statusText: 'Unauthorized'});
   await fixture.whenStable();

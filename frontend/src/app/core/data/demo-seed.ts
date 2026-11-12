@@ -1,4 +1,4 @@
-// Exact records from database/dumps/jedel_group_db.sql. No API fallback.
+// Records from database/dumps/jedel_group_db.sql with sample product descriptions.
 import { Supplier, Product, PurchaseOrder, OrderItem } from "./models";
 export const SEED_SUPPLIERS: readonly Supplier[] = [
   {
@@ -28,6 +28,7 @@ export const SEED_PRODUCTS: readonly Product[] = [
     product_id: 3,
     product_name: "Wireless Keyboard",
     category: "Accessories",
+    description: "Wireless keyboard for everyday typing at an office workstation.",
     unit_price: 12000.0,
     stock_quantity: 50,
   },
@@ -35,6 +36,7 @@ export const SEED_PRODUCTS: readonly Product[] = [
     product_id: 4,
     product_name: "Office Chair",
     category: "Furniture",
+    description: "Desk chair for office workstations and shared workspaces.",
     unit_price: 65000.0,
     stock_quantity: 12,
   },
@@ -42,6 +44,7 @@ export const SEED_PRODUCTS: readonly Product[] = [
     product_id: 5,
     product_name: "Network Router",
     category: "Networking",
+    description: "Router for connecting devices on an office network.",
     unit_price: 45000.0,
     stock_quantity: 20,
   },
@@ -49,6 +52,7 @@ export const SEED_PRODUCTS: readonly Product[] = [
     product_id: 1,
     product_name: "Laptop Dell",
     category: "Electronics",
+    description: "Dell laptop for portable office work.",
     unit_price: 350000.0,
     stock_quantity: 17,
   },
@@ -56,6 +60,7 @@ export const SEED_PRODUCTS: readonly Product[] = [
     product_id: 2,
     product_name: "Office Monitor",
     category: "Electronics",
+    description: "External display for a desktop or laptop workstation.",
     unit_price: 85000.0,
     stock_quantity: 33,
   },

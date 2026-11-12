@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common';
 import { Auth } from './auth';
 import { effect, untracked } from '@angular/core';
 import { Store } from "./store";
@@ -19,40 +20,50 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from "@angular/router";
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
   template: `
     <a class="skip" href="#content">Skip to content</a>
-    <header>
-      <a class="brand" routerLink="/">Jedel<span>.</span>Group</a>
-      <nav aria-label="Main navigation">
-        @for (link of visibleLinks(); track link.path) {
-          <a
-            [routerLink]="link.path"
-            routerLinkActive="active"
-            [routerLinkActiveOptions]="{ exact: true }"
-            ariaCurrentWhenActive="page"
-            >{{ link.label }}</a
-          >
-        }
-        @if(!auth.user()) {<a class="account-button" routerLink="/auth" routerLinkActive="active">Account</a>}
-      </nav>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" routerLink="/">
+          <span class="brand-mark" aria-hidden="true">J</span>
+          <span>Jedel<span class="brand-dot">.</span>Group</span>
+        </a>
+        <nav aria-label="Main navigation">
+          @for (link of visibleLinks(); track link.path) {
+            <a
+              [routerLink]="link.path"
+              routerLinkActive="active"
+            [routerLinkActiveOptions]="navMatch"
+              ariaCurrentWhenActive="page"
+              >{{ link.label }}</a
+            >
+          }
+          @if(!auth.user()) {<a class="account-button" routerLink="/auth" routerLinkActive="active">Account</a>}
+        </nav>
+        <div class="header-actions">
       @if(auth.user(); as user) {
         <details class="profile-menu account-summary">
           <summary aria-label="Open profile menu"><span class="avatar" aria-hidden="true">{{(user.name || user.username).charAt(0).toUpperCase()}}</span><span class="profile-identity"><strong>{{user.name || user.username}}</strong><small>{{user.role}}</small></span></summary>
           <div class="profile-dropdown"><a routerLink="/profile" (click)="closeProfile($event)">My Profile</a><a routerLink="/settings" (click)="closeProfile($event)">Settings</a>@if(user.can_manage_security) {<a routerLink="/settings" (click)="closeProfile($event)">Security access</a>}@if(user.can_administer) {<a href="http://127.0.0.1:8000/admin/">Administration</a>}<button type="button" [disabled]="loggingOut()" (click)="logout()">{{loggingOut() ? 'Logging out...' : 'Log out'}}</button></div>
         </details>
       }
+        <button
+          class="secondary theme-toggle"
+          type="button"
+          aria-label="Dark theme"
+          [attr.aria-pressed]="darkTheme()"
+          (click)="toggleTheme()"
+        >
+          <span aria-hidden="true">{{ darkTheme() ? "☀" : "☾" }}</span>
+          <span>{{ darkTheme() ? "Light mode" : "Dark mode" }}</span>
+        </button>
+        </div>
+      </div>
     </header>
     @if(auth.user()?.capabilities?.read) {
-    <div class="demo">
-      {{
-        data.mode === "demo"
-          ? "Demo · Changes reset on refresh. No database writes."
-          : data.loading()
-            ? "API · Loading…"
-            : data.error()
-              ? "API · Not connected"
-              : "API · Connected"
-      }}
-      · <a routerLink="/settings">Settings</a> <button class="secondary" [disabled]="data.loading() || data.busy()" (click)="refresh()">Refresh</button>
-    </div>
+    <div class="workspace-bar"><div class="workspace-inner">
+      <span>Supplier Purchasing System</span>
+      <a routerLink="/settings" class="workspace-status" [class.ready]="!data.loading() && !data.error() && data.api.connected()">{{data.loading() ? 'Loading workspace...' : data.error() ? 'API disconnected' : 'API connected'}}</a>
+      <button type="button" class="secondary" [disabled]="data.loading() || data.busy()" (click)="refresh()">Refresh</button>
+    </div></div>
     }
     <main id="content" tabindex="-1">
       <section aria-label="Notifications" aria-live="polite">
@@ -71,12 +82,19 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from "@angular/router";
       </section>
       <router-outlet />
     </main>
-    <footer>
-      Jedel.Group · Supplier & purchasing management<span>Prices in KZT</span>
-    </footer>
+    <footer><span>Jedel.Group</span><span>Prices in KZT</span></footer>
   `,
 })
 export class App {
+  private readonly document = inject(DOCUMENT);
+  private readonly themeKey = "jedel.theme";
+  readonly darkTheme = signal(false);
+  readonly navMatch = {
+    paths: "exact",
+    queryParams: "ignored",
+    matrixParams: "ignored",
+    fragment: "ignored",
+  } as const;
   readonly auth = inject(Auth);
   async refresh() { try { await this.data.refresh(); } catch { /* The workspace displays the error. */ } }
   closeProfile(event: Event) { (event.currentTarget as HTMLElement).closest('details')?.removeAttribute('open'); }
@@ -90,6 +108,12 @@ export class App {
     finally { this.loggingOut.set(false); }
   }
   constructor() {
+    try {
+      this.darkTheme.set(this.document.defaultView?.localStorage.getItem(this.themeKey) === "dark");
+    } catch {
+      // The browser may block storage.
+    }
+    this.applyTheme();
     void this.auth.restore();
     effect(() => {
       if (this.auth.user()?.capabilities.read) untracked(() => { void this.data.refresh().catch(() => {}); });
@@ -107,4 +131,17 @@ export class App {
     { path: "/analytics", label: "Analytics" },
     { path: "/ai-assistant", label: "AI Assistant" },
   ];
+  toggleTheme(): void {
+    this.darkTheme.update((dark) => !dark);
+    this.applyTheme();
+    try {
+      this.document.defaultView?.localStorage.setItem(this.themeKey, this.darkTheme() ? "dark" : "light");
+    } catch {
+      // The theme still applies for the current session.
+    }
+  }
+
+  private applyTheme(): void {
+    this.document.documentElement.dataset["theme"] = this.darkTheme() ? "dark" : "light";
+  }
 }

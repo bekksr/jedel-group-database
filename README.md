@@ -47,3 +47,5 @@ See [all-section access and verification](docs/ALL_SECTIONS_REPORT.md) for curre
 See [RBAC provisioning and account administration](docs/RBAC_REPORT.md) for the six-role policy and required live provisioning approval.
 
 See [AI Procurement Copilot](docs/AI_COPILOT.md) for read-only tools, approved quotation CSVs, optional provider configuration and tests.
+
+Team frontend integration and exact verification: [integration report](docs/TEAM_FRONTEND_INTEGRATION_REPORT.md).

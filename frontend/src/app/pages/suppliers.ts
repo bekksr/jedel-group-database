@@ -1,20 +1,14 @@
 import { WorkspaceStatus } from './workspace-status';
+import { Supplier } from '../models';
 import { Component, computed, effect, inject, signal, untracked } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { ActivatedRoute, RouterLink } from "@angular/router";
-import { Supplier } from "../models";
 import { Store } from "../store";
-@Component({selector: "ng-component-suppliers",
+
+@Component({selector:"ng-component-suppliers",
   imports: [WorkspaceStatus, FormsModule, RouterLink],
-  template: `<h1>Suppliers</h1><app-workspace-status />
-    <p class="subtitle">Find a supplier and start a purchase order.</p>
-    <label class="search"
-      >Search suppliers<input
-        type="search"
-        [ngModel]="query()"
-        (ngModelChange)="query.set($event)"
-        placeholder="Name, email, phone or address"
-    /></label>
+  template: `
+    <h1>Suppliers</h1><app-workspace-status />
     @if(data.permissions().manageCatalog) {
       <button [disabled]="busy() || data.loading()" (click)="edit()">New supplier</button>
       @if(formOpen()) {
@@ -31,39 +25,53 @@ import { Store } from "../store";
     }
     @if(error()) { <p class="error" role="alert">{{error()}}</p> }
     <label>Address filter<select [ngModel]="address()" (ngModelChange)="address.set($event)"><option value="">All addresses</option>@for(value of addresses();track value) {<option [value]="value">{{value}}</option>}</select></label>
-    <div class="cards">
-      @for (s of filtered(); track s.supplier_id) {
-        <article class="panel">
-          <h2>{{ s.supplier_name }}</h2>
-          @if(data.permissions().manageCatalog) { <button [disabled]="busy() || data.loading()" (click)="edit(s)">Edit</button> }
-          @if(data.permissions().deleteRecords) { <button [disabled]="busy() || data.loading()" (click)="remove(s)">Delete</button> }
-          <dl>
-            <div>
-              <dt>Email</dt>
-              <dd>{{ s.email }}</dd>
-            </div>
-            <div>
-              <dt>Phone</dt>
-              <dd>{{ s.phone || "—" }}</dd>
-            </div>
-            <div>
-              <dt>Address</dt>
-              <dd>{{ s.address || "—" }}</dd>
-            </div>
-          </dl>
-          @if(data.permissions().createOrders) {
-          <a
-            class="button secondary"
-            routerLink="/orders"
-            [queryParams]="{ new: 1, supplier: s.supplier_id }"
-            >Choose supplier</a
-          >
-          }
-        </article>
-      } @empty {
-        @if(!data.loading() && !data.error()) {<p class="panel">No suppliers match your search.</p>}
-      }
-    </div>`,
+
+    <p class="subtitle">Search the directory and choose a supplier for your order.</p>
+    @if (data.loading()) {
+      <p class="panel" role="status">Loading suppliers…</p>
+    } @else if (data.error()) {
+      <p class="panel">Restore the business connection using Retry workspace above.</p>
+    } @else {
+      <div class="catalog-toolbar">
+        <label>Search suppliers
+          <input
+            type="search"
+            [ngModel]="query()"
+            (ngModelChange)="query.set($event)"
+            placeholder="Name, address, email, or phone"
+          />
+        </label>
+        <p class="result-count" role="status">{{ filtered().length }} of {{ data.suppliers().length }} suppliers</p>
+      </div>
+
+      <div class="cards catalog-cards">
+        @for (supplier of filtered(); track supplier.supplier_id) {
+          <article class="panel catalog-card">
+            <h2>{{ supplier.supplier_name }}</h2><div class="actions">@if(data.permissions().manageCatalog) {<button type="button" class="secondary" [disabled]="busy() || data.loading()" (click)="edit(supplier)">Edit</button>}@if(data.permissions().deleteRecords) {<button type="button" class="secondary" [disabled]="busy() || data.loading()" (click)="remove(supplier)">Delete</button>}</div>
+            <dl class="contact-details">
+              <div><dt>Address</dt><dd>{{ supplier.address || "Not listed" }}</dd></div>
+              <div><dt>Email</dt><dd>{{ supplier.email }}</dd></div>
+              <div><dt>Phone</dt><dd>{{ supplier.phone || "Not listed" }}</dd></div>
+            </dl>
+            @if (canOrder()) {
+              <a class="button secondary card-action" routerLink="/orders" [queryParams]="{ new: 1, supplier: supplier.supplier_id }">
+                Choose supplier
+              </a>
+            }
+          </article>
+        } @empty {
+          <div class="panel empty-state">
+            @if (query()) {
+              <p>No suppliers match your search.</p>
+              <button type="button" class="secondary" (click)="query.set('')">Clear search</button>
+            } @else {
+              <p>No suppliers are available in this workspace.</p>
+            }
+          </div>
+        }
+      </div>
+    }
+  `,
 })
 export class SuppliersPage {
   private readonly route = inject(ActivatedRoute);
@@ -75,8 +83,6 @@ export class SuppliersPage {
       }
     });
   }
-  readonly data = inject(Store);
-  readonly query = signal("");
   readonly address = signal('');
   readonly addresses = computed(()=>[...new Set(this.data.suppliers().map(s=>s.address).filter(Boolean))].sort());
   readonly busy = signal(false); readonly error = signal(''); readonly formOpen = signal(false);
@@ -99,14 +105,15 @@ export class SuppliersPage {
     this.busy.set(true); this.error.set('');
     try { await this.data.deleteSupplier(s.supplier_id); } catch(e) { this.error.set((e as Error).message); } finally { this.busy.set(false); }
   }
-  readonly filtered = computed(() =>
-    this.data
-      .suppliers()
-      .filter(s=>!this.address() || s.address === this.address())
-      .filter((s) =>
-        (s.supplier_name + " " + s.email + " " + s.phone + " " + s.address)
-          .toLowerCase()
-          .includes(this.query().trim().toLowerCase()),
-      ),
-  );
+
+  readonly data = inject(Store);
+  readonly query = signal("");
+  readonly canOrder = computed(() => this.data.canWrite() && this.data.permissions().createOrders);
+  readonly filtered = computed(() => {
+    const query = this.query().trim().toLowerCase();
+    return this.data.suppliers().filter(supplier=>!this.address() || supplier.address === this.address()).filter((supplier) =>
+      [supplier.supplier_name, supplier.address, supplier.email, supplier.phone]
+        .some((field) => field.toLowerCase().includes(query)),
+    );
+  });
 }

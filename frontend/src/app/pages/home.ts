@@ -6,10 +6,10 @@ import { Store } from '../store';
 import { WorkspaceStatus } from './workspace-status';
 import { AccessPrompt } from './access-prompt';
 @Component({imports:[RouterLink,DecimalPipe,WorkspaceStatus,AccessPrompt],template:`
-<section class="hero"><p class="eyebrow">SUPPLIER &amp; PURCHASING MANAGEMENT</p><h1>Purchasing, made simple.</h1><p>Jedel.Group connects supplier records, product catalogs, procurement approval and reliable inventory receipts in one team workspace.</p>
+<section class="hero" aria-labelledby="home-title"><div class="hero-copy"><p class="eyebrow">SUPPLIER &amp; PURCHASING MANAGEMENT</p><h1 id="home-title">Purchasing, made simple.</h1><p>Jedel.Group connects supplier records, product catalogs, procurement approval and reliable inventory receipts in one team workspace.</p>
 <a class="button" routerLink="/products">Browse products</a>
 @if(auth.user()?.capabilities?.create_orders) {<a class="button secondary" routerLink="/orders/new">Create an order</a>} @else {<a class="button secondary" routerLink="/orders">Explore the workflow</a>}
-</section>
+</div><aside class="hero-overview"><h2>Workspace overview</h2><p>Explore the public catalog and procurement workflow. Authorized team members use the live dashboard below.</p><ol class="overview-list"><li>Prepare Pending orders</li><li>Approve eligible purchases</li><li>Receive stock once on delivery</li></ol></aside></section>
 @if(auth.user()?.capabilities?.read) {
  <app-workspace-status />
  @if(!data.loading() && !data.error()) { @if(data.dashboard(); as dashboard) {
@@ -19,8 +19,8 @@ import { AccessPrompt } from './access-prompt';
   <section class="panel"><h2>Low stock</h2><p>Products at or below {{data.lowStockThreshold()}} units.</p>@for(product of dashboard.lowStock; track product.product_id) {<p>{{product.product_name}}: {{product.stock_quantity}}</p>} @empty {<p>No products at or below the current threshold.</p>}</section>
  }}
 }
-<section aria-labelledby="sections-title"><h2 id="sections-title">Explore the workspace</h2><div class="cards">
-@for(link of sections; track link.path) {<article class="panel"><h3><a [routerLink]="link.path">{{link.title}}</a></h3><p>{{link.description}}</p></article>}
+<section class="home-shortcuts" aria-labelledby="sections-title"><h2 id="sections-title">Explore the workspace</h2><div class="cards">
+@for(link of sections; track link.path) {<article class="panel shortcut"><h3><a [routerLink]="link.path">{{link.title}}</a></h3><p>{{link.description}}</p></article>}
 </div></section>
 <section class="panel"><h2>How purchasing works</h2><ol><li>Authorized employees maintain suppliers and prepare Pending orders with captured prices.</li><li>Managers approve eligible orders without changing stock.</li><li>Confirmed full delivery updates stock and final status atomically, once.</li><li>Authorized reports explain commitments and inventory; no retail checkout or payment ledger is implied.</li></ol></section>
 @if(!auth.user()?.capabilities?.read) {<app-access-prompt section="orders" />}
