@@ -20,6 +20,7 @@ services:
       DJANGO_DEBUG: "true"
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set DJANGO_SECRET_KEY in .env}
       DB_HOST: db
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,[::1],backend
       DB_NAME: jedel_dev
       DB_USER: jedel_dev
       DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
