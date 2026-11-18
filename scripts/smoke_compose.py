@@ -73,7 +73,7 @@ print('Disposable administrator bootstrap verified; credential not displayed.')
     assert request('/api/auth/me/')['can_administer'] is True
     with client.open('http://localhost:8000/admin/', timeout=10) as response:
         assert response.status == 200
-        assert b'Site administration' in response.read()
+        assert b'Jedel.Group administration' in response.read()
     print('PASS: fresh Compose registration, session, Basic catalog, no-key local capabilities, restart persistence and administrator authentication.')
 
 
