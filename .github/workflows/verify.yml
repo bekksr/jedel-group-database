@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-24.04, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -76,7 +76,7 @@ jobs:
           cd ../backend
           .venv/bin/python scripts/test_postgres.py apps.purchasing.test_browser
   compose:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       COMPOSE_PROJECT_NAME: jedel-ci-${{ github.run_id }}-${{ github.run_attempt }}
       JEDEL_COMPOSE_SMOKE: '1'
