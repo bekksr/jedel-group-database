@@ -177,6 +177,8 @@ This design allows every teammate to create a reproducible **local** demo withou
 
 The shared dataset uses the 50 previously reviewed fictional products plus five additional fictional products. It is **not a copy of the owner's database**: the five original products and the owner's supplier, order, account and session records are not exported. Product IDs are generated locally; order items reference the locally created product and order IDs. The existing four-table schema, constraints and foreign keys are preserved.
 
+The current SQL dump contains schema only; its historical data sections have been emptied. Older Git commits may still contain the original supplier contact rows, so repository owners must review history before publishing or changing repository visibility.
+
 The isolated demo initializer creates **four fictional suppliers, 55 products, eight orders and 24 order items** across all four order statuses (`Pending`, `Approved`, `Delivered`, `Cancelled`). Opening stock is fictional; old deliveries are not replayed into it. No users, passwords or sessions are imported.
 
 After `git pull`, teammates who previously loaded the 50-product isolated demo can preview and explicitly add the five new products from `backend` using their virtual environment:

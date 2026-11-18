@@ -1,5 +1,6 @@
 import io
 import os
+from pathlib import Path
 from unittest.mock import patch
 from django.core.management import call_command, CommandError
 from django.test import TestCase
@@ -8,6 +9,13 @@ from .models import Product, Supplier, PurchaseOrder, PurchaseOrderItem
 
 
 class PortabilityTests(TestCase):
+    def test_committed_schema_dump_contains_no_copy_rows(self):
+        dump = (Path(__file__).resolve().parents[3] / 'database' / 'dumps' / 'jedel_group_db.sql').read_text(encoding='utf-8')
+        lines = dump.splitlines()
+        starts = [index for index, line in enumerate(lines) if line.startswith('COPY public.')]
+        self.assertEqual(len(starts), 4)
+        self.assertTrue(all(lines[index + 1] == r'\.' for index in starts))
+
     def test_environment_check_is_read_only(self):
         call_command('setup_roles', confirm=True, stdout=io.StringIO())
         output = io.StringIO()
