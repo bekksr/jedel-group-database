@@ -25,6 +25,9 @@ test('registration activates Basic User, logs in automatically, persists and pre
   await expect(page.getByText('Unit price', {exact: true})).toHaveCount(0);
   await expect(page.getByText('Warehouse stock', {exact: true})).toHaveCount(0);
   await expect(page.getByRole('button', {name: 'Edit', exact: true})).toHaveCount(0);
+  await page.getByLabel('Search products', {exact: true}).fill('JEDEL FICTIONAL');
+  await expect(page.getByRole('status').filter({hasText:'50 product(s) found.'})).toBeVisible();
+  await expect(page.getByRole('heading', {name:'[JEDEL FICTIONAL] Notebook Air 13', exact:true})).toBeVisible();
   await page.getByLabel('Search products', {exact: true}).fill('office');
   await expect(page.getByRole('heading', {name: 'Public catalog office', exact: true})).toBeVisible();
   await expect(page.getByRole('heading', {name: 'Public catalog hardware', exact: true})).toHaveCount(0);
@@ -61,6 +64,7 @@ test('registration activates Basic User, logs in automatically, persists and pre
   await admin.getByLabel(/^Unit price/).fill('4.25');
   await expect(admin.locator('input[name="stock_quantity"]')).toHaveCount(0);
   await admin.getByRole('button', {name: 'Save', exact: true}).click();
+  await admin.goto(backend + '/admin/purchasing/product/?q=Admin%20browser%20product');
   await expect(admin.getByRole('link', {name: 'Admin browser product', exact: true})).toBeVisible();
   await adminContext.close();
   await page.locator('.profile-menu summary').click();

@@ -1,4 +1,4 @@
-"""Portable first-time native setup. Never initializes a database implicitly."""
+"""Portable setup; bootstrap only an explicitly isolated empty development database."""
 import argparse
 import getpass
 import json
@@ -84,6 +84,8 @@ def main():
     else:
         raise SystemExit('Missing backend/.env. Run first-time setup or configure it privately.')
     run([python, 'manage.py', 'check'], cwd=backend)
+    if not args.check_only:
+        run([python, 'manage.py', 'setup_fresh_demo', '--skip-unless-isolated'], cwd=backend)
     result = subprocess.run([str(python), 'manage.py', 'check_environment'], cwd=backend)
     if result.returncode:
         print('Setup installed dependencies; database is NOT ready. See diagnostics above.\n'
@@ -101,4 +103,4 @@ if __name__ == '__main__':
     try:
         raise SystemExit(main())
     except subprocess.CalledProcessError:
-        raise SystemExit('A setup command failed. Review the tool error above. macOS source builds need Xcode Command Line Tools and PostgreSQL pg_config. No database initialization was performed.') from None
+        raise SystemExit('A setup command failed. Review the tool error above. macOS source builds need Xcode Command Line Tools and PostgreSQL pg_config. Check the isolated database before retrying.') from None

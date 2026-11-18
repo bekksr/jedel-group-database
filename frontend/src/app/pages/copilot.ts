@@ -13,7 +13,7 @@ export class CopilotPage {
   searchResult = signal<SearchResult | null>(null); selected = signal<CatalogProduct | null>(null);
   comparison = signal<Comparison | null>(null); inventory = signal<Inventory | null>(null); draft = signal<OrderDraft | null>(null);
   suppliers = signal<{supplier_id: number; supplier_name: string}[]>([]);
-  messages = signal<{kind: 'user' | 'assistant'; text: string}[]>([]);
+  messages = signal<{kind: 'user' | 'assistant'; text: string; source?: string}[]>([]);
   status = signal<{order_id: number; status: string} | null>(null);
   query = ''; category = ''; match = 'partial'; message = ''; consent = false;
   quantity = 1; supplierId = 0; csv = ''; approved = false; equivalent = false;
@@ -50,8 +50,8 @@ export class CopilotPage {
   }
   private failure(error: unknown) {
     if(error instanceof HttpErrorResponse) {
-      if(error.status === 0) return 'Cannot reach the Copilot API. Check that Django is running, then retry. These tools do not write business records.';
-      if(error.status === 503) return typeof error.error?.detail === 'string' ? error.error.detail : 'The assistant service is unavailable. No business records were changed.';
+      if(error.status === 0) return 'Cannot reach Jedel AI. Check that the server is running, then retry.';
+      if(error.status === 503) return 'Jedel AI is temporarily unavailable. Please try again later or contact your administrator.';
       if(error.status === 429) return 'Assistant request limit reached. Wait before retrying; ordinary ERP pages remain available.';
     }
     return apiError(error);
@@ -112,7 +112,7 @@ export class CopilotPage {
     const local = this.localCapability();
     if (local) return this.caps()?.[local] ? 'Ready: this question runs locally in Django. No Groq key, consent or API credits are needed.' : 'Your assigned role cannot use this local tool. Request access from your administrator; logging in again does not grant permission.';
     if (!this.caps()?.chat_configured) return 'This wording needs optional AI interpretation, which is not configured. Use catalog filters or one of the supported local questions.';
-    if (!this.consent) return 'Select the Groq consent checkbox above to enable Ask Copilot. Do not include confidential information.';
+    if (!this.consent) return 'Select the Groq consent checkbox above to enable Jedel AI. Do not include confidential information.';
     return 'Ready: this message will be sent to the configured Groq provider and uses your Groq account quota; no provider fallback is used.';
   }
   suggestInventory() {this.message = 'Which products have low stock?';}
@@ -122,7 +122,9 @@ export class CopilotPage {
     if (generation === this.generation) {
       if (result.kind === 'conversation' && !local) this.chatHistory = [...this.chatHistory, {role: 'user' as const, content: text}, {role: 'assistant' as const, content: result.message.slice(0, 1000)}].slice(-8);
       else this.chatHistory = [];
-      this.messages.update(messages => [...messages.slice(-8), {kind: 'user', text}, {kind: 'assistant', text: (result.kind === 'conversation' ? 'Groq - General conversation (not database facts): ' : '') + (result.message ?? 'Catalog search completed.')}]);
+      const source = result.kind === 'product_advice' || result.kind === 'analytics' || result.kind === 'inventory' || result.kind === 'order_status' || result.kind === 'ai_interpreted_catalog_search' ? 'Source: PostgreSQL' : undefined;
+      const responseText = result.kind === 'inventory' ? 'Here are the current inventory levels.' : result.kind === 'order_status' ? 'Here is the current order status.' : (result.message ?? 'Catalog search completed.');
+      this.messages.update(messages => [...messages.slice(-8), {kind: 'user', text}, {kind: 'assistant', text: responseText, source}]);
       if(result.kind === 'inventory') this.inventory.set(result.inventory);
       else if(result.kind === 'draft') this.draft.set(result.draft);
       else if(result.kind === 'order_status') this.status.set(result.order_status);

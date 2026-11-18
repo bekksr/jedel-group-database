@@ -24,6 +24,15 @@ class PortabilityTests(TestCase):
         with self.assertRaises(CommandError):
             call_command('seed_demo', stdout=io.StringIO())
 
+    def test_automatic_setup_skips_existing_schema_and_unapproved_database(self):
+        with patch.dict(os.environ, {'JEDEL_ISOLATED_DEVELOPMENT': '1'}), patch.dict(connection.settings_dict, {'NAME': 'jedel_dev'}):
+            output = io.StringIO()
+            call_command('setup_fresh_demo', stdout=output)
+            self.assertIn('skipped', output.getvalue())
+        with patch.dict(connection.settings_dict, {'NAME': 'jedel_group_db'}):
+            with self.assertRaises(CommandError):
+                call_command('setup_fresh_demo', stdout=io.StringIO())
+
     def test_demo_is_complete_and_repeatable(self):
         with patch.dict(os.environ, {'JEDEL_ISOLATED_DEVELOPMENT': '1'}), patch.dict(connection.settings_dict, {'NAME': 'jedel_dev'}):
             call_command('seed_demo', confirm=True, stdout=io.StringIO())
@@ -45,3 +54,9 @@ class PortabilityTests(TestCase):
         self.assertEqual(Product.objects.count(), 51)
         existing.refresh_from_db()
         self.assertEqual((existing.product_name, existing.stock_quantity), ('Existing product', 7))
+
+    def test_add_fictional_products_refuses_existing_unlabeled_match(self):
+        Product.objects.create(product_name='Office Desk', category='Furniture', unit_price='100.00', stock_quantity=2)
+        with self.assertRaises(CommandError):
+            call_command('add_fictional_products', apply=True, confirm_database=connection.settings_dict['NAME'], stdout=io.StringIO())
+        self.assertEqual(Product.objects.count(), 1)

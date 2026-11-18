@@ -15,7 +15,7 @@ CATALOG = {
     'Networking': [('Gigabit Router', 32000), ('Wi-Fi Access Point', 45000), ('Network Switch 8 Port', 28000), ('Network Switch 24 Port', 95000), ('Ethernet Cable 5m', 2500)],
     'Storage': [('SSD 256GB', 22000), ('SSD 512GB', 35000), ('SSD 1TB', 59000), ('USB Drive 64GB', 6500), ('External Drive 2TB', 58000)],
     'Printers': [('Laser Printer Mono', 85000), ('Laser Printer Color', 185000), ('Inkjet Printer', 68000), ('Document Scanner', 115000), ('Label Printer', 74000)],
-    'Furniture': [('Office Desk', 78000), ('Office Chair', 65000), ('Filing Cabinet', 89000), ('Meeting Table', 155000), ('Mobile Pedestal', 42000)],
+    'Furniture': [('Office Desk', 78000), ('Ergo Mesh Office Chair', 65000), ('Filing Cabinet', 89000), ('Meeting Table', 155000), ('Mobile Pedestal', 42000)],
     'Office Supplies': [('Paper A4 Box', 12500), ('Notebook Pack', 4800), ('Pen Pack', 3200), ('Stapler', 3900), ('Document Folder Pack', 5600)],
     'Audio': [('Office Headset', 18500), ('Conference Speaker', 69000), ('Desktop Speakers', 24000), ('USB Microphone', 35000), ('Wireless Headphones', 42000)],
     'Power': [('UPS 650VA', 35000), ('UPS 1000VA', 58000), ('Surge Protector', 8500), ('Power Strip', 5500), ('Laptop Charger', 16500)],

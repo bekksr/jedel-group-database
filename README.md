@@ -31,7 +31,7 @@ Start the whole environment from the repository root:
 docker compose up --build
 ```
 
-Expected: database healthy, `Isolated development schema ready`, Angular compilation complete. The first build downloads dependencies and can take several minutes. In another terminal, create your own administrator interactively:
+Expected: database healthy, fictional demo created on the first empty volume, Angular compilation complete. The first build downloads dependencies and can take several minutes. In another terminal, create your own administrator interactively:
 
 ```sh
 docker compose exec backend python manage.py createsuperuser
@@ -80,9 +80,9 @@ Native Windows is tested on this workstation (Python 3.13.1, Node 24.13.1, npm 1
 
 Docker uses an internal PostgreSQL service, an isolated database named `jedel_dev` and a persistent named volume. PostgreSQL has **no host port mapping**. It cannot use your host `jedel_group_db` through the provided configuration.
 
-On the first empty development database, `init_development` extracts only reviewed schema DDL from the authoritative SQL dump, creates the four unmanaged business tables and runs managed Django auth/session/admin migrations. It provisions the six approved groups. It never imports historical rows, real supplier contacts or old Delivered orders. Later starts preserve records; they may apply pending managed migrations only to this explicitly isolated development database. Back up valued development data before updating software.
+On the first empty, explicitly isolated `jedel_dev`, setup creates the four existing business tables, managed Django auth/session/admin tables and six groups, then loads fictional demo data. Docker performs this on its first start; native setup does it after you create the empty database and role. It never imports historical rows or real contacts. If any tables already exist, automatic initialization and seeding are skipped; data is never overwritten. An incomplete existing schema requires manual review. Back up valued development data before updating software.
 
-Optional fictional sample catalog, only after initialization:
+The sample is automatic for a new empty database. To explicitly seed an already initialized but empty isolated development schema:
 
 ```sh
 docker compose exec backend python manage.py seed_demo --confirm
@@ -135,14 +135,13 @@ From the repository root:
 .\scripts\setup-windows.ps1
 ```
 
-The script checks versions/tools, creates a Windows `.venv`, installs pinned dependencies and `npm ci`, and creates `backend/.env` only when absent. It prompts privately for the new development database password. Existing `.env` files are never overwritten. On a new empty database, readiness exits with instructions because the schema is not initialized yet. This is expected.
+The script checks versions/tools, creates a Windows `.venv`, installs pinned dependencies and `npm ci`, and creates `backend/.env` only when absent. It prompts privately for the new development database password. Existing `.env` files are never overwritten. For a configured, explicitly isolated empty `jedel_dev`, it initializes and seeds automatically; existing schemas are not changed by this step.
 
-For that **new isolated `jedel_dev` only**, after reviewing its private configuration:
+Create your own administrator after setup:
 
 ```powershell
 cd backend
 .\.venv\Scripts\Activate.ps1
-python manage.py init_development
 python manage.py createsuperuser
 python manage.py check_environment
 ```
@@ -163,11 +162,10 @@ createdb --owner=jedel_dev jedel_dev
 bash scripts/setup-macos.sh
 ```
 
-Run Homebrew setup steps once, and add the printed tool PATH instructions to your shell configuration if needed. If the schema is empty, finish from `backend`:
+Run Homebrew setup steps once, and add the printed tool PATH instructions to your shell configuration if needed. Setup initializes and seeds the empty isolated database. Create an administrator from `backend`:
 
 ```sh
 source .venv/bin/activate
-python3 manage.py init_development
 python3 manage.py createsuperuser
 python3 manage.py check_environment
 ```

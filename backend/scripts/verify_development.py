@@ -23,7 +23,7 @@ finally:
 env = os.environ.copy()
 env.update(DB_NAME='jedel_dev', JEDEL_ISOLATED_DEVELOPMENT='1')
 backend = Path(__file__).resolve().parents[1]
-for args in [['migrate', '--plan'], ['init_development']]:
+for args in [['migrate', '--plan'], ['setup_fresh_demo']]:
     subprocess.run([sys.executable, 'manage.py', *args], cwd=backend, env=env, check=True)
 # Create fictional sample data explicitly, prove repeatability, then preserve it
 # and a registered Basic User/session across a real temporary server restart.
@@ -51,7 +51,7 @@ with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
         cursor.execute("INSERT INTO suppliers (supplier_name, email) VALUES ('Restart sentinel', 'restart@example.test')")
         cursor.execute("SELECT count(*) FROM products")
         assert cursor.fetchone()[0] == 50, 'Explicit fictional sample data differs.'
-subprocess.run([sys.executable, 'manage.py', 'init_development'], cwd=backend, env=env, check=True)
+subprocess.run([sys.executable, 'manage.py', 'setup_fresh_demo'], cwd=backend, env=env, check=True)
 with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:
         cursor.execute("SELECT count(*) FROM suppliers WHERE email='restart@example.test'")

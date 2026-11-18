@@ -11,7 +11,7 @@ import { ProductsPage } from "./pages/products";
 import { SuppliersPage } from "./pages/suppliers";
 import { OrdersPage } from "./pages/orders";
 export const routes: Routes = [
-  {path: 'ai-assistant', component: CopilotPage, title: 'AI Assistant | Jedel.Group'},
+  {path: 'ai-assistant', component: CopilotPage, title: 'Jedel AI | Jedel.Group'},
   {path: 'access', component: AccessRequestPage, canActivate: [accountGuard]},
   {path: 'profile', redirectTo: 'settings', pathMatch: 'full'},
   {path: 'access-denied', component: AccessDeniedPage},

@@ -12,6 +12,7 @@ class Command(BaseCommand):
         parser.add_argument('--database', default='default')
         parser.add_argument('--apply', action='store_true')
         parser.add_argument('--confirm-database', default='')
+        parser.add_argument('--expected-additions', type=int)
 
     def handle(self, *args, **options):
         alias = options['database']
@@ -28,6 +29,10 @@ class Command(BaseCommand):
             if len(existing) != len(set(existing)):
                 raise CommandError('Duplicate fictional labels already exist; review manually. No rows were changed.')
             present = set(existing)
+            existing_names = {value.casefold().strip() for value in Product.objects.using(alias).values_list('product_name', flat=True)}
+            conflicts = [product for entries in CATALOG.values() for product, _ in entries if product.casefold().strip() in existing_names]
+            if conflicts:
+                raise CommandError('Unlabeled existing products match fictional names; review before adding: ' + ', '.join(conflicts))
             pending = []
             index = 0
             for category, entries in CATALOG.items():
@@ -36,6 +41,12 @@ class Command(BaseCommand):
                     if label not in present:
                         pending.append(Product(product_name=label, category=category, unit_price=price, stock_quantity=(index * 13 % 90) + 3))
                     index += 1
+            if options['expected_additions'] is not None and len(pending) != options['expected_additions']:
+                raise CommandError('The proposed additions changed since preview; no rows were changed.')
             if options['apply']:
                 Product.objects.using(alias).bulk_create(pending)
+            else:
+                self.stdout.write('Exact proposed additions (name | category | unit price KZT | opening stock):')
+                for product in pending:
+                    self.stdout.write(f'{product.product_name} | {product.category} | {product.unit_price}.00 | {product.stock_quantity}')
             self.stdout.write(f"Database {name}: {len(present)} labels already present; {'added' if options['apply'] else 'would add'} {len(pending)} fictional products. Existing rows were not changed.")

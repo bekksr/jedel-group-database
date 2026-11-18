@@ -22,7 +22,7 @@ async function setup(authorized=false) {
 async function csrf() {http.expectOne('/api/auth/csrf/').flush({});await new Promise(resolve=>setTimeout(resolve,0));}
 it('renders useful public tools without provider or private data requests',async()=>{
   const fixture=await setup();const text=fixture.nativeElement.textContent;
-  expect(text).toContain('AI Procurement Copilot');expect(text).toContain('Groq chat is not configured');
+  expect(text).toContain('Jedel AI');expect(text).toContain('Groq chat is not configured');
   expect(text).toContain('Search the product catalog');expect(text).not.toContain('Best offer finder');expect(text).not.toContain('Inventory assistant');
   http.expectNone('/api/ai/suppliers/');
 });
@@ -68,8 +68,9 @@ it('labels Groq conversation without sending displayed local results as history'
   expect(request.request.body.history).toEqual([]);
   request.flush({kind:'conversation',message:'Hello! I can explain procurement.',source:'Groq general conversation; not PostgreSQL facts'});
   await action;await fixture.whenStable();
-  expect(fixture.nativeElement.textContent).toContain('AI Assistant is ready');
-  expect(fixture.nativeElement.textContent).toContain('not database facts');
+  expect(fixture.nativeElement.textContent).toContain('Jedel AI is ready');
+  expect(fixture.nativeElement.textContent).toContain('Hello! I can explain procurement.');
+  expect(fixture.nativeElement.textContent).not.toContain('Groq - General conversation');
   expect(page.searchResult()).toBeNull();
 });
 it('recognizes Russian local stock questions without cloud configuration or consent',async()=>{
@@ -92,7 +93,7 @@ it('explains a missing backend SDK and keeps cloud submission disabled',async()=
   page.caps.set({...publicCaps,chat_status:'missing_sdk'});page.message='Hello';page.consent=true;
   await fixture.whenStable();
   expect(page.canSend()).toBe(false);
-  expect(fixture.nativeElement.textContent).toContain('missing the Groq-compatible SDK');
+  expect(fixture.nativeElement.textContent).toContain('Contact your administrator for setup assistance');
   expect(fixture.nativeElement.textContent).toContain('Search the product catalog');
 });
 it('keeps message and external consent disabled until session restoration finishes',async()=>{
@@ -117,12 +118,12 @@ it('supports authorized local inventory questions while optional AI is disabled'
   expect(fixture.componentInstance.canSend()).toBe(true);
   const action=fixture.componentInstance.chat();await csrf();
   http.expectOne('/api/ai/chat/').flush({kind:'inventory',message:'Inventory read from PostgreSQL.',inventory:{results:[{...product,stock_quantity:5}],threshold:20,threshold_basis:'request',guidance:'Review with team',truncated:false}});
-  await action;await fixture.whenStable();expect(fixture.nativeElement.textContent).toContain('Inventory read from PostgreSQL.');expect(fixture.nativeElement.textContent).toContain('5 units');
+  await action;await fixture.whenStable();expect(fixture.nativeElement.textContent).toContain('Here are the current inventory levels.');expect(fixture.nativeElement.textContent).toContain('Source: PostgreSQL');expect(fixture.nativeElement.textContent).toContain('5 units');
 });
 it('retries capability and supplier initialization after an unavailable backend',async()=>{
   TestBed.inject(Auth).user.set(basic);const fixture=TestBed.createComponent(CopilotPage);fixture.detectChanges();
   http.expectOne('/api/ai/capabilities/').flush({detail:'Database service unavailable.'},{status:503,statusText:'Unavailable'});await new Promise(resolve=>setTimeout(resolve,0));await fixture.whenStable();
-  expect(fixture.nativeElement.textContent).toContain('Database service unavailable.');
+  expect(fixture.nativeElement.textContent).toContain('Jedel AI is temporarily unavailable.');
   const action=fixture.componentInstance.retry();
   http.expectOne('/api/ai/capabilities/').flush({...publicCaps,order_draft:true});await new Promise(resolve=>setTimeout(resolve,0));
   http.expectOne('/api/ai/suppliers/').flush({results:[{supplier_id:2,supplier_name:'Authorized supplier'}]});await action;await fixture.whenStable();
@@ -142,7 +143,7 @@ it('local suggestion enables a real Ask button without external consent',async()
   const fixture=await setup(true);
   const button=[...fixture.nativeElement.querySelectorAll('button')].find((element: Element)=>element.textContent?.includes('Use local low-stock question')) as HTMLButtonElement;
   button.click();await fixture.whenStable();
-  const ask=[...fixture.nativeElement.querySelectorAll('button')].find((element: Element)=>element.textContent==='Ask Copilot') as HTMLButtonElement;
+  const ask=[...fixture.nativeElement.querySelectorAll('button')].find((element: Element)=>element.textContent==='Ask Jedel AI') as HTMLButtonElement;
   expect(ask.disabled).toBe(false);expect(fixture.componentInstance.consent).toBe(false);
   expect(fixture.nativeElement.textContent).toContain('this question runs locally in Django');
 });

@@ -25,7 +25,7 @@ it('shows exactly one Account link and no separate Register/Log in links in the 
   const fixture = TestBed.createComponent(App); http.expectOne('/api/auth/me/').flush({}, {status: 401,statusText: 'Unauthorized'});
   await fixture.whenStable();
   const links = [...fixture.nativeElement.querySelectorAll('header nav a')] as HTMLAnchorElement[];
-  expect(links.map(link => link.textContent?.trim())).toEqual(['Home','Products','Suppliers','Orders','Analytics','AI Assistant','Account']);
+  expect(links.map(link => link.textContent?.trim())).toEqual(['Home','Products','Suppliers','Orders','Analytics','Jedel AI','Account']);
   expect(links.at(-1)?.getAttribute('href')).toBe('/auth');
 });
 it('shows actual identity and profile/settings/logout without exposing an admin link to Basic User', async () => {

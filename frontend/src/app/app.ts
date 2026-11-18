@@ -129,7 +129,7 @@ export class App {
     { path: "/suppliers", label: "Suppliers" },
     { path: "/orders", label: "Orders" },
     { path: "/analytics", label: "Analytics" },
-    { path: "/ai-assistant", label: "AI Assistant" },
+    { path: "/ai-assistant", label: "Jedel AI" },
   ];
   toggleTheme(): void {
     this.darkTheme.update((dark) => !dark);
