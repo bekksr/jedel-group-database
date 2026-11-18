@@ -200,7 +200,7 @@ Manual browser checks:
 
 ## Limitations and verification record
 
-There is no live marketplace/Kaspi integration, FX feed, persistent quotation history, automatic specification matching, supplier-product relation or demand forecasting. Conversation context is limited to recent general exchanges and is cleared after tool results. Natural-language private intents use the documented narrow grammar; other private requests must use the structured forms. The optional Groq model supports general conversation and validated tool selection. Live Groq connectivity, free-tier account eligibility and answer quality remain unverified. No new migration is required.
+There is no live marketplace/Kaspi integration, weather or review feed, FX feed, persistent quotation history, automatic specification matching, supplier-product relation or demand forecasting. The optional Groq model interprets natural language into validated read-only tools. Database results stay local. Product search filters are kept in the authenticated session for follow-ups; roles are checked again on every request. Comparison means the two lowest-priced matches, and recommendation means the cheapest matching product with positive stock, not a quality assessment. Search may return up to ten results; totals count all matches. General conversation context is limited to recent exchanges and is cleared after tool results. Live Groq connectivity, free-tier account eligibility and answer quality remain unverified. No new migration is required.
 
 Final test counts, exact file list and browser results are recorded in AI_COPILOT_VERIFICATION.md after execution.
 

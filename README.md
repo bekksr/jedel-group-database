@@ -90,6 +90,22 @@ docker compose exec backend python manage.py seed_demo --confirm
 
 This creates four fictional suppliers, 50 products in ten categories, and eight illustrative orders with 24 items covering all four statuses. Stock is opening inventory; delivered examples are not replayed as receipts. It creates no users. It refuses nonempty business data without its demo marker; repeating after successful seeding adds nothing. Existing older demo sets are left untouched, not upgraded. For native isolated development, after initialization use `python manage.py seed_demo --confirm` with the activated backend interpreter and `JEDEL_ISOLATED_DEVELOPMENT=1` in the private environment. Run it only on your own approved isolated `jedel_dev` database.
 
+### Optional fictional products in an existing database
+
+Back up the database and obtain the database owner's approval first. Configure the intended database privately in `backend/.env`; verify the database name and connection before proceeding. From `backend`, using the activated project environment, preview without changing rows:
+
+```sh
+python manage.py add_fictional_products
+```
+
+The preview shows the configured database name and counts. If the owner explicitly approves those additions, run the following with the exact displayed name (replace the example name only after verifying the target):
+
+```sh
+python manage.py add_fictional_products --apply --confirm-database jedel_group_db
+```
+
+The command inserts only missing products labeled `[JEDEL FICTIONAL]`; it does not update or delete existing rows or create orders. It locks the product table during insertion, skips matching labels on repeat, and stops on duplicate matching labels. A matching label is treated as already present even if its fields differ; inspect such records manually. This is fictional stock, so keep it out of operational purchasing decisions. The command was not run on your existing database.
+
 **Never run initialization or migrations against existing `jedel_group_db` without separate approval.** Existing records, unmanaged mappings and PostgreSQL GRANT scripts are preserved. [Migration and backup procedure](docs/MIGRATION_APPROVAL.md).
 
 ## Everyday Docker use
@@ -207,6 +223,8 @@ A trusted administrator creates the first superuser using the interactive bootst
 Role capabilities compose as a union; Basic membership does not override another granted role. Registration cannot choose roles. See [RBAC details](docs/RBAC_REPORT.md) and [authentication](docs/AUTHENTICATION.md).
 
 ## Optional Groq chat
+
+To try product advice, log in with an authorized business-read role, enable Groq privately as below, select consent, then ask: `Find laptops under 400000 KZT`, `Which is cheapest?`, `Compare the best two`, and `Which would you recommend and why?`. These use PostgreSQL prices and stock, not external reviews or supplier offers. Follow-up search filters stay in the authenticated server session; tool results are not sent to Groq. Recommendations choose the lowest-priced matching in-stock product, not an assessment of quality or suitability beyond the filters provided. Basic and Security Administrator roles cannot access these business values.
 
 **Не вставляйте настоящий API-ключ в README или GitHub.** Место для вашего ключа — строка `GROQ_API_KEY=` в приватном `backend/.env` (native) или корневом `.env` (Docker). В этом README оставляйте только пример без ключа.
 

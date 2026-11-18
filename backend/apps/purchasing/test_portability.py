@@ -33,3 +33,15 @@ class PortabilityTests(TestCase):
         self.assertEqual(PurchaseOrder.objects.count(), 8)
         self.assertEqual(PurchaseOrderItem.objects.count(), 24)
         self.assertEqual(set(PurchaseOrder.objects.values_list('status', flat=True)), set(PurchaseOrder.Status.values))
+
+    def test_add_fictional_products_previews_and_preserves_existing_data(self):
+        existing = Product.objects.create(product_name='Existing product', category='Existing', unit_price='12.00', stock_quantity=7)
+        call_command('add_fictional_products', stdout=io.StringIO())
+        self.assertEqual(Product.objects.count(), 1)
+        with self.assertRaises(CommandError):
+            call_command('add_fictional_products', apply=True, confirm_database='wrong', stdout=io.StringIO())
+        for _ in range(2):
+            call_command('add_fictional_products', apply=True, confirm_database=connection.settings_dict['NAME'], stdout=io.StringIO())
+        self.assertEqual(Product.objects.count(), 51)
+        existing.refresh_from_db()
+        self.assertEqual((existing.product_name, existing.stock_quantity), ('Existing product', 7))

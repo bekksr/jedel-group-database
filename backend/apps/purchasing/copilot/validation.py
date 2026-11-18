@@ -47,6 +47,19 @@ class StatusInput(StrictSerializer):
     order_id = serializers.IntegerField(min_value=1)
 
 
+class ProductAdviceInput(StrictSerializer):
+    action = serializers.ChoiceField(choices=['find', 'cheapest', 'compare', 'recommend'])
+    query = serializers.CharField(max_length=100, required=False, allow_blank=True, default='')
+    category = serializers.CharField(max_length=50, required=False, allow_blank=True, default='')
+    budget = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=0, required=False, allow_null=True, default=None)
+    in_stock = serializers.BooleanField(required=False, default=False)
+    language = serializers.ChoiceField(choices=['en', 'ru'], default='en')
+
+
+class AnalyticsInput(StrictSerializer):
+    language = serializers.ChoiceField(choices=['en', 'ru'], default='en')
+
+
 class HistoryEntry(StrictSerializer):
     role = serializers.ChoiceField(choices=['user', 'assistant'])
     content = serializers.CharField(max_length=1000)

@@ -1,9 +1,10 @@
 """Bounded ORM reads; permissions apply even when called outside an API view."""
 from decimal import Decimal
 from django.shortcuts import get_object_or_404
+from django.db.models import Count, Sum, F, DecimalField, ExpressionWrapper
 from rest_framework.exceptions import PermissionDenied
 from ..accounts import capabilities
-from ..models import Product, Supplier, PurchaseOrder
+from ..models import Product, Supplier, PurchaseOrder, PurchaseOrderItem
 from ..api.catalog import PUBLIC_FIELDS
 from .validation import SearchInput, InventoryInput, DraftInput, StatusInput
 
@@ -81,3 +82,46 @@ def get_authorized_order_status(user, **arguments):
     data = validated(StatusInput, arguments)
     order = get_object_or_404(PurchaseOrder, pk=data['order_id'])
     return {'order_id': order.pk, 'status': order.status, 'source': 'PostgreSQL purchase orders', 'read_only': True}
+
+
+def product_advice(user, filters, action, language='en'):
+    """Rank using current database values; no derived product claims or provider access."""
+    require(user)
+    rows = Product.objects.all()
+    if filters.get('query'):
+        rows = rows.filter(product_name__icontains=filters['query'])
+    if filters.get('category'):
+        rows = rows.filter(category__icontains=filters['category'])
+    if filters.get('budget') is not None:
+        rows = rows.filter(unit_price__lte=filters['budget'])
+    if filters.get('in_stock') or action == 'recommend':
+        rows = rows.filter(stock_quantity__gt=0)
+    total = rows.count()
+    limit = 2 if action == 'compare' else 1 if action in ('cheapest', 'recommend') else 10
+    values = list(rows.order_by('unit_price', 'product_id').values('product_id', 'product_name', 'category', 'unit_price', 'stock_quantity')[:limit])
+    if language == 'ru':
+        intro = {'find': 'Подходящие товары', 'cheapest': 'Самый недорогой товар', 'compare': 'Два самых недорогих товара', 'recommend': 'Рекомендация: самый недорогой товар в наличии'}[action]
+        empty = 'Нет подходящих товаров в PostgreSQL.'
+        note = 'Цена и остаток — внутренние данные PostgreSQL; характеристики, отзывы и предложения поставщиков не проверены.'
+    else:
+        intro = {'find': 'Matching products', 'cheapest': 'Lowest-priced product', 'compare': 'Two lowest-priced products', 'recommend': 'Recommendation: lowest-priced product in stock'}[action]
+        empty = 'No matching products in PostgreSQL.'
+        note = 'Prices and stock are internal PostgreSQL data; specifications, reviews and supplier offers are not verified.'
+    stock_label = 'остаток' if language == 'ru' else 'stock'
+    lines = [f"{p['product_name']} (#{p['product_id']}), {p['category'] or '—'}: {p['unit_price']} KZT; {stock_label} {p['stock_quantity']}" for p in values]
+    message = (intro + f' ({total}):\n' + '\n'.join(lines) if lines else empty) + '\n' + note
+    return {'kind': 'product_advice', 'message': message, 'results': values, 'total': total, 'source': 'PostgreSQL', 'action': action}
+
+
+def analytics_summary(user, language='en'):
+    require(user)
+    counts = {row['status']: row['count'] for row in PurchaseOrder.objects.values('status').annotate(count=Count('order_id'))}
+    delivered = PurchaseOrderItem.objects.filter(order__status=PurchaseOrder.Status.DELIVERED).aggregate(
+        value=Sum(ExpressionWrapper(F('quantity') * F('unit_price'), output_field=DecimalField(max_digits=20, decimal_places=2))))['value'] or Decimal('0.00')
+    products = Product.objects.count()
+    low = Product.objects.filter(stock_quantity__lte=20).count()
+    if language == 'ru':
+        message = f'Сводка PostgreSQL: товаров {products}; остаток ≤ 20: {low}; заказы по статусам {counts}; стоимость доставленных заказов {delivered} KZT. Это не подтверждение оплаты.'
+    else:
+        message = f'PostgreSQL summary: products {products}; stock ≤ 20: {low}; orders {counts}; delivered order value {delivered} KZT. Delivered value is not confirmed payment.'
+    return {'kind': 'analytics', 'message': message, 'source': 'PostgreSQL', 'order_counts': counts, 'product_count': products, 'low_stock_count': low, 'delivered_value': str(delivered)}

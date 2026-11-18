@@ -21,7 +21,7 @@ test('Groq consent checkbox stays visible and enables Ask without external reque
   await page.route('**/api/ai/chat/',()=>{throw new Error('Consent-only test must not submit a cloud request');});
   await page.goto('/ai-assistant');
   await expect(page.locator('.account-summary')).toContainText('Basic User');
-  const consent=page.getByRole('checkbox',{name:/I agree to send this message to Groq/});
+  const consent=page.getByRole('checkbox',{name:/I agree to send this message and recent general conversation to Groq/});
   const ask=page.getByRole('button',{name:'Ask Copilot',exact:true});
   for(const width of [1440,390]) {
     await page.setViewportSize({width,height:900});

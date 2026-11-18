@@ -41,6 +41,42 @@ class CopilotTests(FixtureMixin, TestCase):
     def post(self, path, payload):
         return self.client.post('/api/ai/' + path + '/', payload, format='json')
 
+    def test_followups_use_database_filters_and_rbac(self):
+        Product.objects.bulk_create([
+            Product(product_name='Laptop A', category='Laptops', unit_price=300000, stock_quantity=4),
+            Product(product_name='Laptop B', category='Laptops', unit_price=350000, stock_quantity=2),
+            Product(product_name='Laptop C', category='Laptops', unit_price=100000, stock_quantity=0),
+            Product(product_name='Laptop D', category='Laptops', unit_price=500000, stock_quantity=9),
+        ])
+        self.client.force_login(self.employee)
+        def plan(action, **kw):
+            return {'tool': 'product_advice', 'arguments': {'action': action, 'query': kw.get('query', ''), 'category': kw.get('category', ''), 'budget': kw.get('budget'), 'in_stock': kw.get('in_stock', False), 'language': 'en'}}
+        with patch('apps.purchasing.copilot.views.get_provider') as provider, patch('apps.purchasing.copilot.views.reserve_budget'):
+            provider.return_value.interpret.side_effect = [plan('find', category='Laptop', budget=400000), plan('cheapest'), plan('compare'), plan('recommend')]
+            answers = [self.post('chat', {'message': text, 'consent_to_provider': True}) for text in ['Find laptops under 400000 KZT', 'Which is cheapest?', 'Compare the best two', 'Which would you recommend and why?']]
+        self.assertTrue(all(answer.status_code == 200 for answer in answers))
+        self.assertEqual(answers[0].data['total'], 3)
+        self.assertEqual(answers[1].data['results'][0]['product_name'], 'Laptop C')
+        self.assertEqual([p['product_name'] for p in answers[2].data['results']], ['Laptop C', 'Laptop A'])
+        self.assertEqual(answers[3].data['results'][0]['product_name'], 'Laptop A')
+        self.assertIn('lowest-priced product in stock', answers[3].data['message'])
+        self.client.force_login(self.basic)
+        with patch('apps.purchasing.copilot.views.get_provider') as provider, patch('apps.purchasing.copilot.views.reserve_budget'):
+            provider.return_value.interpret.return_value = plan('find', category='Laptop')
+            self.assertEqual(self.post('chat', {'message': 'find laptops', 'consent_to_provider': True}).status_code, 403)
+
+    def test_analytics_uses_actual_order_lines(self):
+        from .copilot.tools import analytics_summary
+        order = PurchaseOrder.objects.create(supplier=self.supplier, status='Delivered')
+        PurchaseOrderItem.objects.create(order=order, product=self.product, quantity=3, unit_price=Decimal('10.25'))
+        pending = PurchaseOrder.objects.create(supplier=self.supplier, status='Pending')
+        PurchaseOrderItem.objects.create(order=pending, product=self.product, quantity=2, unit_price=Decimal('10.25'))
+        result = analytics_summary(self.employee)
+        self.assertEqual(result['product_count'], 2)
+        self.assertEqual(result['order_counts'], {'Delivered': 1, 'Pending': 1})
+        self.assertEqual(Decimal(result['delivered_value']), Decimal('30.75'))
+        with self.assertRaises(PermissionDenied): analytics_summary(self.basic)
+
     def quotations(self, changes=None, count=2):
         defaults = {'product_id': str(self.product.pk), 'supplier_id': str(self.supplier.pk), 'unit_price': '10.25', 'currency': 'KZT',
                     'unit': 'pcs', 'available_quantity': '100', 'min_order_quantity': '1', 'delivery_cost': '5.00', 'delivery_days': '3',
@@ -276,6 +312,16 @@ class CopilotTests(FixtureMixin, TestCase):
 
 @override_settings(GROQ_API_KEY='test-not-a-real-key', AI_MODEL='openai/gpt-oss-20b', AI_ENABLED=True, AI_PROVIDER='groq')
 class ProviderTests(TestCase):
+    def test_provider_validates_product_advice_tool_call(self):
+        sdk = MagicMock()
+        client = sdk.OpenAI.return_value.__enter__.return_value
+        client.responses.create.return_value = self.response('product_advice', {'action': 'find', 'category': 'Laptop', 'budget': 400000, 'language': 'ru'})
+        with patch.dict(sys.modules, {'openai': sdk}):
+            plan = GroqInterpreter().interpret('Найди ноутбуки до 400000 тенге')
+        self.assertEqual(plan['tool'], 'product_advice')
+        self.assertEqual(plan['arguments']['budget'], Decimal('400000.00'))
+        self.assertEqual(plan['arguments']['language'], 'ru')
+
     def test_conversation_history_is_sent_with_current_message(self):
         sdk = MagicMock()
         client = sdk.OpenAI.return_value.__enter__.return_value
@@ -296,7 +342,7 @@ class ProviderTests(TestCase):
         self.assertEqual(result['query'],'Laptop')
         args=client.responses.create.call_args.kwargs
         self.assertNotIn('store',args);self.assertFalse(args['parallel_tool_calls'])
-        self.assertEqual(args['input'],'Find laptops');self.assertEqual(len(args['tools']),5)
+        self.assertEqual(args['input'],'Find laptops');self.assertEqual(len(args['tools']),7)
         self.assertEqual(sdk.OpenAI.call_args.kwargs['max_retries'],0)
         self.assertEqual(sdk.OpenAI.call_args.kwargs['base_url'],'https://api.groq.com/openai/v1')
         for unsupported in ('store','previous_response_id','truncation','include','safety_identifier','prompt_cache_key'):
