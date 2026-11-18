@@ -50,7 +50,7 @@ with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:
         cursor.execute("INSERT INTO suppliers (supplier_name, email) VALUES ('Restart sentinel', 'restart@example.test')")
         cursor.execute("SELECT count(*) FROM products")
-        assert cursor.fetchone()[0] == 2, 'Explicit fictional sample data differs.'
+        assert cursor.fetchone()[0] == 50, 'Explicit fictional sample data differs.'
 subprocess.run([sys.executable, 'manage.py', 'init_development'], cwd=backend, env=env, check=True)
 with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:
@@ -74,8 +74,8 @@ with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:
         cursor.execute('SELECT count(*) FROM auth_user'); assert cursor.fetchone()[0] == 1
         cursor.execute('SELECT count(*) FROM django_session'); assert cursor.fetchone()[0] == 1
-        cursor.execute('SELECT count(*), sum(stock_quantity) FROM products'); assert cursor.fetchone() == (2,15)
-        cursor.execute('SELECT count(*) FROM purchase_orders'); assert cursor.fetchone()[0] == 0
+        cursor.execute('SELECT count(*), sum(stock_quantity) FROM products'); assert cursor.fetchone() == (50, sum((i * 13 % 90) + 3 for i in range(50)))
+        cursor.execute('SELECT count(*), count(DISTINCT status) FROM purchase_orders'); assert cursor.fetchone() == (8, 4)
 subprocess.run([sys.executable, 'manage.py', 'check_environment'], cwd=backend, env=env, check=True)
 resume = """
 import os

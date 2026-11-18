@@ -88,7 +88,7 @@ Optional fictional sample catalog, only after initialization:
 docker compose exec backend python manage.py seed_demo --confirm
 ```
 
-This creates one clearly labeled fictional supplier and two demo products, with opening stock 10 and 5. It creates no users/orders and never replays deliveries. It refuses nonempty business data without its demo marker; repeating after successful seeding adds nothing. For native isolated development, use the same command with your activated backend interpreter.
+This creates four fictional suppliers, 50 products in ten categories, and eight illustrative orders with 24 items covering all four statuses. Stock is opening inventory; delivered examples are not replayed as receipts. It creates no users. It refuses nonempty business data without its demo marker; repeating after successful seeding adds nothing. Existing older demo sets are left untouched, not upgraded. For native isolated development, after initialization use `python manage.py seed_demo --confirm` with the activated backend interpreter and `JEDEL_ISOLATED_DEVELOPMENT=1` in the private environment. Run it only on your own approved isolated `jedel_dev` database.
 
 **Never run initialization or migrations against existing `jedel_group_db` without separate approval.** Existing records, unmanaged mappings and PostgreSQL GRANT scripts are preserved. [Migration and backup procedure](docs/MIGRATION_APPROVAL.md).
 

@@ -53,7 +53,7 @@ class CapabilitiesView(CopilotView):
                          'chat_configured': readiness() == 'configured_unverified', 'chat_requires_login': True,
                          'chat_status': readiness(),
                          'provider': 'groq',
-                         'chat_scope': 'Only your current consented message goes to Groq. Private ERP records and tool results never leave Django. No conversation history is transmitted.',
+                         'chat_scope': 'Your consented message and recent general conversation go to Groq. ERP tool results are not transmitted.',
                          'quotation_storage': 'Request only; nothing is persisted.', 'low_stock_threshold': 20,
                          'threshold_basis': 'Proposed per-request threshold; not stored product reorder levels.'})
 
@@ -99,7 +99,7 @@ class ChatView(InventoryView):
         provider = get_provider()
         reserve_budget(request.user.pk)
         # One cloud request, at most one local tool. Never send tool results back.
-        plan = provider.interpret(data['message'])
+        plan = provider.interpret(data['message'], history=data['history']) if data['history'] else provider.interpret(data['message'])
         tool = plan.get('tool')
         if tool == 'conversation':
             return Response({'kind': 'conversation', 'message': plan['message'], 'source': 'Groq general conversation; not PostgreSQL facts'})

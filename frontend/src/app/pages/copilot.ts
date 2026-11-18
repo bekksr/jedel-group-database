@@ -19,6 +19,7 @@ export class CopilotPage {
   quantity = 1; supplierId = 0; csv = ''; approved = false; equivalent = false;
   deliveryDays: number | null = null; threshold = 20; inventoryCategory = ''; lowOnly = true; orderId = 0;
   private generation = 0;
+  private chatHistory: {role: 'user' | 'assistant'; content: string}[] = [];
   private retryAction?: () => Promise<void>;
   constructor() {
     effect(() => {
@@ -27,6 +28,7 @@ export class CopilotPage {
       this.searchResult.set(null); this.selected.set(null); this.comparison.set(null); this.inventory.set(null); this.draft.set(null); this.status.set(null); this.messages.set([]);
       this.csv = ''; this.consent = false; this.approved = false; this.equivalent = false; this.retryAction = undefined;
       this.message = ''; this.supplierId = 0; this.orderId = 0;
+      this.chatHistory = [];
       const generation = this.generation;
       void this.loadCapabilities(generation).catch(error => {if (generation === this.generation) this.error.set(this.failure(error));});
     });
@@ -115,8 +117,11 @@ export class CopilotPage {
   }
   suggestInventory() {this.message = 'Which products have low stock?';}
   chat() {const text = this.message.trim(); if (!text) return; const generation = this.generation; return this.run(async () => {
-    const result = await this.api.post<ChatResult>('chat', {message: text, consent_to_provider: this.consent});
+    const local = this.localMessage();
+    const result = await this.api.post<ChatResult>('chat', {message: text, consent_to_provider: this.consent, history: local ? [] : this.chatHistory});
     if (generation === this.generation) {
+      if (result.kind === 'conversation' && !local) this.chatHistory = [...this.chatHistory, {role: 'user' as const, content: text}, {role: 'assistant' as const, content: result.message.slice(0, 1000)}].slice(-8);
+      else this.chatHistory = [];
       this.messages.update(messages => [...messages.slice(-8), {kind: 'user', text}, {kind: 'assistant', text: (result.kind === 'conversation' ? 'Groq - General conversation (not database facts): ' : '') + (result.message ?? 'Catalog search completed.')}]);
       if(result.kind === 'inventory') this.inventory.set(result.inventory);
       else if(result.kind === 'draft') this.draft.set(result.draft);

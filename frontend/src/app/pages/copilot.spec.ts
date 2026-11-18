@@ -60,12 +60,12 @@ it('chat uses explicit consent and displays backend-grounded messages',async()=>
   request.flush({results:[product],source:'PostgreSQL',kind:'ai_interpreted_catalog_search',truncated:false,filters:{query:'laptop',category:'',match:'partial'},message:'Found 1 matching catalog records.'});await action;await fixture.whenStable();
   expect(fixture.nativeElement.textContent).toContain('Found 1 matching catalog records.');expect(fixture.nativeElement.textContent).toContain('You:');
 });
-it('labels Groq conversation without treating prose as catalog results or sending history',async()=>{
+it('labels Groq conversation without sending displayed local results as history',async()=>{
   const fixture=await setup();const page=fixture.componentInstance;
   page.caps.set({...publicCaps,chat_configured:true});page.message='Hello';page.consent=true;
   page.messages.set([{kind:'assistant',text:'Previously shown private local result'}]);
   const action=page.chat();await csrf();const request=http.expectOne('/api/ai/chat/');
-  expect(Object.keys(request.request.body).sort()).toEqual(['consent_to_provider','message']);
+  expect(request.request.body.history).toEqual([]);
   request.flush({kind:'conversation',message:'Hello! I can explain procurement.',source:'Groq general conversation; not PostgreSQL facts'});
   await action;await fixture.whenStable();
   expect(fixture.nativeElement.textContent).toContain('AI Assistant is ready');

@@ -276,6 +276,15 @@ class CopilotTests(FixtureMixin, TestCase):
 
 @override_settings(GROQ_API_KEY='test-not-a-real-key', AI_MODEL='openai/gpt-oss-20b', AI_ENABLED=True, AI_PROVIDER='groq')
 class ProviderTests(TestCase):
+    def test_conversation_history_is_sent_with_current_message(self):
+        sdk = MagicMock()
+        client = sdk.OpenAI.return_value.__enter__.return_value
+        client.responses.create.return_value = SimpleNamespace(output=[], output_text='A follow-up.', status='completed')
+        history = [{'role': 'user', 'content': 'Explain procurement'}, {'role': 'assistant', 'content': 'It is purchasing.'}]
+        with patch.dict(sys.modules, {'openai': sdk}):
+            GroqInterpreter().interpret('Tell me more', history=history)
+        self.assertEqual(client.responses.create.call_args.kwargs['input'], history + [{'role': 'user', 'content': 'Tell me more'}])
+
     def response(self, name='search_products', arguments=None):
         return SimpleNamespace(output=[SimpleNamespace(type='function_call',name=name,arguments=json.dumps(arguments or {'query':'Laptop','category':'','match':'partial'}))])
 

@@ -47,6 +47,12 @@ class StatusInput(StrictSerializer):
     order_id = serializers.IntegerField(min_value=1)
 
 
+class HistoryEntry(StrictSerializer):
+    role = serializers.ChoiceField(choices=['user', 'assistant'])
+    content = serializers.CharField(max_length=1000)
+
+
 class ChatInput(StrictSerializer):
     message = serializers.CharField(max_length=1000)
     consent_to_provider = serializers.BooleanField(default=False)
+    history = HistoryEntry(many=True, required=False, max_length=8, default=list)

@@ -39,7 +39,7 @@ Only the current explicitly consented user message is sent to Groq. One Response
 
 General prose is labeled Groq conversation, not PostgreSQL facts. Model output is untrusted: all tool names and arguments are validated and every private tool rechecks the current user's permissions. There are no write tools, arbitrary SQL, built-in browser search, code execution, MCP, recursive loops or fallback providers.
 
-[Groq Responses documentation](https://console.groq.com/docs/responses-api) lists `previous_response_id`, `store`, `truncation` and `include` as unsupported. None is sent. Only one current message is sent (zero prior turns); the bounded ten-message UI transcript is display-only and cleared on account change. No server-side chaining or tool-result follow-up request is used. Ask standalone questions with explicit IDs. This intentionally avoids leaking previously displayed private results through chat history.
+[Groq Responses documentation](https://console.groq.com/docs/responses-api) lists `previous_response_id`, `store`, `truncation` and `include` as unsupported. None is sent. With consent, up to eight recent general-conversation messages accompany the current message. Local tool results are excluded and the context is cleared after a tool response or account change. No server-side chaining or tool-result follow-up request is used. Do not put confidential information in chat.
 
 [Groq's model page](https://console.groq.com/docs/model/openai/gpt-oss-20b) documents tool calling for `openai/gpt-oss-20b`. This is the only reviewed model accepted by the adapter. The pinned `openai==3.49.0` package is merely the compatible HTTP client; the fixed base URL is `https://api.groq.com/openai/v1`, so inference goes only to Groq. No OpenAI account/key is required. No live provider request has been made during this conversion.
 
@@ -200,7 +200,7 @@ Manual browser checks:
 
 ## Limitations and verification record
 
-There is no live marketplace/Kaspi integration, FX feed, persistent quotation history, automatic specification matching, supplier-product relation, demand forecasting or provider conversation memory. Natural-language private intents use the documented narrow grammar; other private requests must use the structured forms. The optional Groq model supports general conversation and validated tool selection. Live Groq connectivity, free-tier account eligibility and answer quality remain unverified. No new migration or live database modification is required or performed.
+There is no live marketplace/Kaspi integration, FX feed, persistent quotation history, automatic specification matching, supplier-product relation or demand forecasting. Conversation context is limited to recent general exchanges and is cleared after tool results. Natural-language private intents use the documented narrow grammar; other private requests must use the structured forms. The optional Groq model supports general conversation and validated tool selection. Live Groq connectivity, free-tier account eligibility and answer quality remain unverified. No new migration is required.
 
 Final test counts, exact file list and browser results are recorded in AI_COPILOT_VERIFICATION.md after execution.
 
