@@ -7,7 +7,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-24.04, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -24,6 +24,19 @@ jobs:
       - name: PostgreSQL 17 tools (Ubuntu)
         if: runner.os == 'Linux'
         run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ca-certificates curl gnupg
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          fingerprint=$(gpg --show-keys --with-colons /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc | awk -F: '$1 == "fpr" { print $10; exit }')
+          test "$fingerprint" = "B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8"
+          cat <<'EOF' | sudo tee /etc/apt/sources.list.d/pgdg.sources
+          Types: deb
+          URIs: https://apt.postgresql.org/pub/repos/apt
+          Suites: noble-pgdg
+          Components: main
+          Signed-By: /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          EOF
           sudo apt-get update
           sudo apt-get install -y postgresql-17 libpq-dev
           echo 'PG_BIN=/usr/lib/postgresql/17/bin' >> "$GITHUB_ENV"
@@ -76,7 +89,7 @@ jobs:
           cd ../backend
           .venv/bin/python scripts/test_postgres.py apps.purchasing.test_browser
   compose:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       COMPOSE_PROJECT_NAME: jedel-ci-${{ github.run_id }}-${{ github.run_attempt }}
       JEDEL_COMPOSE_SMOKE: '1'
