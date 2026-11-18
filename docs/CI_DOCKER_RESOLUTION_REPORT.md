@@ -8,7 +8,7 @@
 
 The Docker build failure, missing PostgreSQL 17 package on the Ubuntu runner, and Django Admin smoke assertion are addressed on branch `fix/ci-ubuntu24-docker-smoke`.
 
-The GitHub Actions run verified the Docker image build, Compose health checks, and smoke test. The PostgreSQL 17 installation step also passed on Ubuntu 24.04 after configuring the official PostgreSQL Apt Repository. The overall workflow did not pass: `npm audit --audit-level=high` reported 28 advisories (14 moderate, 14 high). A compatible lockfile refresh and local frontend checks passed, but the high advisories remain because the Angular toolchain pins an affected `picomatch` release and no patched release is published. The branch has not been merged into `main`.
+The GitHub Actions run verified the Docker image build, Compose health checks, smoke test, and PostgreSQL 17 installation on Ubuntu 24.04. A subsequent compatible lockfile refresh exposed an npm-version mismatch: npm 11 omitted optional peer entries required by npm 10 in the Docker image and Windows runner. The lockfile has been regenerated with CI's npm 10.9.9, and a clean local install, tests, and build pass. That corrected lockfile awaits another GitHub Actions run. Separately, `npm audit --audit-level=high` reports 28 advisories (14 moderate, 14 high); these remain because the Angular toolchain pins affected `picomatch` and no patched release is published. The branch has not been merged into `main`.
 
 ## Findings and impact
 
@@ -51,6 +51,8 @@ Local validation after the lockfile refresh:
 
 The high `picomatch` advisory affects versions `<=4.0.7`; the current npm latest is `4.0.7`, while Angular 21.2.30 pins `4.0.4`. No patched release is currently available. `npm audit fix --force` proposes downgrading Angular CLI to 16.2.0, which is incompatible with this Angular 21 project, and was not used. The remaining audit failure is limited to the development toolchain, but it still blocks the workflow's later backend tests.
 
+GitHub Actions run [#16](https://github.com/bekksr/jedel-group-database/actions/runs/44338113518) failed because the lockfile produced by npm 11 omitted `@emnapi/core` and `@emnapi/runtime`, which npm 10.9.9 requires for `npm ci`. This affected the Windows dependency-install step and the Compose frontend image build. The lockfile was regenerated with npm 10.9.9; local `npm ci`, all 105 frontend tests, and the production build pass with that corrected lockfile. A new remote run is required to verify this correction.
+
 ## Release status and recommendation
 
-The three reported defects are verified as fixed in the pushed branch. The overall CI workflow is not green, and the backend native regressions did not run. Do not describe the complete platform verification as passing. Keep the audit gate strict and defer merge until a compatible upstream fix is available, unless the repository owner explicitly approves a different policy.
+The three reported defects were verified by GitHub Actions run #14. The Ubuntu PostgreSQL installation fix and Compose build/smoke passed; the npm-version lockfile correction is only locally verified so far. The overall CI workflow is not green, and the backend native regressions did not run. Do not describe the complete platform verification as passing. Keep the audit gate strict and defer merge until the corrected lockfile passes remote CI and the dependency advisory gate has a compatible fix, unless the repository owner explicitly approves a different policy.
