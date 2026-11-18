@@ -37,11 +37,28 @@ class PortabilityTests(TestCase):
         with patch.dict(os.environ, {'JEDEL_ISOLATED_DEVELOPMENT': '1'}), patch.dict(connection.settings_dict, {'NAME': 'jedel_dev'}):
             call_command('seed_demo', confirm=True, stdout=io.StringIO())
             call_command('seed_demo', confirm=True, stdout=io.StringIO())
-        self.assertEqual(Product.objects.count(), 50)
+        self.assertEqual(Product.objects.count(), 55)
         self.assertEqual(Supplier.objects.count(), 4)
         self.assertEqual(PurchaseOrder.objects.count(), 8)
         self.assertEqual(PurchaseOrderItem.objects.count(), 24)
         self.assertEqual(set(PurchaseOrder.objects.values_list('status', flat=True)), set(PurchaseOrder.Status.values))
+
+    def test_demo_upgrade_is_previewable_additive_and_idempotent(self):
+        from .management.commands.seed_demo import EXTRA_PRODUCTS
+        with patch.dict(os.environ, {'JEDEL_ISOLATED_DEVELOPMENT': '1'}), patch.dict(connection.settings_dict, {'NAME': 'jedel_dev'}):
+            call_command('seed_demo', confirm=True, stdout=io.StringIO())
+            Product.objects.filter(product_name__in=['[DEMO] ' + row[1] for row in EXTRA_PRODUCTS]).delete()
+            original = Product.objects.get(product_name='[DEMO] Notebook Air 13')
+            original.unit_price = '123.00'
+            original.save(update_fields=['unit_price'])
+            call_command('sync_demo_products', stdout=io.StringIO())
+            self.assertEqual(Product.objects.count(), 50)
+            for _ in range(2):
+                call_command('sync_demo_products', apply=True, stdout=io.StringIO())
+            self.assertEqual(Product.objects.count(), 55)
+            original.refresh_from_db()
+            self.assertEqual(str(original.unit_price), '123.00')
+            self.assertEqual(PurchaseOrderItem.objects.count(), 24)
 
     def test_add_fictional_products_previews_and_preserves_existing_data(self):
         existing = Product.objects.create(product_name='Existing product', category='Existing', unit_price='12.00', stock_quantity=7)

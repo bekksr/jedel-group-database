@@ -1,332 +1,327 @@
+<div align="center">
+
 # Jedel.Group ERP
 
-Supplier and purchasing ERP with Angular 21, Django 6/DRF and PostgreSQL 17. Use the website for registration, sessions, catalog management, procurement and reports. No Postman, pasted Bearer token or paid AI key is needed.
+**Supplier & Purchasing Management System**
 
-## Quick Start: Docker (recommended)
+An educational ERP platform for suppliers, products, purchase orders, inventory, analytics and an AI-powered assistant.
 
-Install Docker Desktop for your operating system and CPU, and start it. Use Docker Compose v2 (the `docker compose` command). From a terminal:
+![Angular](https://img.shields.io/badge/Frontend-Angular_21-DD0031?logo=angular&logoColor=white)
+![Django](https://img.shields.io/badge/Backend-Django_6-092E20?logo=django&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL_17-4169E1?logo=postgresql&logoColor=white)
+![Groq](https://img.shields.io/badge/AI-Groq-orange)
 
-```sh
+**[Quick start](#quick-start) · [Database](#shared-demo-database) · [Features](#what-is-jedelgroup) · [Jedel AI](#jedel-ai) · [Troubleshooting](#troubleshooting)**
+
+</div>
+
+> **Development / university demonstration project.** This README reflects the behavior described in the project's supplied documentation. Test the commands in your actual checkout before publishing. Windows has been exercised by the team; native macOS and Docker runtime verification are still outstanding.
+
+## What is Jedel.Group?
+
+Jedel.Group helps a purchasing team manage the full procurement cycle: maintain a product catalog, work with suppliers, create purchase orders, approve or cancel orders, receive delivered stock, and view inventory and purchasing reports.
+
+| Area | What you can do |
+| --- | --- |
+| **Catalog** | Browse products and categories; authorized staff can manage products |
+| **Suppliers** | Maintain supplier records with data validation |
+| **Purchasing** | Create and amend Pending orders; approve, deliver or cancel with role checks |
+| **Inventory** | Track quantities; delivered orders update stock through backend business rules |
+| **Analytics** | View data and summaries calculated from PostgreSQL |
+| **Accounts** | Register, sign in, use server sessions and role-based permissions |
+| **Jedel AI** | Ask questions, search products, compare recorded prices and stock, and get recommendations |
+
+Angular communicates with Django REST endpoints through the local `/api` proxy. Django enforces permissions and business rules against PostgreSQL 17. Optional Groq requests interpret consented questions; private ERP tool results stay in Django.
+
+### Application links
+
+After startup:
+
+| Page | Local URL |
+| --- | --- |
+| Website | http://localhost:4200/ |
+| Login / registration | http://localhost:4200/auth |
+| Jedel AI | http://localhost:4200/ai-assistant |
+| Django home | http://localhost:8000/ |
+| Django Admin | http://localhost:8000/admin/ |
+| API documentation | http://localhost:8000/api/docs/ |
+| Health check | http://localhost:8000/health/ |
+
+## Quick start
+
+**New teammate? Choose one setup method below.** `git clone` or `git pull` downloads source code and committed demo-data files; Git does **not** transfer a running PostgreSQL database, passwords, user accounts or sessions. A first-time setup is required on each computer.
+
+### Option A — Docker (recommended for a fresh isolated demo)
+
+Install and start Docker Desktop (Compose v2). Then:
+
+```bash
 git clone https://github.com/bekksr/jedel-group-database.git
 cd jedel-group-database
 ```
 
-First-time configuration, **Windows PowerShell**:
+Run **one** first-time configuration command:
 
-```powershell
-.\scripts\setup-docker.ps1
-```
+| Windows PowerShell | macOS / Linux |
+| --- | --- |
+| `.\scripts\setup-docker.ps1` | `bash scripts/setup-docker.sh` |
 
-First-time configuration, **macOS/Linux**:
+Start the services:
 
-```sh
-bash scripts/setup-docker.sh
-```
-
-These scripts generate two independent secrets into the ignored root `.env`, preserve any existing file and validate Compose. They do not initialize your host PostgreSQL or start services. If PowerShell blocks a trusted local script, use `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-docker.ps1` for that invocation only.
-
-Start the whole environment from the repository root:
-
-```sh
+```bash
 docker compose up --build
 ```
 
-Expected: database healthy, fictional demo created on the first empty volume, Angular compilation complete. The first build downloads dependencies and can take several minutes. In another terminal, create your own administrator interactively:
+On the first start with an **empty isolated Docker database volume**, the existing setup initializes its database schema and demo dataset. On later starts, the volume is preserved. Create a personal administrator only if your role requires one:
 
-```sh
+```bash
 docker compose exec backend python manage.py createsuperuser
 ```
 
-There are **no default administrator passwords**. New public registrations receive only Basic User. Your administrator assigns other roles deliberately.
+Do not use `docker compose down -v` if you want to retain the database volume.
 
-| Interface | URL |
-| --- | --- |
-| Public Home | http://localhost:4200/ |
-| Account: Log in / Register | http://localhost:4200/auth |
-| AI Assistant | http://localhost:4200/ai-assistant |
-| Django landing page | http://localhost:8000/ |
-| Django Admin | http://localhost:8000/admin/ |
-| API / documentation | http://localhost:8000/api/ / http://localhost:8000/api/docs/ |
-| Database readiness | http://localhost:8000/health/ |
+### Option B — Native Windows (VS Code + PowerShell)
 
-The API requires permissions; an anonymous 401 from a protected endpoint is expected. Open the website on **localhost**, using its `/api` proxy, so cookies and CSRF stay consistent.
+**One-time prerequisites:** Python 3.13, Node.js/npm and PostgreSQL 17. Make sure PostgreSQL is running. Use an **empty, separate development database** (`jedel_dev`) and a local role; do not reset an existing `jedel_group_db`.
 
-## What you can do
+An authorized local PostgreSQL operator can create the role and database (provide the correct host, port and operator login for your installation):
 
-- Public Home, section previews and product-name/category search.
-- Individual registration, automatic login, persistent server sessions, profile and logout.
-- Six backend-enforced application roles; protected contacts, prices, stock and company orders.
-- Authorized supplier/product management, Pending purchase orders and amendments.
-- Manager approval, cancellation and atomic delivery stock receipts, with duplicate-delivery protection.
-- Actual PostgreSQL reports; delivered value represents receipts, not confirmed payments.
-- Local Copilot catalog search, authorized inventory/status queries, Decimal quotation comparison and review-only drafts.
-- Optional Groq conversation/tool interpretation, with explicit consent and no private database-result transmission.
-
-## Requirements and platforms
-
-| Tool | Supported configuration |
-| --- | --- |
-| Docker path | Current Docker Desktop/Engine with Compose v2; CI uses `--wait`/`--wait-timeout` |
-| Native Python | Python 3.13; use a separate local `.venv` on each OS |
-| Backend packages | Exact pins in `backend/requirements.txt`, including Django 6.0.10 |
-| Native Node/npm | Node 22.12+ (22 LTS recommended) or 24; npm compatible with that Node |
-| Frontend installation | `npm ci` from committed package-lock; no global Angular CLI |
-| Database | PostgreSQL 17, including client/development tools for native setup/tests |
-| macOS source builds | Xcode Command Line Tools and PostgreSQL `pg_config` |
-
-Native Windows is tested on this workstation (Python 3.13.1, Node 24.13.1, npm 11.8.0, PostgreSQL 17). Native macOS Intel/Apple Silicon and Docker execution are **not locally verified**. Portable multiarchitecture images are used without a forced architecture. See [the exact portability report](docs/PORTABILITY_REPORT.md); CI definitions are not evidence that CI has passed.
-
-## Database safety and first initialization
-
-Docker uses an internal PostgreSQL service, an isolated database named `jedel_dev` and a persistent named volume. PostgreSQL has **no host port mapping**. It cannot use your host `jedel_group_db` through the provided configuration.
-
-On the first empty, explicitly isolated `jedel_dev`, setup creates the four existing business tables, managed Django auth/session/admin tables and six groups, then loads fictional demo data. Docker performs this on its first start; native setup does it after you create the empty database and role. It never imports historical rows or real contacts. If any tables already exist, automatic initialization and seeding are skipped; data is never overwritten. An incomplete existing schema requires manual review. Back up valued development data before updating software.
-
-The sample is automatic for a new empty database. To explicitly seed an already initialized but empty isolated development schema:
-
-```sh
-docker compose exec backend python manage.py seed_demo --confirm
-```
-
-This creates four fictional suppliers, 50 products in ten categories, and eight illustrative orders with 24 items covering all four statuses. Stock is opening inventory; delivered examples are not replayed as receipts. It creates no users. It refuses nonempty business data without its demo marker; repeating after successful seeding adds nothing. Existing older demo sets are left untouched, not upgraded. For native isolated development, after initialization use `python manage.py seed_demo --confirm` with the activated backend interpreter and `JEDEL_ISOLATED_DEVELOPMENT=1` in the private environment. Run it only on your own approved isolated `jedel_dev` database.
-
-### Optional fictional products in an existing database
-
-Back up the database and obtain the database owner's approval first. Configure the intended database privately in `backend/.env`; verify the database name and connection before proceeding. From `backend`, using the activated project environment, preview without changing rows:
-
-```sh
-python manage.py add_fictional_products
-```
-
-The preview shows the configured database name and counts. If the owner explicitly approves those additions, run the following with the exact displayed name (replace the example name only after verifying the target):
-
-```sh
-python manage.py add_fictional_products --apply --confirm-database jedel_group_db
-```
-
-The command inserts only missing products labeled `[JEDEL FICTIONAL]`; it does not update or delete existing rows or create orders. It locks the product table during insertion, skips matching labels on repeat, and stops on duplicate matching labels. A matching label is treated as already present even if its fields differ; inspect such records manually. This is fictional stock, so keep it out of operational purchasing decisions. The command was not run on your existing database.
-
-**Never run initialization or migrations against existing `jedel_group_db` without separate approval.** Existing records, unmanaged mappings and PostgreSQL GRANT scripts are preserved. [Migration and backup procedure](docs/MIGRATION_APPROVAL.md).
-
-## Everyday Docker use
-
-```sh
-docker compose up             # restart existing services/data
-# Ctrl+C stops attached services
-# or, in a second terminal:
-docker compose down           # remove containers/network; preserve database volume
-docker compose up --build     # rebuild application after source/dependency changes
-```
-
-Do not use `docker compose down -v` for data you need. Do not replace `.env` secrets after a database volume is initialized: PostgreSQL will retain its original password. Reuse the same checkout/project name so Compose selects the same volume.
-
-## Native Windows: first time
-
-Install Python 3.13, Node/npm and PostgreSQL 17. Start your PostgreSQL service as its authorized local operator. Use a **new isolated** development database and role; do not reuse or reset the business database. Run these PostgreSQL utilities against your designated development service (supply `-h`, `-p`, `-U` for its operator as needed):
-
-```sh
+```powershell
 createuser --pwprompt jedel_dev
 createdb --owner=jedel_dev jedel_dev
 ```
 
-From the repository root:
+Clone and run **first-time setup** from the project root:
 
 ```powershell
+git clone https://github.com/bekksr/jedel-group-database.git
+cd jedel-group-database
 .\scripts\setup-windows.ps1
 ```
 
-The script checks versions/tools, creates a Windows `.venv`, installs pinned dependencies and `npm ci`, and creates `backend/.env` only when absent. It prompts privately for the new development database password. Existing `.env` files are never overwritten. For a configured, explicitly isolated empty `jedel_dev`, it initializes and seeds automatically; existing schemas are not changed by this step.
+The setup script installs Python/npm dependencies, creates private configuration when absent, and initializes/seeds an explicitly isolated **empty** database. Provide your own local PostgreSQL credentials when requested.
 
-Create your own administrator after setup:
+**Everyday start — two VS Code terminals:**
+
+**Terminal 1 — Django** (from the project root):
 
 ```powershell
 cd backend
-.\.venv\Scripts\Activate.ps1
-python manage.py createsuperuser
-python manage.py check_environment
+.\.venv\Scripts\python.exe manage.py runserver
 ```
 
-Expected final output: `READY: PostgreSQL 17 ... Read-only check; no records changed.` Existing databases missing auth tables require review and approval, not blind initialization. `scripts/setup-windows.ps1 -CheckOnly` performs no dependency/configuration writes.
+**Terminal 2 — Angular** (from the project root):
 
-## Native macOS: first time
+```powershell
+cd frontend
+npx ng serve
+```
 
-Install the correct Homebrew build for your CPU, then prerequisites (review package installation on your own computer):
+Open **http://localhost:4200/**. You can also use `npm start` for the frontend or `.\scripts\start-windows.ps1` from the root to launch both services.
 
-```sh
+### Option C — Native macOS
+
+**One-time prerequisites:** Python 3.13, Node.js/npm, PostgreSQL 17 and Xcode Command Line Tools. The project's existing Homebrew setup example is:
+
+```bash
 brew install python@3.13 node@22 postgresql@17
 xcode-select --install
 export PATH="$(brew --prefix node@22)/bin:$(brew --prefix postgresql@17)/bin:$PATH"
 brew services start postgresql@17
 createuser --pwprompt jedel_dev
 createdb --owner=jedel_dev jedel_dev
+```
+
+Clone the project and run the first-time initializer:
+
+```bash
+git clone https://github.com/bekksr/jedel-group-database.git
+cd jedel-group-database
 bash scripts/setup-macos.sh
 ```
 
-Run Homebrew setup steps once, and add the printed tool PATH instructions to your shell configuration if needed. Setup initializes and seeds the empty isolated database. Create an administrator from `backend`:
+**Everyday start — two terminals:**
 
-```sh
-source .venv/bin/activate
-python3 manage.py createsuperuser
-python3 manage.py check_environment
-```
+**Terminal 1 — Django:**
 
-Use `bash scripts/setup-macos.sh --check-only` for read-only readiness. Shell scripts are invoked through Bash, so they do not depend on Git executable-bit changes. Do not copy Windows `.venv` or node_modules to macOS. Actual Mac runtime validation remains outstanding.
-
-## Native everyday launch
-
-From the repository root:
-
-```powershell
-.\scripts\start-windows.ps1
-```
-
-Or on macOS:
-
-```sh
-bash scripts/start-macos.sh
-```
-
-This foreground launcher requires PostgreSQL to be running. It checks schema and ports, starts real Django/Angular processes, waits for health, prints URLs, and stops only its own process trees on Ctrl+C. It never initializes a database or kills a process occupying a port. It uses the project venv, avoiding the missing-SDK problem caused by plain system Python.
-
-The reliable two-terminal alternative is always available. **Backend terminal**, after activating your venv:
-
-```sh
+```bash
 cd backend
-python manage.py runserver
+./.venv/bin/python manage.py runserver
 ```
 
-On macOS, `python3 manage.py runserver` also works in the activated venv. **Frontend terminal**:
+**Terminal 2 — Angular:**
 
-```sh
+```bash
 cd frontend
-npm start
-# equivalently: npx ng serve
+npx ng serve
 ```
 
-## Accounts and roles
+Or launch both from the root with `bash scripts/start-macos.sh`. **Native macOS has not yet been verified on a real Mac**; report any error with the exact terminal output.
 
-Register through Account for immediate Basic User access; session cookies survive browser refresh. Logout invalidates the server session. Passwords are hashed. No shared browser token is required.
+## Shared demo database
 
-A trusted administrator creates the first superuser using the interactive bootstrap command above. Use Django Admin to review users and assign Groups. Staff is not Superuser; the System Administrator group does not automatically set either flag. Only explicitly authorized staff can access administrative models.
+### What the team actually receives from GitHub
 
-| Group | Effective purpose |
+- **Included in Git:** database schema, setup scripts, migrations required for Django's managed auth tables, demo-data generator and versioned examples.
+- **Generated locally:** PostgreSQL database, Django accounts/sessions, local passwords, API keys and `backend/.env`.
+- **Not included:** your actual Windows PostgreSQL data directory or database service.
+
+This design allows every teammate to create a reproducible **local** demo without sharing private credentials or overwriting anyone's real records.
+
+### Versioned educational dataset
+
+| Environment | Product count | How it is populated |
+| --- | ---: | --- |
+| Current owner's `jedel_group_db` | **55** | Original five products + 50 fictional products added after review |
+| Fresh isolated `jedel_dev` | **55** | Versioned fictional dataset loaded by `seed_demo` on first initialization |
+
+The shared dataset uses the 50 previously reviewed fictional products plus five additional fictional products. It is **not a copy of the owner's database**: the five original products and the owner's supplier, order, account and session records are not exported. Product IDs are generated locally; order items reference the locally created product and order IDs. The existing four-table schema, constraints and foreign keys are preserved.
+
+The isolated demo initializer creates **four fictional suppliers, 55 products, eight orders and 24 order items** across all four order statuses (`Pending`, `Approved`, `Delivered`, `Cancelled`). Opening stock is fictional; old deliveries are not replayed into it. No users, passwords or sessions are imported.
+
+After `git pull`, teammates who previously loaded the 50-product isolated demo can preview and explicitly add the five new products from `backend` using their virtual environment:
+
+```bash
+python manage.py sync_demo_products
+python manage.py sync_demo_products --apply
+```
+
+The command requires `JEDEL_ISOLATED_DEVELOPMENT=1` and `DB_NAME=jedel_dev`, checks the original demo marker and product labels, and adds only missing new demo rows. It never updates existing products or orders; repeated runs add nothing. It refuses an unrecognized, incomplete or ambiguous demo. Fresh 55-product installations do not need synchronization.
+
+For Docker, run the same commands through the backend container: `docker compose exec backend python manage.py sync_demo_products`, followed by the same command with `--apply` only after reviewing its output.
+
+To explicitly seed an already-initialized but empty **isolated** development database:
+
+```bash
+python manage.py seed_demo --confirm
+```
+
+Run this from `backend` using the project virtual environment and only after checking the configured database name and isolated-development setting. The command refuses populated business databases and repeat runs are designed not to duplicate data.
+
+**Existing `jedel_group_db` is not reset automatically.** To preview additions without writing:
+
+```bash
+python manage.py add_fictional_products
+```
+
+Adding products to an existing database must be deliberate, reviewed and backed up. Never automatically run a full restore or destructive migration after `git pull`.
+
+## Accounts and permissions
+
+Register through the website to get a **Basic User** account. There are no default shared administrator passwords. A trusted local operator can create an administrator when required:
+
+```bash
+python manage.py createsuperuser
+```
+
+Run this inside the `backend` directory with its virtual environment. The backend enforces permissions; registration cannot grant elevated roles. See [RBAC documentation](docs/RBAC_REPORT.md).
+
+| Role | Purpose |
 | --- | --- |
-| Basic User | Safe public product fields and public previews |
-| Purchasing Employee | Catalog management, Pending orders; no approval/delivery |
-| Purchasing Manager | Employee workflows plus approve/deliver/cancel and reports |
-| System Administrator | Authorized business/account administration |
-| Security Administrator | Designated account security operations; no business read by default |
-| Analyst / Tester | Authorized read-only business/report data |
+| Basic User | Public catalog and previews |
+| Purchasing Employee | Business read, catalog management and pending orders |
+| Purchasing Manager | Employee capabilities plus order transitions |
+| System Administrator | Business and account administration |
+| Security Administrator | Designated security operations |
+| Analyst / Tester | Read-only business and reports |
 
-Role capabilities compose as a union; Basic membership does not override another granted role. Registration cannot choose roles. See [RBAC details](docs/RBAC_REPORT.md) and [authentication](docs/AUTHENTICATION.md).
+## Jedel AI
 
-## Optional Groq chat
+The assistant works in two modes:
 
-To try product advice, log in with an authorized business-read role, enable Groq privately as below, select consent, then ask: `Find laptops under 400000 KZT`, `Which is cheapest?`, `Compare the best two`, and `Which would you recommend and why?`. These use PostgreSQL prices and stock, not external reviews or supplier offers. Follow-up search filters stay in the authenticated server session; tool results are not sent to Groq. Recommendations choose the lowest-priced matching in-stock product, not an assessment of quality or suitability beyond the filters provided. Basic and Security Administrator roles cannot access these business values.
+1. **Local ERP tools:** permitted product searches, inventory summaries, purchasing analytics and review-only drafts, using actual PostgreSQL data.
+2. **Optional Groq chat:** general English/Russian conversations and tool interpretation, requiring a private key and explicit user consent.
 
-**Не вставляйте настоящий API-ключ в README или GitHub.** Место для вашего ключа — строка `GROQ_API_KEY=` в приватном `backend/.env` (native) или корневом `.env` (Docker). В этом README оставляйте только пример без ключа.
-
-1. Create your own key in [GroqCloud](https://console.groq.com/keys). If you exposed a key in chat, Git, a screenshot or a log, revoke it and create a replacement.
-2. Edit **backend/.env** for native development, or **root .env** for Docker, in your local editor. Paste the new key only after `GROQ_API_KEY=`. Do not paste it into chat or a terminal command. Never put it in `.env.example`.
-3. Set the four settings below. Keep your other database and Django settings unchanged.
-4. Restart Django using the project venv, or recreate the Docker backend as described below.
-5. Open `/ai-assistant`, log in, enter a non-confidential message and select the Groq consent checkbox. Local inventory/order questions do not require external consent.
-
-All ordinary ERP and local Copilot tools work without an API key. Defaults are disabled. For native development, privately edit **backend/.env**; for Docker, edit the **root .env**:
+For native startup, edit only your ignored private `backend/.env`:
 
 ```dotenv
 AI_ENABLED=true
 AI_PROVIDER=groq
 AI_MODEL=openai/gpt-oss-20b
-GROQ_API_KEY=<your own private key>
+GROQ_API_KEY=YOUR_OWN_PRIVATE_KEY
 ```
 
-Restart native Django after edits. For Docker use `docker compose up -d --build backend` to recreate its environment; a plain container restart does not load changed Compose variables. Do not enable paid billing. The app has no OpenAI key requirement or fallback. Never put credentials into Angular or Git. Presence is not proof of connectivity or free-tier account eligibility. `python manage.py copilot_status` checks configuration without contacting Groq. Live tests require separate approval. [AI guide](docs/AI_COPILOT.md).
+For Docker, use the ignored root `.env` according to the setup documentation. Never commit either private file, paste keys into chat or put secrets in Angular. Restart the backend after changes.
 
-For an already configured native installation, use these exact two-terminal commands from the repository root.
+Examples after signing in with a business-read role:
 
-**Windows backend:**
-
-```powershell
-cd backend
-.\.venv\Scripts\python.exe manage.py copilot_status
-.\.venv\Scripts\python.exe manage.py runserver
+```text
+Find laptops under 400000 KZT.
+Which one is cheapest?
+Compare the best two.
+Which would you recommend and why?
 ```
 
-**macOS backend:**
+Recommendations currently reflect recorded **price and stock**, not verified external customer reviews or offers. Live Groq connectivity remains to be checked. See [AI documentation](docs/AI_COPILOT.md).
 
-```sh
-cd backend
-.venv/bin/python manage.py copilot_status
-.venv/bin/python manage.py runserver
+## Updating your checkout
+
+```bash
+git switch main
+git pull --ff-only origin main
 ```
 
-**Frontend, another terminal on either OS:**
+**Git updates code and demo-data definitions, not your already-running PostgreSQL records.** Use the preview and explicit sync command above for the earlier isolated demo. Never auto-overwrite an existing database to “sync” it. After first-time setup, ordinary backend and frontend launch commands remain the same.
 
-```sh
-cd frontend
-npm start
-```
+## Testing
 
-These commands use the installed project SDK even when system Python lacks it. `runtime_status=configured_unverified` means local configuration and SDK checks pass; it does not prove that Groq accepted the key. `missing_sdk` means the wrong/incomplete Python environment is running. No live provider smoke test runs automatically. Only after separately authorizing one harmless request, use `python manage.py copilot_smoke --confirm-external-request` in the activated backend venv.
+Frontend, from `frontend/`:
 
-## Tests and fresh-install verification
-
-From repository root:
-
-```sh
-cd frontend
+```bash
 npm ci
 npm test -- --watch=false
 npm run build
-npx playwright install chromium
-cd ../backend
 ```
 
-Backend tests require local PostgreSQL 17 tools; use the activated venv:
+Backend, from `backend/` with the virtual environment active:
 
-```sh
+```bash
+python manage.py check
 python scripts/test_postgres.py
 ```
 
-These create a guarded temporary PostgreSQL cluster on a random port. They never use application database credentials. To include first-run initialization, idempotence and a real temporary PostgreSQL restart:
-
-```powershell
-$env:JEDEL_VERIFY_DEVELOPMENT='1'
-python scripts/test_postgres.py
-Remove-Item Env:JEDEL_VERIFY_DEVELOPMENT
-$env:JEDEL_BROWSER_TESTS='1'
-python scripts/test_postgres.py apps.purchasing.test_browser
-```
-
-On macOS/Linux use `JEDEL_VERIFY_DEVELOPMENT=1 python scripts/test_postgres.py` and `JEDEL_BROWSER_TESTS=1 python scripts/test_postgres.py apps.purchasing.test_browser`. The browser tests use isolated accounts, real APIs and PostgreSQL, with Groq disabled.
-
-`.github/workflows/verify.yml` defines Windows/macOS/Ubuntu backend/frontend checks and Ubuntu fresh Compose build/restart smoke tests. These jobs require no personal secrets or live Groq key. Runner tool availability and actual CI execution remain to be verified. See [the report](docs/PORTABILITY_REPORT.md) for actual local results, source snapshot method and unverified environments.
+The backend runner creates a temporary isolated PostgreSQL cluster and does not use application database credentials. To include fresh initialization and restart verification, set `JEDEL_VERIFY_DEVELOPMENT=1` before running it. For browser checks, install Playwright Chromium with `npx playwright install chromium` in `frontend/`, then run `JEDEL_BROWSER_TESTS=1 python scripts/test_postgres.py apps.purchasing.test_browser` on macOS/Linux. In PowerShell, set `$env:JEDEL_BROWSER_TESTS='1'` before that Python command and remove the variable afterwards. The live Groq provider and native macOS/Docker runtime were not independently verified on the owner's Windows machine. See [portability report](docs/PORTABILITY_REPORT.md).
 
 ## Troubleshooting
 
-| Problem | Action |
+| Issue | What to check |
 | --- | --- |
-| Docker command missing | Install/start Docker Desktop with Compose v2; reopen terminal |
-| Port 4200/8000 occupied | Stop your own earlier server; launchers never kill unrelated processes |
-| PostgreSQL unavailable | Start the designated development service and check private DB settings; no reset/import workaround |
-| Invalid database credentials | Correct only your private `.env`; do not paste it into chat/logs |
-| Missing business/auth tables | Fresh isolated `jedel_dev`: explicit initializer. Existing business database: approval procedure |
-| Missing Python/Node | Install supported versions above; reopen terminal |
-| macOS psycopg build fails | Install Command Line Tools/PostgreSQL, ensure pg_config is on PATH, rerun setup |
-| Groq SDK missing | Activate project venv or start with its Python; install requirements there |
-| Copilot unavailable without key | Expected for cloud chat; use local catalog/authorized forms |
-| Ask Copilot disabled | Wait for session, enter message, select external consent if needed; Basic cannot use private tools |
-| Anonymous 401 / role 403 | Expected authentication/permission enforcement; use Account or ask an administrator |
-| CSRF failure | Use Angular localhost origin/proxy; refresh login. Never disable CSRF |
-| Backend unavailable | Read displayed errors and `/health/`; no mock-data substitution |
+| Empty product catalog | Did first-time setup seed the **correct isolated** database? Check current DB and roles. Basic User sees fewer fields. |
+| Database connection refused | Start PostgreSQL; verify private host, port, username and password. |
+| `401` or `403` from API | Authentication or authorization may be working as designed; sign in or ask an admin for a role. |
+| Port `8000` / `4200` occupied | Stop the older server you own; do not force-kill unrelated processes. |
+| `ng` command not found | Run `npm ci` in `frontend/`, then `npx ng serve`. |
+| Python module / Groq SDK missing | Use the project `.venv` Python, not the system interpreter. |
+| CSRF or session problems | Open the Angular site on `localhost:4200` and use its configured `/api` proxy. |
+| Groq chat unavailable | Check private Groq configuration, server logs, consent and role. Core ERP features work without a key. |
+| Existing database has missing tables | Do not blindly migrate/reset it. Use the documented approval and recovery process. |
 
-## Repository and further documentation
+## Project structure
 
-- `frontend/`: Angular pages, API/session services, unit and browser tests.
-- `backend/`: Django API/admin, purchasing services, management commands and tests.
-- `database/`: original schema/dump and team PostgreSQL role scripts (not demo seeds).
-- `scripts/`: cross-platform setup, launch and isolated Compose smoke commands.
-- `docs/`: [Windows](docs/WINDOWS_SETUP.md), [macOS](docs/MACOS_SETUP.md), [API](docs/API.md), [migration approval](docs/MIGRATION_APPROVAL.md), [business requirements](docs/bekarys/README.md).
+```text
+jedel-group-database/
+├── frontend/      Angular UI, services, tests
+├── backend/       Django API, business rules, management commands
+├── database/      Schema, dumps and SQL role scripts
+├── scripts/       Windows/macOS/Docker setup and launchers
+├── docs/          Architecture, API, RBAC, AI and team documentation
+└── README.md
+```
 
-This is a development environment, not a production deployment. Use a checkout containing the setup scripts documented above. Do not infer production readiness or universal OS support from local tests.
+### More documentation
+
+[Windows](docs/WINDOWS_SETUP.md) · [macOS](docs/MACOS_SETUP.md) · [API](docs/API.md) · [Database migration safety](docs/MIGRATION_APPROVAL.md) · [Business analysis](docs/bekarys/README.md)
+
+## Team contributions
+
+Contributions are reviewed through feature branches and pull requests. Keep local credentials, database files, personal records and generated backups out of Git. Include relevant test results and database-safety notes in changes that affect setup or business rules.
+
+---
+
+<div align="center">
+
+**Jedel.Group · Team university ERP project**
+
+*Source code, demonstration data and documented setup — without shared passwords or private accounts.*
+
+</div>

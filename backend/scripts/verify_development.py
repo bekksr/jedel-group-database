@@ -50,7 +50,13 @@ with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:
         cursor.execute("INSERT INTO suppliers (supplier_name, email) VALUES ('Restart sentinel', 'restart@example.test')")
         cursor.execute("SELECT count(*) FROM products")
-        assert cursor.fetchone()[0] == 50, 'Explicit fictional sample data differs.'
+        assert cursor.fetchone()[0] == 55, 'Explicit fictional sample data differs.'
+        cursor.execute('SELECT count(*) FROM purchase_order_items i LEFT JOIN products p ON p.product_id=i.product_id LEFT JOIN purchase_orders o ON o.order_id=i.order_id WHERE p.product_id IS NULL OR o.order_id IS NULL')
+        assert cursor.fetchone()[0] == 0, 'Demo item relationships are invalid.'
+        cursor.execute('SELECT count(*) FROM purchase_orders o LEFT JOIN suppliers s ON s.supplier_id=o.supplier_id WHERE s.supplier_id IS NULL')
+        assert cursor.fetchone()[0] == 0, 'Demo supplier relationships are invalid.'
+        cursor.execute("SELECT count(*) FROM suppliers WHERE supplier_name LIKE '[DEMO] %'"); assert cursor.fetchone()[0] == 4
+        cursor.execute('SELECT count(*) FROM purchase_order_items'); assert cursor.fetchone()[0] == 24
 subprocess.run([sys.executable, 'manage.py', 'setup_fresh_demo'], cwd=backend, env=env, check=True)
 with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:
@@ -74,7 +80,7 @@ with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:
         cursor.execute('SELECT count(*) FROM auth_user'); assert cursor.fetchone()[0] == 1
         cursor.execute('SELECT count(*) FROM django_session'); assert cursor.fetchone()[0] == 1
-        cursor.execute('SELECT count(*), sum(stock_quantity) FROM products'); assert cursor.fetchone() == (50, sum((i * 13 % 90) + 3 for i in range(50)))
+        cursor.execute('SELECT count(*), sum(stock_quantity) FROM products'); assert cursor.fetchone() == (55, sum((i * 13 % 90) + 3 for i in range(55)))
         cursor.execute('SELECT count(*), count(DISTINCT status) FROM purchase_orders'); assert cursor.fetchone() == (8, 4)
 subprocess.run([sys.executable, 'manage.py', 'check_environment'], cwd=backend, env=env, check=True)
 resume = """

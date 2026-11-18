@@ -21,6 +21,15 @@ CATALOG = {
     'Power': [('UPS 650VA', 35000), ('UPS 1000VA', 58000), ('Surge Protector', 8500), ('Power Strip', 5500), ('Laptop Charger', 16500)],
 }
 
+# Additional fictional records for the versioned 55-product education dataset.
+EXTRA_PRODUCTS = [
+    ('Laptops', 'Notebook Campus 13', 225000),
+    ('Monitors', 'Monitor 25 QHD', 110000),
+    ('Accessories', 'Ergonomic Mouse', 12500),
+    ('Networking', 'Wi-Fi Mesh Node', 38000),
+    ('Storage', 'External SSD 1TB', 72000),
+]
+
 
 class Command(BaseCommand):
     help = 'Explicitly seed fictional records into an otherwise empty isolated jedel_dev.'
@@ -51,6 +60,10 @@ class Command(BaseCommand):
                 index = len(products)
                 products.append(Product.objects.create(product_name='[DEMO] ' + name, category=category,
                     unit_price=Decimal(price), stock_quantity=(index * 13 % 90) + 3))
+        for category, name, price in EXTRA_PRODUCTS:
+            index = len(products)
+            products.append(Product.objects.create(product_name='[DEMO] ' + name, category=category,
+                unit_price=Decimal(price), stock_quantity=(index * 13 % 90) + 3))
         today = timezone.localdate()
         for index, status in enumerate(PurchaseOrder.Status.values * 2):
             ordered = today - timedelta(days=70 - index * 8)
@@ -58,4 +71,4 @@ class Command(BaseCommand):
                 expected_delivery_date=ordered + timedelta(days=7), status=status)
             for product in products[index * 5:index * 5 + 3]:
                 PurchaseOrderItem.objects.create(order=order, product=product, quantity=index + 2, unit_price=product.unit_price)
-        self.stdout.write('Fictional demo created: 4 suppliers, 50 products, 8 orders and 24 items. Stock is opening inventory; historical deliveries are not replayed.')
+        self.stdout.write('Fictional demo created: 4 suppliers, 55 products, 8 orders and 24 items. Stock is opening inventory; historical deliveries are not replayed.')

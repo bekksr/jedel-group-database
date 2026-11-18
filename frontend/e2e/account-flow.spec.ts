@@ -26,7 +26,7 @@ test('registration activates Basic User, logs in automatically, persists and pre
   await expect(page.getByText('Warehouse stock', {exact: true})).toHaveCount(0);
   await expect(page.getByRole('button', {name: 'Edit', exact: true})).toHaveCount(0);
   await page.getByLabel('Search products', {exact: true}).fill('JEDEL FICTIONAL');
-  await expect(page.getByRole('status').filter({hasText:'50 product(s) found.'})).toBeVisible();
+  await expect(page.getByRole('status').filter({hasText:'55 product(s) found.'})).toBeVisible();
   await expect(page.getByRole('heading', {name:'[JEDEL FICTIONAL] Notebook Air 13', exact:true})).toBeVisible();
   await page.getByLabel('Search products', {exact: true}).fill('office');
   await expect(page.getByRole('heading', {name: 'Public catalog office', exact: true})).toBeVisible();
