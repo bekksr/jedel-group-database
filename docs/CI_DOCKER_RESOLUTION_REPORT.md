@@ -2,13 +2,13 @@
 
 **Role:** System Analyst  
 **Date:** 18 November 2026  
-**Status:** Requested Docker/CI issues verified; full workflow remains blocked by a separate dependency audit gate.
+**Status:** Requested Docker/CI issues verified; full workflow remains blocked by development-tool advisories with no compatible upstream fix currently available.
 
 ## Executive summary
 
 The Docker build failure, missing PostgreSQL 17 package on the Ubuntu runner, and Django Admin smoke assertion are addressed on branch `fix/ci-ubuntu24-docker-smoke`.
 
-The GitHub Actions run verified the Docker image build, Compose health checks, and smoke test. The PostgreSQL 17 installation step also passed on Ubuntu 24.04 after configuring the official PostgreSQL Apt Repository. The overall workflow did not pass: `npm audit --audit-level=high` reported 28 advisories (14 moderate, 14 high). Because that step fails before the backend regression steps, those tests were skipped. The branch has not been merged into `main`.
+The GitHub Actions run verified the Docker image build, Compose health checks, and smoke test. The PostgreSQL 17 installation step also passed on Ubuntu 24.04 after configuring the official PostgreSQL Apt Repository. The overall workflow did not pass: `npm audit --audit-level=high` reported 28 advisories (14 moderate, 14 high). A compatible lockfile refresh and local frontend checks passed, but the high advisories remain because the Angular toolchain pins an affected `picomatch` release and no patched release is published. The branch has not been merged into `main`.
 
 ## Findings and impact
 
@@ -24,6 +24,7 @@ The GitHub Actions run verified the Docker image build, Compose health checks, a
 - Pinned Linux CI jobs to `ubuntu-24.04`.
 - Configured the official PostgreSQL Apt Repository for Ubuntu 24.04, verified its signing-key fingerprint (`B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8`), and installed PostgreSQL 17 from that repository.
 - Updated the smoke assertion to check the configured `Jedel.Group administration` heading.
+- Applied the available non-breaking npm audit updates to the lockfile, including Angular 21.2.30 tool packages. No major-version downgrade or dependency override was applied.
 
 ## Verification
 
@@ -38,8 +39,18 @@ GitHub Actions run [#14](https://github.com/bekksr/jedel-group-database/actions/
 | High/critical dependency advisory gate | Failed: 28 advisories reported (14 moderate, 14 high) |
 | Backend regression and Ubuntu browser tests | Skipped after the advisory gate failed |
 
-The changed files do not include frontend dependency manifests or lockfiles. The advisory failure is separate from the requested Docker/runner/smoke fixes and should be reviewed independently; do not use `npm audit fix --force`, which proposed a breaking Angular CLI downgrade.
+Local validation after the lockfile refresh:
+
+| Check | Result |
+| --- | --- |
+| Clean dependency installation (`npm ci`) | Passed |
+| Frontend tests | 105 passed |
+| Frontend production build | Passed |
+| Production dependency audit (`npm audit --omit=dev --audit-level=high`) | 0 vulnerabilities |
+| Full dependency audit | Still reports 14 moderate and 14 high advisories |
+
+The high `picomatch` advisory affects versions `<=4.0.7`; the current npm latest is `4.0.7`, while Angular 21.2.30 pins `4.0.4`. No patched release is currently available. `npm audit fix --force` proposes downgrading Angular CLI to 16.2.0, which is incompatible with this Angular 21 project, and was not used. The remaining audit failure is limited to the development toolchain, but it still blocks the workflow's later backend tests.
 
 ## Release status and recommendation
 
-The three reported defects are verified as fixed in the pushed branch. The overall CI workflow is not green, and the backend native regressions did not run. Do not describe the complete platform verification as passing. Review the dependency advisory gate and repository merge requirements before merging this branch into `main`.
+The three reported defects are verified as fixed in the pushed branch. The overall CI workflow is not green, and the backend native regressions did not run. Do not describe the complete platform verification as passing. Keep the audit gate strict and defer merge until a compatible upstream fix is available, unless the repository owner explicitly approves a different policy.
