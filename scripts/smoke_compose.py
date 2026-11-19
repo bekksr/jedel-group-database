@@ -1,6 +1,7 @@
 """Write tests ONLY for an explicitly named, disposable CI Compose project."""
 import argparse
 import http.cookiejar
+from html.parser import HTMLParser
 import json
 import os
 import re
@@ -8,6 +9,21 @@ import secrets
 import subprocess
 import time
 import urllib.request
+from urllib.parse import urlsplit
+
+
+class AdminElements(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.input_names = set()
+        self.form_ids = set()
+
+    def handle_starttag(self, tag, attrs):
+        values = dict(attrs)
+        if tag == 'input' and values.get('name'):
+            self.input_names.add(values['name'])
+        if tag == 'form' and values.get('id'):
+            self.form_ids.add(values['id'])
 
 
 def main():
@@ -48,9 +64,11 @@ print('Disposable administrator bootstrap verified; credential not displayed.')
         return json.load(response)
 
     email = 'smoke-' + secrets.token_hex(6) + '@example.test'
-    request('/api/auth/register/', {'name':'Fictional CI User','email':email,'password':secrets.token_urlsafe(40)})
+    username = 'smoke-user-' + secrets.token_hex(6)
+    request('/api/auth/register/', {'name':'Fictional CI User','username':username,'email':email,'password':secrets.token_urlsafe(40)})
     assert request('/api/auth/me/')['role'] == 'Basic User'
     catalog = request('/api/catalog/products/')
+    assert catalog['count'] == 55, 'Fresh fictional catalog should contain 55 products.'
     for product in catalog['results']:
         assert set(product) == {'product_id', 'product_name', 'category'}
     assert request('/api/ai/capabilities/')['chat_configured'] is False
@@ -69,11 +87,17 @@ print('Disposable administrator bootstrap verified; credential not displayed.')
     assert request('/api/auth/me/')['email'] == email
     assert request('/api/catalog/products/') == catalog
     request('/api/auth/logout/', {})
+    # An unauthenticated admin request must redirect to the real CSRF-protected login form.
+    with urllib.request.urlopen('http://localhost:8000/admin/', timeout=10) as response:
+        assert response.status == 200 and urlsplit(response.geturl()).path == '/admin/login/'
+        login_page = AdminElements(); login_page.feed(response.read().decode('utf-8'))
+        assert {'username', 'password', 'csrfmiddlewaretoken'} <= login_page.input_names
     request('/api/auth/login/', {'identifier':admin_name,'password':admin_password})
     assert request('/api/auth/me/')['can_administer'] is True
     with client.open('http://localhost:8000/admin/', timeout=10) as response:
-        assert response.status == 200
-        assert b'Jedel.Group administration' in response.read()
+        assert response.status == 200 and urlsplit(response.geturl()).path == '/admin/'
+        admin_page = AdminElements(); admin_page.feed(response.read().decode('utf-8'))
+        assert 'logout-form' in admin_page.form_ids
     print('PASS: fresh Compose registration, session, Basic catalog, no-key local capabilities, restart persistence and administrator authentication.')
 
 

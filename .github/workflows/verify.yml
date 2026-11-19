@@ -39,11 +39,15 @@ jobs:
           EOF
           sudo apt-get update
           sudo apt-get install -y postgresql-17 libpq-dev
+          /usr/lib/postgresql/17/bin/initdb --version | grep -E ' 17\.'
+          /usr/lib/postgresql/17/bin/postgres --version | grep -E ' 17\.'
           echo 'PG_BIN=/usr/lib/postgresql/17/bin' >> "$GITHUB_ENV"
       - name: PostgreSQL 17 tools (macOS)
         if: runner.os == 'macOS'
         run: |
           brew install postgresql@17
+          "$(brew --prefix postgresql@17)/bin/initdb" --version | grep -E ' 17\.'
+          "$(brew --prefix postgresql@17)/bin/postgres" --version | grep -E ' 17\.'
           echo "PG_BIN=$(brew --prefix postgresql@17)/bin" >> "$GITHUB_ENV"
           echo "$(brew --prefix postgresql@17)/bin" >> "$GITHUB_PATH"
       - name: PostgreSQL 17 tools (Windows)
@@ -53,6 +57,8 @@ jobs:
           if (-not (Test-Path 'C:/Program Files/PostgreSQL/17/bin/initdb.exe')) {
             throw 'This runner lacks PostgreSQL 17 tools. Update the runner image/tool-install step; no shared service or credential fallback is allowed.'
           }
+          if ((& 'C:/Program Files/PostgreSQL/17/bin/initdb.exe' --version) -notmatch ' 17\.') { throw 'Unexpected initdb version' }
+          if ((& 'C:/Program Files/PostgreSQL/17/bin/postgres.exe' --version) -notmatch ' 17\.') { throw 'Unexpected PostgreSQL server version' }
           'PG_BIN=C:/Program Files/PostgreSQL/17/bin' >> $env:GITHUB_ENV
       - name: Install locked dependencies
         shell: bash
@@ -67,9 +73,6 @@ jobs:
         run: |
           npm test -- --watch=false
           npm run build
-      - name: Dependency advisory check (high/critical gate)
-        working-directory: frontend
-        run: npm audit --audit-level=high
       - name: Fresh initialization, restart and backend regressions
         shell: bash
         env:
@@ -88,6 +91,10 @@ jobs:
           npx playwright install --with-deps chromium
           cd ../backend
           .venv/bin/python scripts/test_postgres.py apps.purchasing.test_browser
+      - name: Dependency advisory check (high/critical gate)
+        if: always()
+        working-directory: frontend
+        run: npm audit --audit-level=high
   compose:
     runs-on: ubuntu-24.04
     env:

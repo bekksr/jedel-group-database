@@ -324,6 +324,8 @@ python scripts/test_postgres.py
 
 The backend runner creates a temporary isolated PostgreSQL cluster and does not use application database credentials. To include fresh initialization and restart verification, set `JEDEL_VERIFY_DEVELOPMENT=1` before running it. For browser checks, install Playwright Chromium with `npx playwright install chromium` in `frontend/`, then run `JEDEL_BROWSER_TESTS=1 python scripts/test_postgres.py apps.purchasing.test_browser` on macOS/Linux. In PowerShell, set `$env:JEDEL_BROWSER_TESTS='1'` before that Python command and remove the variable afterwards. The live Groq provider and native macOS/Docker runtime were not independently verified on the owner's Windows machine. See [portability report](docs/PORTABILITY_REPORT.md).
 
+GitHub Actions pins its Linux jobs to Ubuntu 24.04 and installs PostgreSQL 17 from the official PostgreSQL Apt repository with a verified signing-key fingerprint. The Compose smoke checks an unauthenticated Admin login form, CSRF input and authenticated Admin access. CI definitions and earlier runs do not establish that a new, unpushed branch has passed; inspect the run for the exact commit. The high-severity npm audit gate remains enabled. See the teammate's [Docker and CI report](docs/CI_DOCKER_RESOLUTION_REPORT.md) for its historical results.
+
 ## Troubleshooting
 
 | Issue | What to check |

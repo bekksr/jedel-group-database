@@ -108,5 +108,11 @@ while len(ports) < 2:
         port = probe.getsockname()[1]
         if port not in ports:
             ports.append(port)
-subprocess.run([sys.executable, str(backend.parent / 'scripts/start.py'), '--check-startup', '--backend-port', str(ports[0]), '--frontend-port', str(ports[1])], cwd=backend.parent, env=env, check=True, timeout=150)
+if os.name == 'nt':
+    startup = ['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(backend.parent / 'scripts/start-windows.ps1'), '-CheckStartup', '-BackendPort', str(ports[0]), '-FrontendPort', str(ports[1])]
+elif sys.platform == 'darwin':
+    startup = ['bash', str(backend.parent / 'scripts/start-macos.sh'), '--check-startup', '--backend-port', str(ports[0]), '--frontend-port', str(ports[1])]
+else:
+    startup = [sys.executable, str(backend.parent / 'scripts/start.py'), '--check-startup', '--backend-port', str(ports[0]), '--frontend-port', str(ports[1])]
+subprocess.run(startup, cwd=backend.parent, env=env, check=True, timeout=150)
 print('PASS: fresh initialization, six roles, explicit demo idempotence, registration/session/no-key tools, repeated initialization and real isolated PostgreSQL restart preserve users, sessions and inventory.')

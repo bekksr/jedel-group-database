@@ -11,6 +11,24 @@ class AdminWorkflowTests(FixtureMixin, TestCase):
         self.client.force_authenticate(user=None)
         self.client.force_login(self.admin)
 
+    def test_compose_smoke_admin_checks_match_real_login_and_authenticated_pages(self):
+        import importlib.util
+        from pathlib import Path
+        path = Path(__file__).resolve().parents[3] / 'scripts' / 'smoke_compose.py'
+        spec = importlib.util.spec_from_file_location('compose_smoke_test', path)
+        module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+        self.client.logout()
+        response = self.client.get('/admin/', follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.redirect_chain[-1][0].startswith('/admin/login/'))
+        login_page = module.AdminElements(); login_page.feed(response.content.decode('utf-8'))
+        self.assertTrue({'username', 'password', 'csrfmiddlewaretoken'} <= login_page.input_names)
+        self.client.force_login(self.admin)
+        response = self.client.get('/admin/')
+        self.assertEqual(response.status_code, 200)
+        admin_page = module.AdminElements(); admin_page.feed(response.content.decode('utf-8'))
+        self.assertIn('logout-form', admin_page.form_ids)
+
     def test_catalog_category_edits_do_not_change_stock_or_allow_deletion(self):
         self.assertEqual(self.client.get('/admin/purchasing/product/').status_code, 200)
         response = self.client.post(f'/admin/purchasing/product/{self.product.pk}/change/', {'product_name': 'Changed through admin', 'category': 'Admin category', 'unit_price': '12.50', 'stock_quantity': '9999', '_save': 'Save'}, format='multipart')
