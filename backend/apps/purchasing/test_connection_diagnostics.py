@@ -60,7 +60,7 @@ class SQLDiagnosticTests(FixtureMixin, TransactionTestCase):
         if connection.settings_dict['NAME'] != 'test_jedel_api':
             raise AssertionError('Unexpected test database.')
         with connection.cursor() as cursor:
-            cursor.execute('TRUNCATE purchase_order_items, purchase_orders, products, suppliers RESTART IDENTITY')
+            cursor.execute('TRUNCATE demo_identity_demoitembinding, demo_identity_demoorderbinding, purchase_order_items, purchase_orders, products, suppliers RESTART IDENTITY')
 
     def setUp(self):
         self.clear(); self.seed()

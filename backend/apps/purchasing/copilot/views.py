@@ -53,7 +53,7 @@ class CapabilitiesView(CopilotView):
                          'chat_configured': readiness() == 'configured_unverified', 'chat_requires_login': True,
                          'chat_status': readiness(),
                          'provider': 'groq',
-                         'chat_scope': 'Only your current consented message goes to Groq. Private ERP records and tool results never leave Django. No conversation history is transmitted.',
+                         'chat_scope': 'Your consented message and recent general conversation go to Groq. ERP tool results are not transmitted.',
                          'quotation_storage': 'Request only; nothing is persisted.', 'low_stock_threshold': 20,
                          'threshold_basis': 'Proposed per-request threshold; not stored product reorder levels.'})
 
@@ -99,10 +99,27 @@ class ChatView(InventoryView):
         provider = get_provider()
         reserve_budget(request.user.pk)
         # One cloud request, at most one local tool. Never send tool results back.
-        plan = provider.interpret(data['message'])
+        plan = provider.interpret(data['message'], history=data['history']) if data['history'] else provider.interpret(data['message'])
         tool = plan.get('tool')
         if tool == 'conversation':
             return Response({'kind': 'conversation', 'message': plan['message'], 'source': 'Groq general conversation; not PostgreSQL facts'})
+        if tool == 'product_advice':
+            tools.require(request.user)
+            args = plan['arguments']
+            action = args['action']
+            previous = request.session.get('copilot_product_filters')
+            explicit = bool(args['query'] or args['category'] or args['budget'] is not None or args['in_stock'])
+            if action != 'find' and not explicit and not previous:
+                return Response({'kind': 'guidance', 'message': 'Start with a product search and budget before asking for a comparison or recommendation.', 'source': 'Local guidance'})
+            if action == 'find' or explicit:
+                filters = {key: args[key] for key in ('query', 'category', 'budget', 'in_stock')}
+                if filters['budget'] is not None: filters['budget'] = str(filters['budget'])
+                request.session['copilot_product_filters'] = filters
+            else:
+                filters = previous
+            return Response(tools.product_advice(request.user, filters, action, args['language']))
+        if tool == 'analytics':
+            return Response(tools.analytics_summary(request.user, **plan['arguments']))
         if tool == 'inventory':
             return Response({'kind': 'inventory', 'inventory': tools.get_authorized_inventory(request.user, **plan['arguments']), 'message': 'Source: PostgreSQL inventory. Groq interpreted the question; database results remain local.'})
         if tool == 'order_status':

@@ -21,8 +21,8 @@ test('Groq consent checkbox stays visible and enables Ask without external reque
   await page.route('**/api/ai/chat/',()=>{throw new Error('Consent-only test must not submit a cloud request');});
   await page.goto('/ai-assistant');
   await expect(page.locator('.account-summary')).toContainText('Basic User');
-  const consent=page.getByRole('checkbox',{name:/I agree to send this message to Groq/});
-  const ask=page.getByRole('button',{name:'Ask Copilot',exact:true});
+  const consent=page.getByRole('checkbox',{name:/I agree to send this message and recent general conversation to Groq/});
+  const ask=page.getByRole('button',{name:'Ask Jedel AI',exact:true});
   for(const width of [1440,390]) {
     await page.setViewportSize({width,height:900});
     await expect(consent).toBeVisible();
@@ -45,8 +45,8 @@ test('anonymous and Basic use real safe Copilot search on desktop and mobile',as
     // existing suite's shared login-IP bucket. Production throttles stay intact.
     const context=await browser.newContext({extraHTTPHeaders:{'X-Forwarded-For':username ? '198.51.100.21' : '198.51.100.20'}});const page=await context.newPage();
     if(username) await login(page,username);else await page.goto('/');
-    await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'AI Assistant',exact:true}).click();
-    await expect(page.getByRole('heading',{name:'AI Procurement Copilot',exact:true})).toBeVisible();
+    await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Jedel AI',exact:true}).click();
+    await expect(page.getByRole('heading',{name:'Jedel AI',exact:true})).toBeVisible();
     await page.getByLabel('Product name',{exact:true}).fill('Public catalog');
     await page.getByLabel('Category',{exact:true}).fill('Hardware');
     await page.getByRole('button',{name:'Search catalog',exact:true}).click();
@@ -91,10 +91,11 @@ test('authorized Copilot compares actual test quotations and drafts without busi
   await page.getByRole('button',{name:'Prepare review-only draft',exact:true}).click();await expect(page.getByRole('heading',{name:'Draft proposal — not saved',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Review inventory',exact:true}).click();await expect(page.getByText('PostgreSQL inventory · Threshold 20',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Use local low-stock question',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Ask Copilot',exact:true})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'Ask Jedel AI',exact:true})).toBeEnabled();
   await expect(page.getByText('Ready: this question runs locally in Django.',{exact:false})).toBeVisible();
-  await page.getByRole('button',{name:'Ask Copilot',exact:true}).click();
-  await expect(page.locator('.conversation')).toContainText('Inventory read from PostgreSQL');
+  await page.getByRole('button',{name:'Ask Jedel AI',exact:true}).click();
+  await expect(page.locator('.conversation')).toContainText('Here are the current inventory levels.');
+  await expect(page.locator('.conversation')).toContainText('Source: PostgreSQL');
   const ordersAfter=await (await page.request.get('/api/orders/')).json();expect(ordersAfter.count).toBe(ordersBefore.count);
   const productAfter=await (await page.request.get(`/api/products/${product.product_id}/`)).json();expect(productAfter.stock_quantity).toBe(product.stock_quantity);
   const text=await page.locator('main').innerText();expect(text).not.toContain('private-role@example.test');

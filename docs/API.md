@@ -5,7 +5,7 @@ Canonical business base: /api/. The legacy /api/v1/ business alias remains. Acco
 | Method | Path | Behavior |
 |---|---|---|
 | GET | /api/auth/csrf/ | Retrieve CSRF cookie/token; anonymous allowed |
-| POST | /api/auth/register/ | name, email, password, optional password_confirm/legacy username; persist active Basic User and server session; 201 with detail and user |
+| POST | /api/auth/register/ | name, username, email, password, optional password_confirm; persist active Basic User and server session; 201 with detail and user |
 | POST | /api/auth/login/ | password and exactly one identifier, username or email; case-insensitive email/exact legacy username; CSRF required |
 | GET | /api/auth/me/ | Current identity, role, capabilities, can_administer; 401 means anonymous/expired |
 | POST | /api/auth/logout/ | Invalidate the current session; CSRF required |

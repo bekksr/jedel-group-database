@@ -27,7 +27,7 @@ export class Auth {
     const user = await firstValueFrom(this.http.post<Account>(this.base + 'login/', {identifier, password}));
     this.generation++; this.user.set(user);
   }
-  async register(value: {name: string; email: string; password: string; password_confirm?: string}) {
+  async register(value: {name: string; username: string; email: string; password: string; password_confirm?: string}) {
     await this.csrf();
     await firstValueFrom(this.http.post(this.base + 'register/', value));
     this.generation++; this.user.set(null);

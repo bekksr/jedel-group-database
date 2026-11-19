@@ -60,7 +60,7 @@ it('rejects external and recursive login return URLs', () => {
 
 it('does not overwrite an automatically logged-in account with a late anonymous restore response', async () => {
   const restoring = auth.restore(); const old = http.expectOne('/api/auth/me/');
-  const registering = auth.register({name: 'New User', email: 'new@example.test', password: 'Valid-password-931!'});
+  const registering = auth.register({name: 'New User', username: 'new-user', email: 'new@example.test', password: 'Valid-password-931!'});
   http.expectOne('/api/auth/csrf/').flush({}); await new Promise(resolve => setTimeout(resolve,0));
   http.expectOne('/api/auth/register/').flush({detail: 'Created'}, {status: 201,statusText: 'Created'});
   await new Promise(resolve => setTimeout(resolve,0));

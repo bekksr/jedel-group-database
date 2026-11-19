@@ -35,16 +35,7 @@
           <div formArrayName="items">
             @for (item of items.controls; track item; let index = $index) {
               <div class="order-line" [formGroupName]="index">
-                <label>Product {{ index + 1 }}
-                  <select [attr.aria-label]="'Product ' + (index + 1)" formControlName="product_id" required>
-                    <option [ngValue]="0">Select product</option>
-                    @for (product of data.products(); track product.product_id) {
-                      <option [ngValue]="product.product_id">
-                        {{ product.product_name }} · {{ product.unit_price | number: "1.2-2" }} ₸
-                      </option>
-                    }
-                  </select>
-                </label>
+                <app-product-selector [index]="index" [products]="data.products()" [selectedId]="item.controls.product_id.value" (selectedIdChange)="item.controls.product_id.setValue($event)" />
                 <label>Quantity {{ index + 1 }}
                   <input type="number" formControlName="quantity" min="1" max="2147483647" step="1" required />
                 </label>

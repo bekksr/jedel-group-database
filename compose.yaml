@@ -34,7 +34,7 @@ services:
       AI_DAILY_CALL_LIMIT: ${AI_DAILY_CALL_LIMIT:-100}
       AI_USER_DAILY_CALL_LIMIT: ${AI_USER_DAILY_CALL_LIMIT:-20}
       AI_CHAT_REQUESTS_PER_MINUTE: ${AI_CHAT_REQUESTS_PER_MINUTE:-5}
-    command: [sh, -c, "python manage.py init_development && python manage.py runserver 0.0.0.0:8000"]
+    command: [sh, -c, "python manage.py setup_fresh_demo && python manage.py check_environment && python manage.py runserver 0.0.0.0:8000"]
     depends_on:
       db:
         condition: service_healthy

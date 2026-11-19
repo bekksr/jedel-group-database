@@ -34,6 +34,7 @@ class BrowserWorkflowTests(StaticLiveServerTestCase):
         manager.groups.add(Group.objects.get(name='Purchasing Manager'))
         hardware = Product.objects.create(product_name='Public catalog hardware', category='Hardware', unit_price='90321.67', stock_quantity=4321)
         Product.objects.create(product_name='Public catalog office', category='Office', unit_price='81234.56', stock_quantity=9876)
+        call_command('add_fictional_products', apply=True, confirm_database=connection.settings_dict['NAME'])
         for username, role in [('browser-employee','Purchasing Employee'), ('browser-analyst','Analyst / Tester'), ('browser-basic-pages','Basic User'), ('browser-security','Security Administrator')]:
             user = User.objects.create_user(username, password=password)
             user.groups.add(Group.objects.get(name=role))
@@ -95,7 +96,8 @@ class BrowserWorkflowTests(StaticLiveServerTestCase):
             # Targeted visual capture does not run registration/CRUD scenarios.
             # Full-suite runs retain every post-workflow persistence assertion.
             return
-        applicant = User.objects.get(username='browser-applicant@example.test')
+        applicant = User.objects.get(username='browser-applicant')
+        self.assertEqual(applicant.email, 'browser-applicant@example.test')
         self.assertTrue(applicant.is_active)
         self.assertTrue(applicant.check_password(password))
         self.assertFalse(applicant.is_staff or applicant.is_superuser)

@@ -160,11 +160,6 @@ ALTER TABLE public.suppliers ALTER COLUMN supplier_id ADD GENERATED ALWAYS AS ID
 --
 
 COPY public.products (product_id, product_name, category, unit_price, stock_quantity) FROM stdin;
-3	Wireless Keyboard	Accessories	12000.00	50
-4	Office Chair	Furniture	65000.00	12
-5	Network Router	Networking	45000.00	20
-1	Laptop Dell	Electronics	350000.00	17
-2	Office Monitor	Electronics	85000.00	33
 \.
 
 
@@ -175,12 +170,6 @@ COPY public.products (product_id, product_name, category, unit_price, stock_quan
 --
 
 COPY public.purchase_order_items (item_id, order_id, product_id, quantity, unit_price) FROM stdin;
-1	1	1	2	350000.00
-2	1	2	3	85000.00
-3	2	3	10	12000.00
-4	2	4	4	65000.00
-5	3	3	5	12000.00
-6	3	5	5	45000.00
 \.
 
 
@@ -191,9 +180,6 @@ COPY public.purchase_order_items (item_id, order_id, product_id, quantity, unit_
 --
 
 COPY public.purchase_orders (order_id, supplier_id, order_date, status, expected_delivery_date) FROM stdin;
-2	2	2026-10-30	Approved	2026-11-04
-3	3	2026-10-30	Delivered	2026-10-30
-1	1	2026-10-30	Delivered	2026-11-06
 \.
 
 
@@ -204,9 +190,6 @@ COPY public.purchase_orders (order_id, supplier_id, order_date, status, expected
 --
 
 COPY public.suppliers (supplier_id, supplier_name, email, phone, address) FROM stdin;
-1	TechnoSupply	techno@example.com	+77010000001	Almaty
-2	Global Parts	global@example.com	+77010000002	Astana
-3	Smart Logistics	smart@example.com	+77010000003	Shymkent
 \.
 
 

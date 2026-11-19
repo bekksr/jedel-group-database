@@ -10,7 +10,7 @@ export interface Offer {reference: string; supplier_id: number; supplier_name: s
 export interface Comparison {results: Offer[]; best_reference: string | null; warnings: string[]; assumptions?: string[]; ranking_reason?: string; imported_at?: string; source_type?: string;}
 export interface Inventory {results: (CatalogProduct & {stock_quantity: number})[]; threshold: number; threshold_basis: string; guidance: string; truncated: boolean;}
 export interface OrderDraft {draft_only: boolean; persisted: boolean; supplier: {supplier_id: number; supplier_name: string}; items: {product_id: number; product_name: string; quantity: number; unit_price: string; subtotal: string}[]; currency: string; source: string; warnings: string[];}
-export type ChatResult = {kind:'conversation'|'guidance';message:string;source:string} | (SearchResult & {kind: 'ai_interpreted_catalog_search'}) | {kind:'inventory';message:string;inventory:Inventory} | {kind:'draft';message:string;draft:OrderDraft} | {kind:'order_status';message:string;order_status:{order_id:number;status:string}};
+export type ChatResult = {kind:'conversation'|'guidance'|'product_advice'|'analytics';message:string;source:string} | (SearchResult & {kind: 'ai_interpreted_catalog_search'}) | {kind:'inventory';message:string;inventory:Inventory} | {kind:'draft';message:string;draft:OrderDraft} | {kind:'order_status';message:string;order_status:{order_id:number;status:string}};
 
 @Injectable({providedIn: 'root'})
 export class CopilotService {

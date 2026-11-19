@@ -23,8 +23,12 @@ finally:
 env = os.environ.copy()
 env.update(DB_NAME='jedel_dev', JEDEL_ISOLATED_DEVELOPMENT='1')
 backend = Path(__file__).resolve().parents[1]
-for args in [['migrate', '--plan'], ['init_development']]:
+for args in [['migrate', '--plan']]:
     subprocess.run([sys.executable, 'manage.py', *args], cwd=backend, env=env, check=True)
+if os.getenv('JEDEL_VERIFY_NATIVE_SETUP') == '1':
+    subprocess.run([sys.executable, str(backend.parent / 'scripts' / 'setup.py'), '--skip-install', '--non-interactive'], cwd=backend.parent, env=env, check=True)
+else:
+    subprocess.run([sys.executable, 'manage.py', 'setup_fresh_demo'], cwd=backend, env=env, check=True)
 # Create fictional sample data explicitly, prove repeatability, then preserve it
 # and a registered Basic User/session across a real temporary server restart.
 for _ in range(2):
@@ -36,7 +40,7 @@ from rest_framework.test import APIClient
 from django.test import override_settings
 with override_settings(ALLOWED_HOSTS=['testserver']):
     client=APIClient()
-    response=client.post('/api/auth/register/',{'name':'Fictional Restart User','email':'restart-user@example.test','password':os.environ['JEDEL_DEV_TEST_PASSWORD'],'password_confirm':os.environ['JEDEL_DEV_TEST_PASSWORD']},format='json')
+    response=client.post('/api/auth/register/',{'name':'Fictional Restart User','username':'fictional-restart-user','email':'restart-user@example.test','password':os.environ['JEDEL_DEV_TEST_PASSWORD'],'password_confirm':os.environ['JEDEL_DEV_TEST_PASSWORD']},format='json')
     assert response.status_code==201, 'Disposable registration failed'
     assert client.get('/api/auth/me/').status_code==200
     assert client.get('/api/ai/capabilities/').data['chat_configured'] is False
@@ -50,8 +54,16 @@ with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:
         cursor.execute("INSERT INTO suppliers (supplier_name, email) VALUES ('Restart sentinel', 'restart@example.test')")
         cursor.execute("SELECT count(*) FROM products")
-        assert cursor.fetchone()[0] == 2, 'Explicit fictional sample data differs.'
-subprocess.run([sys.executable, 'manage.py', 'init_development'], cwd=backend, env=env, check=True)
+        assert cursor.fetchone()[0] == 55, 'Explicit fictional sample data differs.'
+        cursor.execute('SELECT count(*) FROM purchase_order_items i LEFT JOIN products p ON p.product_id=i.product_id LEFT JOIN purchase_orders o ON o.order_id=i.order_id WHERE p.product_id IS NULL OR o.order_id IS NULL')
+        assert cursor.fetchone()[0] == 0, 'Demo item relationships are invalid.'
+        cursor.execute('SELECT count(*) FROM purchase_orders o LEFT JOIN suppliers s ON s.supplier_id=o.supplier_id WHERE s.supplier_id IS NULL')
+        assert cursor.fetchone()[0] == 0, 'Demo supplier relationships are invalid.'
+        cursor.execute("SELECT count(*) FROM suppliers WHERE supplier_name LIKE '[DEMO] %'"); assert cursor.fetchone()[0] == 4
+        cursor.execute('SELECT count(*) FROM purchase_order_items'); assert cursor.fetchone()[0] == 24
+        cursor.execute("SELECT (SELECT count(*) FROM products), (SELECT count(*) FROM suppliers WHERE supplier_name LIKE '[DEMO] %'), (SELECT count(*) FROM purchase_orders), (SELECT count(*) FROM purchase_order_items)")
+        print('Verified demo PostgreSQL counts (products, suppliers, orders, items):', cursor.fetchone(), flush=True)
+subprocess.run([sys.executable, 'manage.py', 'setup_fresh_demo'], cwd=backend, env=env, check=True)
 with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:
         cursor.execute("SELECT count(*) FROM suppliers WHERE email='restart@example.test'")
@@ -69,13 +81,14 @@ if data.name != 'cluster' or not data.parent.name.startswith('jedel-isolated-pg-
 from test_postgres import run
 flags = {'creationflags': subprocess.CREATE_NO_WINDOW} if os.name == 'nt' else {}
 run([str(binary / ('pg_ctl.exe' if os.name == 'nt' else 'pg_ctl')), '-D', str(data), '-m', 'fast', '-w', 'stop'], env=env, **flags)
-run([str(binary / ('pg_ctl.exe' if os.name == 'nt' else 'pg_ctl')), '-D', str(data), '-l', str(data.parent / 'postgres.log'), '-o', f"-h 127.0.0.1 -p {env['DB_PORT']} -c jedel.isolated_test_cluster=on", '-w', 'start'], env=env, **flags)
+socket_option = f' -c unix_socket_directories={data.parent}' if os.name != 'nt' else ''
+run([str(binary / ('pg_ctl.exe' if os.name == 'nt' else 'pg_ctl')), '-D', str(data), '-l', str(data.parent / 'postgres.log'), '-o', f"-h 127.0.0.1 -p {env['DB_PORT']} -c jedel.isolated_test_cluster=on{socket_option}", '-w', 'start'], env=env, **flags)
 with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:
         cursor.execute('SELECT count(*) FROM auth_user'); assert cursor.fetchone()[0] == 1
         cursor.execute('SELECT count(*) FROM django_session'); assert cursor.fetchone()[0] == 1
-        cursor.execute('SELECT count(*), sum(stock_quantity) FROM products'); assert cursor.fetchone() == (2,15)
-        cursor.execute('SELECT count(*) FROM purchase_orders'); assert cursor.fetchone()[0] == 0
+        cursor.execute('SELECT count(*), sum(stock_quantity) FROM products'); assert cursor.fetchone() == (55, sum((i * 13 % 90) + 3 for i in range(55)))
+        cursor.execute('SELECT count(*), count(DISTINCT status) FROM purchase_orders'); assert cursor.fetchone() == (8, 4)
 subprocess.run([sys.executable, 'manage.py', 'check_environment'], cwd=backend, env=env, check=True)
 resume = """
 import os
@@ -96,5 +109,11 @@ while len(ports) < 2:
         port = probe.getsockname()[1]
         if port not in ports:
             ports.append(port)
-subprocess.run([sys.executable, str(backend.parent / 'scripts/start.py'), '--check-startup', '--backend-port', str(ports[0]), '--frontend-port', str(ports[1])], cwd=backend.parent, env=env, check=True, timeout=150)
+if os.name == 'nt':
+    startup = ['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(backend.parent / 'scripts/start-windows.ps1'), '-CheckStartup', '-BackendPort', str(ports[0]), '-FrontendPort', str(ports[1])]
+elif sys.platform == 'darwin':
+    startup = ['bash', str(backend.parent / 'scripts/start-macos.sh'), '--check-startup', '--backend-port', str(ports[0]), '--frontend-port', str(ports[1])]
+else:
+    startup = [sys.executable, str(backend.parent / 'scripts/start.py'), '--check-startup', '--backend-port', str(ports[0]), '--frontend-port', str(ports[1])]
+subprocess.run(startup, cwd=backend.parent, env=env, check=True, timeout=150)
 print('PASS: fresh initialization, six roles, explicit demo idempotence, registration/session/no-key tools, repeated initialization and real isolated PostgreSQL restart preserve users, sessions and inventory.')

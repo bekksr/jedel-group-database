@@ -5,6 +5,7 @@ import { FormsModule } from "@angular/forms";
 import { ActivatedRoute, RouterLink } from "@angular/router";
 import { Product, Supplier } from "../models";
 import { Store } from "../store";
+import { demoProductDescription, displayProductName, isDemoProduct, legacyProductDescription } from '../core/data/product-metadata';
 
 @Component({selector:"ng-component-products",
   imports: [WorkspaceStatus, DecimalPipe, FormsModule, RouterLink],
@@ -54,20 +55,20 @@ import { Store } from "../store";
 
       <div class="cards catalog-cards">
         @for (product of filtered(); track product.product_id) {
-          <article class="panel catalog-card">
+          <article class="panel catalog-card" [attr.data-demo]="isDemo(product.product_name) ? 'true' : null">
             <p class="category">{{ product.category || "Uncategorized" }}</p>
-            <h2>{{ product.product_name }}</h2>
+            <h2>{{ displayName(product.product_name) }}</h2>
             <div class="actions">@if(data.permissions().manageCatalog) {<button type="button" class="secondary" [disabled]="busy() || data.loading()" (click)="edit(product)">Edit</button>}@if(data.permissions().deleteRecords) {<button type="button" class="secondary" [disabled]="busy() || data.loading()" (click)="remove(product)">Delete</button>}</div>
             <dl class="product-facts">
               <div><dt>Unit price</dt><dd class="money">{{ product.unit_price | number: "1.2-2" }} ₸</dd></div>
               <div><dt>Warehouse stock</dt><dd>{{ product.stock_quantity }} units</dd></div>
             </dl>
-            <details class="product-details">
-              <summary>Product details</summary>
+            <details class="product-details" [open]="openProductId() === product.product_id">
+              <summary (click)="toggleDetails($event, product.product_id)">Product details</summary>
               <div class="details-content">
                 <p class="hint">Product #{{ product.product_id }}</p>
                 <h3>Description</h3>
-                <p>{{ product.description || "No description is available for this product." }}</p>
+                <p>{{ description(product) || "No description is available for this product." }}</p>
                 <h3>Suppliers from purchase orders</h3>
                 <ul class="supplier-history">
                   @for (supplier of purchasingSuppliers().get(product.product_id) ?? []; track supplier.supplier_id) {
@@ -107,6 +108,11 @@ import { Store } from "../store";
   `,
 })
 export class ProductsPage {
+  readonly displayName = displayProductName;
+  readonly isDemo = isDemoProduct;
+  readonly openProductId = signal<number | null>(null);
+  description(product: Product) { return product.description || demoProductDescription(product.product_name) || legacyProductDescription(product.product_id, product.product_name, product.category); }
+  toggleDetails(event: Event, id: number) { event.preventDefault(); this.openProductId.update(current => current === id ? null : id); }
   private readonly route = inject(ActivatedRoute);
   constructor() {
     let opened = false;
@@ -118,21 +124,23 @@ export class ProductsPage {
   }
   readonly busy = signal(false); readonly error = signal(''); readonly formOpen = signal(false);
   editingId?: number;
+  private editingPrefix = '';
   draft = {product_name: '', category: '', unit_price: 0};
   edit(p?: Product) {
     if (this.busy() || !this.data.permissions().manageCatalog) return;
     this.editingId = p?.product_id;
-    this.draft = p ? {product_name: p.product_name, category: p.category, unit_price: p.unit_price} : {product_name: '', category: '', unit_price: 0};
+    this.editingPrefix = p?.product_name.match(/^(?:\[DEMO\]|\[JEDEL FICTIONAL\])\s+/)?.[0] ?? '';
+    this.draft = p ? {product_name: displayProductName(p.product_name), category: p.category, unit_price: p.unit_price} : {product_name: '', category: '', unit_price: 0};
     this.error.set(''); this.formOpen.set(true);
   }
   async save() {
     if (this.busy() || this.data.loading()) return;
     this.busy.set(true); this.error.set('');
-    try { await this.data.saveProduct(this.draft, this.editingId); this.formOpen.set(false); }
+    try { await this.data.saveProduct({...this.draft, product_name: this.editingPrefix + this.draft.product_name}, this.editingId); this.formOpen.set(false); }
     catch(e) { this.error.set((e as Error).message); } finally { this.busy.set(false); }
   }
   async remove(p: Product) {
-    if (this.busy() || !confirm('Delete product ' + p.product_name + '?')) return;
+    if (this.busy() || !confirm('Delete product ' + displayProductName(p.product_name) + '?')) return;
     this.busy.set(true); this.error.set('');
     try { await this.data.deleteProduct(p.product_id); } catch(e) { this.error.set((e as Error).message); } finally { this.busy.set(false); }
   }
@@ -149,7 +157,7 @@ export class ProductsPage {
     const category = this.category();
     return this.data.products().filter((product) =>
       (!category || product.category === category) &&
-      [product.product_name, product.category, product.description ?? ""]
+      [product.product_name, product.category, this.description(product) ?? ""]
         .some((field) => field.toLowerCase().includes(query)),
     );
   });

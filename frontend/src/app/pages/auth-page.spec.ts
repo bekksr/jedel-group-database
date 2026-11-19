@@ -28,16 +28,16 @@ it('keeps bookmarked login/register routes and safe return destinations function
 });
 it('shows adjacent field errors and rejects invalid confirmation before any HTTP request', async () => {
   const {page} = await screen('/auth?mode=register');
-  page.form.setValue({name: 'Member', email: 'invalid', password: 'short', confirm: 'different'}); await page.submit();
+  page.form.setValue({name: 'Member', username: 'member', email: 'invalid', password: 'short', confirm: 'different'}); await page.submit();
   expect(page.fieldError('email')).toContain('valid email'); expect(page.fieldError('password')).toContain('8 characters'); expect(page.fieldError('confirm')).toContain('match');
   expect(page.error()).toBe(''); http.expectNone(request => request.url.startsWith('/api/'));
 });
 it('submits once, loads the authenticated profile and redirects Home only after real confirmation', async () => {
   const {harness, page} = await screen('/auth?mode=register');
-  page.form.setValue({name: 'Member', email: 'member@example.test', password: 'Secure-test-password-928!', confirm: 'Secure-test-password-928!'});
+  page.form.setValue({name: 'Member', username: 'member', email: 'member@example.test', password: 'Secure-test-password-928!', confirm: 'Secure-test-password-928!'});
   const pending = page.submit(); await page.submit(); expect(page.success()).toBe(false); expect(page.busy()).toBe(true);
   http.expectOne('/api/auth/csrf/').flush({}); await new Promise(resolve => setTimeout(resolve,0));
-  const request = http.expectOne('/api/auth/register/'); expect(request.request.body.password_confirm).toBe('Secure-test-password-928!'); expect(request.request.body.is_staff).toBeUndefined();
+  const request = http.expectOne('/api/auth/register/'); expect(request.request.body.username).toBe('member'); expect(request.request.body.email).toBe('member@example.test'); expect(request.request.body.password_confirm).toBe('Secure-test-password-928!'); expect(request.request.body.is_staff).toBeUndefined();
   request.flush({detail: 'Account created successfully. Welcome to Jedel.Group!'}, {status: 201, statusText: 'Created'});
   await new Promise(resolve => setTimeout(resolve,0));
   const profile = {username: 'member@example.test', name: 'Member', email: 'member@example.test', role: 'Basic User', capabilities: {read: false}};
@@ -48,7 +48,7 @@ it('submits once, loads the authenticated profile and redirects Home only after 
 });
 it('retains valid input on field validation failure without duplicating the error', async () => {
   const {page} = await screen('/auth?mode=register');
-  page.form.setValue({name: 'Member', email: 'member@example.test', password: 'Secure-test-password-928!', confirm: 'Secure-test-password-928!'});
+  page.form.setValue({name: 'Member', username: 'member', email: 'member@example.test', password: 'Secure-test-password-928!', confirm: 'Secure-test-password-928!'});
   const pending = page.submit(); http.expectOne('/api/auth/csrf/').flush({}); await new Promise(resolve => setTimeout(resolve,0));
   http.expectOne('/api/auth/register/').flush({email: ['Account already exists.']}, {status: 400,statusText: 'Bad Request'}); await pending;
   expect(page.fieldError('email')).toBe('Account already exists.'); expect(page.error()).toBe(''); expect(page.success()).toBe(false);
@@ -64,7 +64,7 @@ it('provides an accessible password visibility toggle', async () => {
 
 it('does not announce success or redirect when authenticated profile retrieval fails after registration', async () => {
   const {page} = await screen('/auth?mode=register');
-  page.form.setValue({name: 'Member', email: 'member@example.test', password: 'Secure-test-password-928!', confirm: 'Secure-test-password-928!'});
+  page.form.setValue({name: 'Member', username: 'member', email: 'member@example.test', password: 'Secure-test-password-928!', confirm: 'Secure-test-password-928!'});
   const pending = page.submit(); http.expectOne('/api/auth/csrf/').flush({}); await new Promise(resolve => setTimeout(resolve,0));
   http.expectOne('/api/auth/register/').flush({detail: 'Account created successfully.'}, {status: 201,statusText: 'Created'});
   await new Promise(resolve => setTimeout(resolve,0));

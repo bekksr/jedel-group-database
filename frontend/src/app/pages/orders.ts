@@ -22,6 +22,8 @@ import {
 } from "@angular/forms";
 import { ActivatedRoute, ParamMap } from "@angular/router";
 import { Store } from "../store";
+import { ProductSelector } from '../components/product-selector';
+import { displayProductName } from '../core/data/product-metadata';
 import {
   allowedTransitions,
   localDate,
@@ -30,7 +32,7 @@ import {
   orderTotal,
 } from "../models";
 @Component({selector:"ng-component-orders",
-  imports: [WorkspaceStatus, DecimalPipe, FormsModule, ReactiveFormsModule],
+  imports: [WorkspaceStatus, DecimalPipe, FormsModule, ReactiveFormsModule, ProductSelector],
   templateUrl: "./orders.html",
 })
 export class OrdersPage {
@@ -116,7 +118,7 @@ export class OrdersPage {
     );
   }
   productName(id: number) {
-    return (
+    return displayProductName(
       this.data.products().find((p) => p.product_id === id)?.product_name ??
       "Unknown product"
     );

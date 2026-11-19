@@ -24,6 +24,39 @@ test('session, catalog persistence, Pending amendment, delivery and forbidden wr
   await expect(page.locator('.account-summary')).toContainText('Purchasing Manager');
   await expect(page.getByRole('heading', {name: 'New product', exact: true})).toBeVisible();
   await page.getByRole('button', {name: 'Cancel', exact: true}).click();
+  const layoutCards = page.locator('article.catalog-card');
+  const firstBox = await layoutCards.nth(0).boundingBox();
+  const secondBox = await layoutCards.nth(1).boundingBox();
+  if (firstBox && secondBox && Math.abs(firstBox.y - secondBox.y) < 2) {
+    await layoutCards.nth(0).locator('summary').click();
+    const neighborAfter = await layoutCards.nth(1).boundingBox();
+    expect(Math.abs(neighborAfter!.height - secondBox.height)).toBeLessThan(2);
+    await layoutCards.nth(0).locator('summary').click();
+  }
+  const laptop = page.locator('article.catalog-card').filter({has: page.getByRole('heading', {name: 'Notebook Air 13', exact: true})});
+  const monitor = page.locator('article.catalog-card').filter({has: page.getByRole('heading', {name: 'Monitor 22 FHD', exact: true})});
+  await laptop.locator('summary').focus(); await page.keyboard.press('Enter');
+  await expect(laptop.locator('details')).toHaveAttribute('open', '');
+  await expect(laptop).toContainText('Notebook Air 13 is a fictional demonstration product');
+  await monitor.locator('summary').click();
+  await expect(laptop.locator('details')).not.toHaveAttribute('open', '');
+  await expect(monitor).toContainText('Monitor 22 FHD is a fictional demonstration product');
+  await monitor.locator('summary').click(); await expect(monitor.locator('details')).not.toHaveAttribute('open', '');
+  const demoCards = page.locator('article.catalog-card[data-demo="true"]');
+  await expect(demoCards).toHaveCount(55);
+  for (let index = 0; index < 55; index++) {
+    const card = demoCards.nth(index);
+    const productName = (await card.locator('h2').innerText()).replace(/\s*Demo\s*$/, '').trim();
+    expect(productName).not.toContain('[JEDEL FICTIONAL]');
+    expect(productName).not.toContain('[DEMO]');
+    await card.locator('summary').click();
+    await expect(card.locator('.details-content')).toContainText(productName + ' is a fictional demonstration product');
+    await expect(page.locator('details.product-details[open]')).toHaveCount(1);
+  }
+  await laptop.getByRole('link', {name:'Order this product'}).click();
+  await expect(page.getByRole('combobox', {name:'Product 1'})).toHaveValue('Notebook Air 13');
+  await expect(page.locator('.selector-selection')).not.toContainText('Demo');
+  await page.getByRole('button', {name:'Cancel', exact:true}).click();
   await page.getByRole('navigation', {name: 'Main navigation'}).getByRole('link', {name: 'Suppliers', exact: true}).click();
   await page.getByRole('button', {name: 'New supplier', exact: true}).click();
   await page.getByLabel('Supplier name', {exact: true}).fill('Browser supplier');
@@ -43,7 +76,8 @@ test('session, catalog persistence, Pending amendment, delivery and forbidden wr
   await page.getByRole('button', {name: 'New order', exact: true}).click();
   await page.getByRole('combobox', {name: 'Supplier', exact: true}).selectOption({label: 'Browser supplier'});
   const productSelect = page.getByRole('combobox', {name: 'Product 1', exact: true});
-  await productSelect.selectOption({label: await productSelect.locator('option').filter({hasText: /^\s*Browser product\s/}).innerText()});
+  await productSelect.fill('Browser product');
+  await page.getByRole('option', {name: /Browser product/}).click();
   await page.getByLabel('Quantity 1', {exact: true}).fill('2');
   await page.getByRole('button', {name: 'Create order', exact: true}).click();
   await expect(page.getByRole('button', {name: 'Edit Pending order'})).toBeVisible();
