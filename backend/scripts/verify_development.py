@@ -23,8 +23,12 @@ finally:
 env = os.environ.copy()
 env.update(DB_NAME='jedel_dev', JEDEL_ISOLATED_DEVELOPMENT='1')
 backend = Path(__file__).resolve().parents[1]
-for args in [['migrate', '--plan'], ['setup_fresh_demo']]:
+for args in [['migrate', '--plan']]:
     subprocess.run([sys.executable, 'manage.py', *args], cwd=backend, env=env, check=True)
+if os.getenv('JEDEL_VERIFY_NATIVE_SETUP') == '1':
+    subprocess.run([sys.executable, str(backend.parent / 'scripts' / 'setup.py'), '--skip-install', '--non-interactive'], cwd=backend.parent, env=env, check=True)
+else:
+    subprocess.run([sys.executable, 'manage.py', 'setup_fresh_demo'], cwd=backend, env=env, check=True)
 # Create fictional sample data explicitly, prove repeatability, then preserve it
 # and a registered Basic User/session across a real temporary server restart.
 for _ in range(2):
