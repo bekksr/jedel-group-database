@@ -26,6 +26,6 @@ describe('searchable product selector', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     expect(fixture.nativeElement.querySelector('input').value).toBe('Notebook');
-    expect(fixture.nativeElement.textContent).toContain('Demo');
+    expect(fixture.nativeElement.textContent).not.toContain('[JEDEL FICTIONAL]');
   });
 });

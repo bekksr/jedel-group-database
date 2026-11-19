@@ -55,9 +55,9 @@ import { demoProductDescription, displayProductName, isDemoProduct, legacyProduc
 
       <div class="cards catalog-cards">
         @for (product of filtered(); track product.product_id) {
-          <article class="panel catalog-card">
+          <article class="panel catalog-card" [attr.data-demo]="isDemo(product.product_name) ? 'true' : null">
             <p class="category">{{ product.category || "Uncategorized" }}</p>
-            <h2>{{ displayName(product.product_name) }} @if(isDemo(product.product_name)) {<span class="demo-badge">Demo</span>}</h2>
+            <h2>{{ displayName(product.product_name) }}</h2>
             <div class="actions">@if(data.permissions().manageCatalog) {<button type="button" class="secondary" [disabled]="busy() || data.loading()" (click)="edit(product)">Edit</button>}@if(data.permissions().deleteRecords) {<button type="button" class="secondary" [disabled]="busy() || data.loading()" (click)="remove(product)">Delete</button>}</div>
             <dl class="product-facts">
               <div><dt>Unit price</dt><dd class="money">{{ product.unit_price | number: "1.2-2" }} ₸</dd></div>
@@ -124,21 +124,23 @@ export class ProductsPage {
   }
   readonly busy = signal(false); readonly error = signal(''); readonly formOpen = signal(false);
   editingId?: number;
+  private editingPrefix = '';
   draft = {product_name: '', category: '', unit_price: 0};
   edit(p?: Product) {
     if (this.busy() || !this.data.permissions().manageCatalog) return;
     this.editingId = p?.product_id;
-    this.draft = p ? {product_name: p.product_name, category: p.category, unit_price: p.unit_price} : {product_name: '', category: '', unit_price: 0};
+    this.editingPrefix = p?.product_name.match(/^(?:\[DEMO\]|\[JEDEL FICTIONAL\])\s+/)?.[0] ?? '';
+    this.draft = p ? {product_name: displayProductName(p.product_name), category: p.category, unit_price: p.unit_price} : {product_name: '', category: '', unit_price: 0};
     this.error.set(''); this.formOpen.set(true);
   }
   async save() {
     if (this.busy() || this.data.loading()) return;
     this.busy.set(true); this.error.set('');
-    try { await this.data.saveProduct(this.draft, this.editingId); this.formOpen.set(false); }
+    try { await this.data.saveProduct({...this.draft, product_name: this.editingPrefix + this.draft.product_name}, this.editingId); this.formOpen.set(false); }
     catch(e) { this.error.set((e as Error).message); } finally { this.busy.set(false); }
   }
   async remove(p: Product) {
-    if (this.busy() || !confirm('Delete product ' + p.product_name + '?')) return;
+    if (this.busy() || !confirm('Delete product ' + displayProductName(p.product_name) + '?')) return;
     this.busy.set(true); this.error.set('');
     try { await this.data.deleteProduct(p.product_id); } catch(e) { this.error.set((e as Error).message); } finally { this.busy.set(false); }
   }

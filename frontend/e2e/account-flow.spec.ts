@@ -29,7 +29,7 @@ test('registration activates Basic User, logs in automatically, persists and pre
   await expect(page.getByRole('button', {name: 'Edit', exact: true})).toHaveCount(0);
   await page.getByLabel('Search products', {exact: true}).fill('JEDEL FICTIONAL');
   await expect(page.getByRole('status').filter({hasText:'55 product(s) found.'})).toBeVisible();
-  await expect(page.getByRole('heading', {name:'Notebook Air 13 Demo', exact:true})).toBeVisible();
+  await expect(page.getByRole('heading', {name:'Notebook Air 13', exact:true})).toBeVisible();
   const seen = new Set<string>();
   for (let pageNumber = 1; pageNumber <= 10; pageNumber++) {
     for (const name of await page.locator('[aria-label="Public product catalog"] article h2').allTextContents()) seen.add(name);

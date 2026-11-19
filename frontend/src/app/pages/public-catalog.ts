@@ -6,7 +6,7 @@ import { Subject, EMPTY, catchError, debounceTime, distinctUntilChanged, finaliz
 import { PublicCatalogService, PublicProduct } from '../core/data/public-catalog.service';
 import { apiError } from '../core/data/api-errors';
 import { Auth } from '../auth';
-import { displayProductName, isDemoProduct } from '../core/data/product-metadata';
+import { displayProductName } from '../core/data/product-metadata';
 @Component({selector: 'app-public-catalog', imports: [FormsModule, RouterLink], template: `
   <div class="heading"><div><h1>Products</h1><p class="subtitle">Explore the Jedel.Group product catalog.</p></div>
     @if(!auth.user()) {<a class="button secondary" routerLink="/products/new">Create product</a>}
@@ -23,14 +23,14 @@ import { displayProductName, isDemoProduct } from '../core/data/product-metadata
     <p role="status">{{count()}} product(s) found.</p>
     <div class="cards" aria-label="Public product catalog">
       @for(product of products(); track product.product_id) {
-        <article class="panel catalog-card"><p class="eyebrow">{{product.category || 'Uncategorized'}}</p><h2>{{displayName(product.product_name)}} @if(isDemo(product.product_name)) {<span class="demo-badge">Demo</span>}</h2><dl><div><dt>Product ID</dt><dd>#{{product.product_id}}</dd></div></dl></article>
+        <article class="panel catalog-card"><p class="eyebrow">{{product.category || 'Uncategorized'}}</p><h2>{{displayName(product.product_name)}}</h2><dl><div><dt>Product ID</dt><dd>#{{product.product_id}}</dd></div></dl></article>
       } @empty {<p class="panel">No products match your search.</p>}
     </div>
     <div class="actions" aria-label="Catalog pages"><button class="secondary" [disabled]="!previous()" (click)="changePage(-1)">Previous</button><span>Page {{page()}}</span><button class="secondary" [disabled]="!next()" (click)="changePage(1)">Next</button></div>
   }
 `})
 export class PublicCatalogPage {
-  readonly displayName = displayProductName; readonly isDemo = isDemoProduct;
+  readonly displayName = displayProductName;
   readonly auth = inject(Auth);
   private readonly service = inject(PublicCatalogService);
   private readonly destroy = inject(DestroyRef);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { demoProductDescription, displayProductName, isDemoProduct, legacyProductDescription } from './product-metadata';
+import { demoProductDescription, displayProductName, displayProductText, isDemoProduct, legacyProductDescription } from './product-metadata';
 
 describe('fictional product metadata', () => {
   it('uses the exact marked product name and keeps unknown products separate', () => {
@@ -12,6 +12,7 @@ describe('fictional product metadata', () => {
     expect(demoProductDescription(first)).not.toBe(demoProductDescription(second));
     expect(demoProductDescription('Notebook Air 13')).toBeUndefined();
     expect(demoProductDescription('[DEMO] Unknown custom product')).toBeUndefined();
+    expect(displayProductText('Compare [JEDEL FICTIONAL] Notebook and [DEMO] Monitor')).toBe('Compare Notebook and Monitor');
   });
   it('uses legacy metadata only for the matching id, name and category', () => {
     expect(legacyProductDescription(1, 'Laptop Dell', 'Electronics')).toContain('portable office work');

@@ -82,11 +82,13 @@ it('shows database advice and does not send its results in follow-up history',as
   const fixture=await setup(true);const page=fixture.componentInstance;
   page.caps.set({...publicCaps,chat_configured:true});page.consent=true;page.message='Find laptops under 400000 KZT';
   const first=page.chat();await csrf();const request=http.expectOne('/api/ai/chat/');
-  request.flush({kind:'product_advice',message:'Laptop A: 300000 KZT; stock 4',source:'PostgreSQL'});await first;
+  request.flush({kind:'product_advice',message:'[JEDEL FICTIONAL] Laptop A: 300000 KZT; stock 4',source:'PostgreSQL'});await first;
   page.message='Which is cheapest?';const second=page.chat();await csrf();const followup=http.expectOne('/api/ai/chat/');
   expect(followup.request.body.history).toEqual([]);
-  followup.flush({kind:'product_advice',message:'Laptop A: 300000 KZT; stock 4',source:'PostgreSQL'});await second;await fixture.whenStable();
+  followup.flush({kind:'product_advice',message:'[DEMO] Laptop A: 300000 KZT; stock 4',source:'PostgreSQL'});await second;await fixture.whenStable();
   expect(fixture.nativeElement.textContent).toContain('Laptop A: 300000 KZT');
+  expect(fixture.nativeElement.querySelector('.conversation').textContent).not.toContain('[DEMO]');
+  expect(fixture.nativeElement.querySelector('.conversation').textContent).not.toContain('[JEDEL FICTIONAL]');
 });
 it('explains a missing backend SDK and keeps cloud submission disabled',async()=>{
   const fixture=await setup();const page=fixture.componentInstance;

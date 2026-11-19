@@ -1,7 +1,7 @@
 """Bounded ORM reads; permissions apply even when called outside an API view."""
 from decimal import Decimal
 from django.shortcuts import get_object_or_404
-from django.db.models import Count, Sum, F, DecimalField, ExpressionWrapper
+from django.db.models import Count, Sum, F, DecimalField, ExpressionWrapper, Q
 from rest_framework.exceptions import PermissionDenied
 from ..accounts import capabilities
 from ..models import Product, Supplier, PurchaseOrder, PurchaseOrderItem
@@ -26,8 +26,10 @@ def search_products(user, **arguments):
     # privileged chat never transmits purchasing prices or stock to a provider.
     rows = Product.objects.only(*PUBLIC_FIELDS).order_by('product_id')
     if data['query']:
-        lookup = 'product_name__iexact' if data['match'] == 'exact' else 'product_name__icontains'
-        rows = rows.filter(**{lookup: data['query']})
+        if data['match'] == 'exact':
+            rows = rows.filter(Q(product_name__iexact=data['query']) | Q(product_name__iexact='[DEMO] ' + data['query']) | Q(product_name__iexact='[JEDEL FICTIONAL] ' + data['query']))
+        else:
+            rows = rows.filter(product_name__icontains=data['query'])
     if data['category']:
         rows = rows.filter(category__iexact=data['category'])
     results = list(rows.values(*PUBLIC_FIELDS)[:21])

@@ -3,6 +3,7 @@ import { DecimalPipe } from '@angular/common';
 import { Store } from '../store';
 import { WorkspaceStatus } from './workspace-status';
 import { StatCard, MONEY_DIGITS } from '../components/stat-card';
+import { displayProductName } from '../core/data/product-metadata';
 @Component({selector:'ng-component-analytics',imports:[DecimalPipe,WorkspaceStatus,StatCard],host:{class:'analytics-page'},styleUrl:'./analytics.scss',template:`
 <header><h1>Analytics</h1><p class="subtitle">Company purchasing and inventory reports from the authorized workspace.</p></header>
 <app-workspace-status />
@@ -15,7 +16,7 @@ import { StatCard, MONEY_DIGITS } from '../components/stat-card';
   <div class="report-grid">
    <section class="panel"><div class="report-heading"><h2>Inventory summary</h2><span class="report-count">{{dashboard.productCount | number:'1.0-0'}} products</span></div>
     <h3>Low stock at or below {{data.lowStockThreshold()}} units</h3><p class="hint">Uses the current report threshold; no demand forecast is inferred.</p>
-    <ul class="stock-list">@for(product of dashboard.lowStock;track product.product_id) {<li><span class="stock-name">{{product.product_name}}</span><span class="stock-quantity"><strong>{{product.stock_quantity | number:'1.0-0'}}</strong><span>units</span></span></li>} @empty {<li class="empty-state">No products at or below the threshold.</li>}</ul>
+    <ul class="stock-list">@for(product of dashboard.lowStock;track product.product_id) {<li><span class="stock-name">{{displayName(product.product_name)}}</span><span class="stock-quantity"><strong>{{product.stock_quantity | number:'1.0-0'}}</strong><span>units</span></span></li>} @empty {<li class="empty-state">No products at or below the threshold.</li>}</ul>
    </section>
    <section class="panel"><h2>Order status distribution</h2><p class="hint">Current records grouped by procurement state.</p><dl class="status-list">@for(row of data.orderStatuses();track row.status) {<div><dt><span class="badge" [attr.data-status]="row.status">{{row.status}}</span></dt><dd>{{row.count | number:'1.0-0'}}</dd></div>} @empty {<div><dt class="empty-state">No orders to report.</dt></div>}</dl></section>
   </div>
@@ -25,6 +26,7 @@ import { StatCard, MONEY_DIGITS } from '../components/stat-card';
 }
 `})
 export class AnalyticsPage {
+ readonly displayName=displayProductName;
  readonly data=inject(Store);
  readonly moneyDigits=MONEY_DIGITS;
  readonly monthlyActivity=computed(()=>{

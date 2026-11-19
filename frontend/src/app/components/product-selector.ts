@@ -2,7 +2,7 @@ import { DecimalPipe } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Product } from '../models';
-import { displayProductName, isDemoProduct } from '../core/data/product-metadata';
+import { displayProductName } from '../core/data/product-metadata';
 
 @Component({selector: 'app-product-selector', imports: [FormsModule, DecimalPipe], template: `
   <div class="product-selector">
@@ -13,13 +13,13 @@ import { displayProductName, isDemoProduct } from '../core/data/product-metadata
       [ngModel]="query" [ngModelOptions]="{standalone:true}" (ngModelChange)="search($event)"
       (focus)="open = true" (keydown)="key($event)" (blur)="closeLater()" placeholder="Search products">
     @if (selectedProduct; as selected) {
-      <small class="selector-selection">{{selected.unit_price | number:'1.2-2'}} KZT · {{selected.stock_quantity}} in stock @if(isDemo(selected.product_name)) {<span class="demo-badge">Demo</span>}</small>
+      <small class="selector-selection">{{selected.unit_price | number:'1.2-2'}} KZT · {{selected.stock_quantity}} in stock</small>
     }
     @if(open) {
       <div class="product-options" role="listbox" [id]="'product-options-' + index">
         @for(product of filtered; track product.product_id; let i = $index) {
           <div role="option" class="product-option" [id]="optionId(i)" [attr.aria-selected]="i === active" (mousedown)="$event.preventDefault()" (click)="choose(product)">
-            <span>{{displayName(product.product_name)}} @if(isDemo(product.product_name)) {<span class="demo-badge">Demo</span>}</span>
+            <span>{{displayName(product.product_name)}}</span>
             <small>{{product.category || 'Uncategorized'}} · {{product.unit_price | number:'1.2-2'}} KZT · {{product.stock_quantity}} in stock</small>
           </div>
         } @empty {<p class="selector-empty">No matching products.</p>}
@@ -33,7 +33,6 @@ export class ProductSelector implements OnChanges {
   @Input() index = 0;
   @Output() selectedIdChange = new EventEmitter<number>();
   readonly displayName = displayProductName;
-  readonly isDemo = isDemoProduct;
   query = ''; open = false; active = 0;
   get selectedProduct() { return this.products.find(p => p.product_id === this.selectedId); }
   get filtered() { const term = this.query.trim().toLocaleLowerCase(); return this.products.filter(p => displayProductName(p.product_name).toLocaleLowerCase().includes(term)); }

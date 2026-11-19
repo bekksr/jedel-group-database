@@ -60,6 +60,7 @@ const descriptions: Record<string, string> = {
 const demoPrefix = /^(?:\[DEMO\]|\[JEDEL FICTIONAL\])\s+/;
 export function isDemoProduct(name: string): boolean { return demoPrefix.test(name); }
 export function displayProductName(name: string): string { return name.replace(demoPrefix, ""); }
+export function displayProductText(text: string): string { return text.replace(/\[(?:DEMO|JEDEL FICTIONAL)\]\s+/g, ''); }
 export function demoProductDescription(name: string): string | undefined {
   return isDemoProduct(name) ? descriptions[displayProductName(name)] : undefined;
 }

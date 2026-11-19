@@ -79,7 +79,7 @@
     <ul class="item-list">
       @for (item of orderItems(order.order_id); track item.item_id) {
         <li>
-          <span>{{ productName(item.product_id) }} @if(productIsDemo(item.product_id)) {<span class="demo-badge">Demo</span>}<small>{{ item.quantity }} × {{ item.unit_price | number: "1.2-2" }} ₸</small></span>
+          <span>{{ productName(item.product_id) }}<small>{{ item.quantity }} × {{ item.unit_price | number: "1.2-2" }} ₸</small></span>
           <strong class="money">{{ (item.line_total ?? item.quantity * item.unit_price) | number: "1.2-2" }} ₸</strong>
         </li>
       }

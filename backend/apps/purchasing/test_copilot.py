@@ -109,6 +109,13 @@ class CopilotTests(FixtureMixin, TestCase):
         response = self.post('products/search', {'query': 'Bounded'})
         self.assertEqual(len(response.data['results']),20); self.assertTrue(response.data['truncated'])
 
+    def test_exact_search_accepts_display_name_without_changing_stored_marker(self):
+        product = Product.objects.create(product_name='[JEDEL FICTIONAL] Notebook Air 13', category='Laptops', unit_price=1, stock_quantity=1)
+        response = self.post('products/search', {'query': 'Notebook Air 13', 'match': 'exact'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['results'][0]['product_id'], product.pk)
+        self.assertEqual(response.data['results'][0]['product_name'], '[JEDEL FICTIONAL] Notebook Air 13')
+
     def test_capability_matrix_and_private_endpoints(self):
         system = User.objects.create_user('copilot-system')
         system.groups.add(Group.objects.get_or_create(name='System Administrator')[0])
