@@ -81,7 +81,8 @@ if data.name != 'cluster' or not data.parent.name.startswith('jedel-isolated-pg-
 from test_postgres import run
 flags = {'creationflags': subprocess.CREATE_NO_WINDOW} if os.name == 'nt' else {}
 run([str(binary / ('pg_ctl.exe' if os.name == 'nt' else 'pg_ctl')), '-D', str(data), '-m', 'fast', '-w', 'stop'], env=env, **flags)
-run([str(binary / ('pg_ctl.exe' if os.name == 'nt' else 'pg_ctl')), '-D', str(data), '-l', str(data.parent / 'postgres.log'), '-o', f"-h 127.0.0.1 -p {env['DB_PORT']} -c jedel.isolated_test_cluster=on", '-w', 'start'], env=env, **flags)
+socket_option = f' -c unix_socket_directories={data.parent}' if os.name != 'nt' else ''
+run([str(binary / ('pg_ctl.exe' if os.name == 'nt' else 'pg_ctl')), '-D', str(data), '-l', str(data.parent / 'postgres.log'), '-o', f"-h 127.0.0.1 -p {env['DB_PORT']} -c jedel.isolated_test_cluster=on{socket_option}", '-w', 'start'], env=env, **flags)
 with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:
         cursor.execute('SELECT count(*) FROM auth_user'); assert cursor.fetchone()[0] == 1

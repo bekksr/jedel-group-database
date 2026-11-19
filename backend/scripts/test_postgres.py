@@ -83,7 +83,8 @@ def main():
         started = False
         try:
             started = True
-            run([str(binary / ('pg_ctl' + suffix)), '-D', str(data), '-l', str(work / 'postgres.log'), '-o', f'-h 127.0.0.1 -p {port} -c jedel.isolated_test_cluster=on', '-w', 'start'], check=True, env=env, **flags)
+            socket_option = f' -c unix_socket_directories={work}' if os.name != 'nt' else ''
+            run([str(binary / ('pg_ctl' + suffix)), '-D', str(data), '-l', str(work / 'postgres.log'), '-o', f'-h 127.0.0.1 -p {port} -c jedel.isolated_test_cluster=on{socket_option}', '-w', 'start'], check=True, env=env, **flags)
             started = True
             if os.getenv('JEDEL_REHEARSAL_BACKUP'):
                 run([sys.executable, 'scripts/rehearse_auth_migrations.py'], timeout=120, cwd=BACKEND, env=env, **flags)
