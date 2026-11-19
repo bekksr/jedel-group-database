@@ -37,6 +37,29 @@ DEMO_SUPPLIERS = [
     ('[DEMO] Tulpar Networks', 'networks@example.test'),
 ]
 
+# Keys are permanent identities, independent of order IDs and mutable fields.
+ORDER_FIXTURES = [
+    {'key': 'demo-order-01', 'supplier': 'office@example.test', 'status': 'Pending', 'days_ago': 70, 'products': ['Notebook Air 13', 'Notebook Pro 14', 'Notebook Work 15'], 'quantity': 2},
+    {'key': 'demo-order-02', 'supplier': 'computing@example.test', 'status': 'Approved', 'days_ago': 62, 'products': ['Monitor 22 FHD', 'Monitor 24 FHD', 'Monitor 27 QHD'], 'quantity': 3},
+    {'key': 'demo-order-03', 'supplier': 'workspace@example.test', 'status': 'Delivered', 'days_ago': 54, 'products': ['Wireless Mouse', 'USB Keyboard', 'Webcam HD'], 'quantity': 4},
+    {'key': 'demo-order-04', 'supplier': 'networks@example.test', 'status': 'Cancelled', 'days_ago': 46, 'products': ['Gigabit Router', 'Wi-Fi Access Point', 'Network Switch 8 Port'], 'quantity': 5},
+    {'key': 'demo-order-05', 'supplier': 'office@example.test', 'status': 'Pending', 'days_ago': 38, 'products': ['SSD 256GB', 'SSD 512GB', 'SSD 1TB'], 'quantity': 6},
+    {'key': 'demo-order-06', 'supplier': 'computing@example.test', 'status': 'Approved', 'days_ago': 30, 'products': ['Laser Printer Mono', 'Laser Printer Color', 'Inkjet Printer'], 'quantity': 7},
+    {'key': 'demo-order-07', 'supplier': 'workspace@example.test', 'status': 'Delivered', 'days_ago': 22, 'products': ['Office Desk', 'Ergo Mesh Office Chair', 'Filing Cabinet'], 'quantity': 8},
+    {'key': 'demo-order-08', 'supplier': 'networks@example.test', 'status': 'Cancelled', 'days_ago': 14, 'products': ['Paper A4 Box', 'Notebook Pack', 'Pen Pack'], 'quantity': 9},
+]
+BASE_ORDER_KEYS = frozenset(f'demo-order-{index:02d}' for index in range(1, 9))
+ORDER_ITEM_PRICES = {
+    'demo-order-01': [245000, 390000, 315000],
+    'demo-order-02': [62000, 78000, 145000],
+    'demo-order-03': [6500, 8500, 19000],
+    'demo-order-04': [32000, 45000, 28000],
+    'demo-order-05': [22000, 35000, 59000],
+    'demo-order-06': [85000, 185000, 68000],
+    'demo-order-07': [78000, 65000, 89000],
+    'demo-order-08': [12500, 4800, 3200],
+}
+
 
 class Command(BaseCommand):
     help = 'Explicitly seed fictional records into an otherwise empty isolated jedel_dev.'
@@ -66,11 +89,17 @@ class Command(BaseCommand):
             index = len(products)
             products.append(Product.objects.create(product_name='[DEMO] ' + name, category=category,
                 unit_price=Decimal(price), stock_quantity=(index * 13 % 90) + 3))
+        from apps.demo_identity.models import DemoOrderBinding, DemoItemBinding
         today = timezone.localdate()
-        for index, status in enumerate(PurchaseOrder.Status.values * 2):
-            ordered = today - timedelta(days=70 - index * 8)
-            order = PurchaseOrder.objects.create(supplier=suppliers[index % len(suppliers)], order_date=ordered,
-                expected_delivery_date=ordered + timedelta(days=7), status=status)
-            for product in products[index * 5:index * 5 + 3]:
-                PurchaseOrderItem.objects.create(order=order, product=product, quantity=index + 2, unit_price=product.unit_price)
+        suppliers_by_email = {supplier.email: supplier for supplier in suppliers}
+        products_by_name = {product.product_name: product for product in products}
+        for fixture in ORDER_FIXTURES:
+            ordered = today - timedelta(days=fixture['days_ago'])
+            order = PurchaseOrder.objects.create(supplier=suppliers_by_email[fixture['supplier']], order_date=ordered,
+                expected_delivery_date=ordered + timedelta(days=7), status=fixture['status'])
+            binding = DemoOrderBinding.objects.create(key=fixture['key'], order_id=order.pk)
+            for index, name in enumerate(fixture['products'], start=1):
+                product = products_by_name['[DEMO] ' + name]
+                item = PurchaseOrderItem.objects.create(order=order, product=product, quantity=fixture['quantity'], unit_price=ORDER_ITEM_PRICES[fixture['key']][index - 1])
+                DemoItemBinding.objects.create(key=f"{fixture['key']}/line-{index:02d}", order_binding=binding, item_id=item.pk)
         self.stdout.write('Fictional demo created: 4 suppliers, 55 products, 8 orders and 24 items. Stock is opening inventory; historical deliveries are not replayed.')

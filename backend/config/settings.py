@@ -30,6 +30,9 @@ INSTALLED_APPS = [
     'corsheaders',
     'apps.purchasing.apps.PurchasingConfig',
 ]
+if ((os.getenv('JEDEL_ISOLATED_DEVELOPMENT') == '1' and os.getenv('DB_NAME', '').strip() == 'jedel_dev')
+        or os.getenv('JEDEL_ISOLATED_TESTS') == '1'):
+    INSTALLED_APPS.append('apps.demo_identity')
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',

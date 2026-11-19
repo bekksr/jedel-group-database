@@ -42,6 +42,8 @@ class IsolatedPostgresRunner(DiscoverRunner):
         if len(statements) != 17:
             raise ImproperlyConfigured('The source dump schema changed; review test bootstrap DDL.')
         with connection.cursor() as cursor:
+            if set(BUSINESS_TABLES).issubset(connection.introspection.table_names(cursor)):
+                return result
             for _, statement in sorted(statements):
                 cursor.execute(statement)
         return result

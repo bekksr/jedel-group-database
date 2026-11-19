@@ -198,7 +198,35 @@ python manage.py sync_demo_products
 python manage.py sync_demo_products --apply
 ```
 
-The command requires `JEDEL_ISOLATED_DEVELOPMENT=1` and `DB_NAME=jedel_dev` and checks the original demo marker. It reports pending products and suppliers, skipped records and category/price/name conflicts. `--apply` inserts missing labeled products and suppliers atomically; existing rows, IDs and stock are never updated. Repeated runs add nothing. Existing order and order-item fixtures cannot be safely synchronized because the schema has no stable demo identity for them; review those manually. Fresh 55-product installations do not need synchronization.
+The command requires `JEDEL_ISOLATED_DEVELOPMENT=1` and `DB_NAME=jedel_dev` and checks the original demo marker. It reports pending products and suppliers, skipped records and category/price/name conflicts. `--apply` inserts missing labeled products and suppliers atomically; existing rows, IDs and stock are never updated. Repeated runs add nothing. Fresh 55-product installations do not need synchronization.
+
+### Demo order synchronization
+
+Fresh isolated installations create two separate identity metadata tables during initialization. They bind versioned fixture keys to locally generated order and item IDs; the four business tables are unchanged. Preview and explicitly apply order additions from `backend`:
+
+```sh
+python manage.py sync_demo_orders
+python manage.py sync_demo_orders --apply
+```
+
+Both commands require the isolated `jedel_dev` setting. They never infer an order's identity from its contents, overwrite existing statuses or quantities, or replay a Delivered order into inventory. Deleted bound rows remain tombstones and are reported. New lines may be added only to bound Pending orders; other changes are conflicts. Fixture order and line keys are permanent: append new lines instead of reordering existing ones.
+
+An older isolated demo has no identity tables or bindings. After backing up and verifying its connection, explicitly install the metadata migration **only on that isolated `jedel_dev`**:
+
+```sh
+python manage.py migrate demo_identity
+python manage.py sync_demo_orders
+```
+
+The sync reports unbound legacy orders and refuses additions. An operator must review each fixture and local order/item ID before binding; the command never discovers matches automatically. For example, replace every placeholder after review, first previewing and then repeating with `--apply --confirm`:
+
+```sh
+python manage.py bind_demo_order --key demo-order-01 --order-id ORDER_ID --item demo-order-01/line-01=ITEM_ID_1 --item demo-order-01/line-02=ITEM_ID_2 --item demo-order-01/line-03=ITEM_ID_3
+```
+
+All eight original order keys must be reviewed before new order fixtures can be added. Binding normally changes only metadata; mismatched products, reused IDs and duplicate keys are rejected. For a reviewed Pending order with a genuinely absent line, replace that line's `--item` argument with `--missing-item demo-order-01/line-03`; preview first, then explicitly apply and confirm. The missing line is inserted without changing existing lines or stock. Closed orders cannot receive missing lines.
+
+If an original order is genuinely absent, inspect local orders first, preview `python manage.py mark_demo_order_missing --key demo-order-01`, then explicitly record the review with `--apply --confirm-reviewed-absent`. Once all eight keys are reviewed, `sync_demo_orders` can preview and create that reviewed-absent order. Previously bound orders deleted later are tombstones and cannot be recreated this way. Do not run these commands against `jedel_group_db`. See [the identity design](docs/DEMO_ORDER_SYNC_DESIGN.md).
 
 The native development launcher runs the preview check automatically for marked isolated demos; it never applies changes. Plain `manage.py runserver` does not run synchronization. Run the explicit commands above after a pull if the preview lists additions.
 
