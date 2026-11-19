@@ -53,7 +53,7 @@ print('Disposable administrator bootstrap verified; credential not displayed.')
             input=json.dumps({'username':admin_name, 'email':admin_name+'@example.test', 'password':admin_password}), text=True)
     jar = http.cookiejar.CookieJar()
     client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
-    base = 'http://localhost:4200'
+    base = 'http://localhost:14200'
 
     def request(path, data=None):
         headers = {'Referer':base + '/'}
@@ -76,7 +76,7 @@ print('Disposable administrator bootstrap verified; credential not displayed.')
     deadline = time.monotonic() + 120
     while time.monotonic() < deadline:
         try:
-            with urllib.request.urlopen('http://localhost:8000/health/', timeout=2) as response:
+            with urllib.request.urlopen('http://localhost:18000/health/', timeout=2) as response:
                 assert response.status == 200
             request('/api/auth/me/')
             break
@@ -88,13 +88,13 @@ print('Disposable administrator bootstrap verified; credential not displayed.')
     assert request('/api/catalog/products/') == catalog
     request('/api/auth/logout/', {})
     # An unauthenticated admin request must redirect to the real CSRF-protected login form.
-    with urllib.request.urlopen('http://localhost:8000/admin/', timeout=10) as response:
+    with urllib.request.urlopen('http://localhost:18000/admin/', timeout=10) as response:
         assert response.status == 200 and urlsplit(response.geturl()).path == '/admin/login/'
         login_page = AdminElements(); login_page.feed(response.read().decode('utf-8'))
         assert {'username', 'password', 'csrfmiddlewaretoken'} <= login_page.input_names
     request('/api/auth/login/', {'identifier':admin_name,'password':admin_password})
     assert request('/api/auth/me/')['can_administer'] is True
-    with client.open('http://localhost:8000/admin/', timeout=10) as response:
+    with client.open('http://localhost:18000/admin/', timeout=10) as response:
         assert response.status == 200 and urlsplit(response.geturl()).path == '/admin/'
         admin_page = AdminElements(); admin_page.feed(response.read().decode('utf-8'))
         assert 'logout-form' in admin_page.form_ids

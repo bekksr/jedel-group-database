@@ -38,7 +38,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    ports: ["127.0.0.1:8000:8000"]
+    ports: ["127.0.0.1:18000:8000"]
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/')"]
       interval: 5s
@@ -51,7 +51,7 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    ports: ["127.0.0.1:4200:4200"]
+    ports: ["127.0.0.1:14200:4200"]
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:4200/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 5s
