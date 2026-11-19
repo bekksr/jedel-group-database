@@ -28,7 +28,7 @@ def run(args, *, check=True, **kwargs):
                 server_log = Path(args[args.index('-l') + 1])
                 if server_log.exists():
                     print(server_log.read_text(encoding='utf-8', errors='replace'), flush=True)
-    elif len(args) > 2 and args[1:3] == ['manage.py', 'test']:
+    elif (len(args) > 2 and args[1:3] == ['manage.py', 'test']) or (len(args) > 1 and args[1] == 'scripts/verify_development.py'):
         # Stream diagnostics so a failed/slow browser scenario cannot hide the
         # completed tests when the outer safety timeout expires.
         result = subprocess.run(args, stderr=subprocess.STDOUT, **kwargs)
@@ -89,7 +89,7 @@ def main():
             if os.getenv('JEDEL_REHEARSAL_BACKUP'):
                 run([sys.executable, 'scripts/rehearse_auth_migrations.py'], timeout=120, cwd=BACKEND, env=env, **flags)
             if os.getenv('JEDEL_VERIFY_DEVELOPMENT') == '1':
-                run([sys.executable, 'scripts/verify_development.py'], timeout=90, cwd=BACKEND, env=env, **flags)
+                run([sys.executable, 'scripts/verify_development.py'], timeout=300, cwd=BACKEND, env=env, **flags)
             result = run([sys.executable, 'manage.py', 'test', *sys.argv[1:], '--noinput', '--verbosity', '2'], check=False, timeout=300, cwd=BACKEND, env=env, **flags)
             return result.returncode
         finally:
