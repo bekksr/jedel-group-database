@@ -181,6 +181,14 @@ The current SQL dump contains schema only; its historical data sections have bee
 
 The isolated demo initializer creates **four fictional suppliers, 55 products, eight orders and 24 order items** across all four order statuses (`Pending`, `Approved`, `Delivered`, `Cancelled`). Opening stock is fictional; old deliveries are not replayed into it. No users, passwords or sessions are imported.
 
+To verify actual PostgreSQL rows on a fresh native setup, connect to your isolated database (supply host/port if needed):
+
+```sh
+psql -U jedel_dev -d jedel_dev -c "SELECT (SELECT COUNT(*) FROM products) AS products, (SELECT COUNT(*) FROM suppliers) AS suppliers, (SELECT COUNT(*) FROM purchase_orders) AS orders, (SELECT COUNT(*) FROM purchase_order_items) AS items;"
+```
+
+For Docker, replace `psql -U jedel_dev -d jedel_dev` with `docker compose exec db psql -U jedel_dev -d jedel_dev`. A new demo reports `55, 4, 8, 24`; later user changes can change these counts. Git transfers the versioned Python dataset and setup code; setup or an explicitly approved sync imports records into PostgreSQL.
+
 After `git pull`, teammates who previously loaded the 50-product isolated demo can preview and explicitly add the five new products from `backend` using their virtual environment:
 
 ```bash
@@ -188,7 +196,9 @@ python manage.py sync_demo_products
 python manage.py sync_demo_products --apply
 ```
 
-The command requires `JEDEL_ISOLATED_DEVELOPMENT=1` and `DB_NAME=jedel_dev`, checks the original demo marker and product labels, and adds only missing new demo rows. It never updates existing products or orders; repeated runs add nothing. It refuses an unrecognized, incomplete or ambiguous demo. Fresh 55-product installations do not need synchronization.
+The command requires `JEDEL_ISOLATED_DEVELOPMENT=1` and `DB_NAME=jedel_dev` and checks the original demo marker. It reports pending products and suppliers, skipped records and category/price/name conflicts. `--apply` inserts missing labeled products and suppliers atomically; existing rows, IDs and stock are never updated. Repeated runs add nothing. Existing order and order-item fixtures cannot be safely synchronized because the schema has no stable demo identity for them; review those manually. Fresh 55-product installations do not need synchronization.
+
+The native development launcher runs the preview check automatically for marked isolated demos; it never applies changes. Plain `manage.py runserver` does not run synchronization. Run the explicit commands above after a pull if the preview lists additions.
 
 For Docker, run the same commands through the backend container: `docker compose exec backend python manage.py sync_demo_products`, followed by the same command with `--apply` only after reviewing its output.
 
@@ -206,7 +216,7 @@ Run this from `backend` using the project virtual environment and only after che
 python manage.py add_fictional_products
 ```
 
-Adding products to an existing database must be deliberate, reviewed and backed up. Never automatically run a full restore or destructive migration after `git pull`.
+Adding fictional products to an existing database must be deliberate, reviewed and backed up. After preview, the explicit command is `python manage.py add_fictional_products --apply --confirm-database DATABASE_NAME`, replacing `DATABASE_NAME` with the verified configured name. This command handles products only; it does not synchronize suppliers or orders. Never automatically run a full restore or destructive migration after `git pull`.
 
 ## Accounts and permissions
 

@@ -35,10 +35,6 @@ class BrowserWorkflowTests(StaticLiveServerTestCase):
         hardware = Product.objects.create(product_name='Public catalog hardware', category='Hardware', unit_price='90321.67', stock_quantity=4321)
         Product.objects.create(product_name='Public catalog office', category='Office', unit_price='81234.56', stock_quantity=9876)
         call_command('add_fictional_products', apply=True, confirm_database=connection.settings_dict['NAME'])
-        from .management.commands.seed_demo import EXTRA_PRODUCTS
-        Product.objects.bulk_create([Product(product_name='[JEDEL FICTIONAL] ' + name, category=category,
-                                              unit_price=price, stock_quantity=(index * 13 % 90) + 3)
-                                     for index, (category, name, price) in enumerate(EXTRA_PRODUCTS, start=50)])
         for username, role in [('browser-employee','Purchasing Employee'), ('browser-analyst','Analyst / Tester'), ('browser-basic-pages','Basic User'), ('browser-security','Security Administrator')]:
             user = User.objects.create_user(username, password=password)
             user.groups.add(Group.objects.get(name=role))

@@ -57,6 +57,8 @@ with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
         assert cursor.fetchone()[0] == 0, 'Demo supplier relationships are invalid.'
         cursor.execute("SELECT count(*) FROM suppliers WHERE supplier_name LIKE '[DEMO] %'"); assert cursor.fetchone()[0] == 4
         cursor.execute('SELECT count(*) FROM purchase_order_items'); assert cursor.fetchone()[0] == 24
+        cursor.execute("SELECT (SELECT count(*) FROM products), (SELECT count(*) FROM suppliers WHERE supplier_name LIKE '[DEMO] %'), (SELECT count(*) FROM purchase_orders), (SELECT count(*) FROM purchase_order_items)")
+        print('Verified demo PostgreSQL counts (products, suppliers, orders, items):', cursor.fetchone(), flush=True)
 subprocess.run([sys.executable, 'manage.py', 'setup_fresh_demo'], cwd=backend, env=env, check=True)
 with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:

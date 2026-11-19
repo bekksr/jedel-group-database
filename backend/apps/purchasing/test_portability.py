@@ -68,6 +68,40 @@ class PortabilityTests(TestCase):
             self.assertEqual(str(original.unit_price), '123.00')
             self.assertEqual(PurchaseOrderItem.objects.count(), 24)
 
+    def test_sync_new_fixture_preserves_changed_rows_and_relationships(self):
+        from .management.commands.seed_demo import EXTRA_PRODUCTS
+        with patch.dict(os.environ, {'JEDEL_ISOLATED_DEVELOPMENT': '1'}), patch.dict(connection.settings_dict, {'NAME': 'jedel_dev'}):
+            call_command('seed_demo', confirm=True, stdout=io.StringIO())
+            original = Product.objects.get(product_name='[DEMO] Notebook Air 13')
+            original_id = original.pk
+            original.unit_price = '123.00'
+            original.save(update_fields=['unit_price'])
+            fixture = EXTRA_PRODUCTS + [('Accessories', 'Future Fictional Adapter', 4000)]
+            with patch('apps.purchasing.management.commands.sync_demo_products.EXTRA_PRODUCTS', fixture):
+                preview = io.StringIO()
+                call_command('sync_demo_products', stdout=preview)
+                self.assertIn('conflicts: 1', preview.getvalue())
+                self.assertIn('Future Fictional Adapter', preview.getvalue())
+                self.assertFalse(Product.objects.filter(product_name='[DEMO] Future Fictional Adapter').exists())
+                call_command('sync_demo_products', apply=True, stdout=io.StringIO())
+                call_command('sync_demo_products', apply=True, stdout=io.StringIO())
+            original.refresh_from_db()
+            self.assertEqual((original.pk, str(original.unit_price)), (original_id, '123.00'))
+            self.assertEqual(Product.objects.count(), 56)
+            self.assertEqual(PurchaseOrderItem.objects.count(), 24)
+
+    def test_sync_rolls_back_supplier_when_product_insert_fails(self):
+        from .management.commands.seed_demo import EXTRA_PRODUCTS, DEMO_SUPPLIERS
+        with patch.dict(os.environ, {'JEDEL_ISOLATED_DEVELOPMENT': '1'}), patch.dict(connection.settings_dict, {'NAME': 'jedel_dev'}):
+            call_command('seed_demo', confirm=True, stdout=io.StringIO())
+            extra = EXTRA_PRODUCTS + [('Accessories', 'New Fictional Adapter', 4000)]
+            suppliers = DEMO_SUPPLIERS + [('[DEMO] New Fictional Supplier', 'new-supplier@example.test')]
+            with patch('apps.purchasing.management.commands.sync_demo_products.EXTRA_PRODUCTS', extra), patch('apps.purchasing.management.commands.sync_demo_products.DEMO_SUPPLIERS', suppliers), patch('apps.purchasing.management.commands.sync_demo_products.Product.objects.bulk_create', side_effect=RuntimeError('simulated failure')):
+                with self.assertRaises(RuntimeError):
+                    call_command('sync_demo_products', apply=True, stdout=io.StringIO())
+            self.assertFalse(Supplier.objects.filter(email='new-supplier@example.test').exists())
+            self.assertEqual(Product.objects.count(), 55)
+
     def test_add_fictional_products_previews_and_preserves_existing_data(self):
         existing = Product.objects.create(product_name='Existing product', category='Existing', unit_price='12.00', stock_quantity=7)
         call_command('add_fictional_products', stdout=io.StringIO())
@@ -76,7 +110,7 @@ class PortabilityTests(TestCase):
             call_command('add_fictional_products', apply=True, confirm_database='wrong', stdout=io.StringIO())
         for _ in range(2):
             call_command('add_fictional_products', apply=True, confirm_database=connection.settings_dict['NAME'], stdout=io.StringIO())
-        self.assertEqual(Product.objects.count(), 51)
+        self.assertEqual(Product.objects.count(), 56)
         existing.refresh_from_db()
         self.assertEqual((existing.product_name, existing.stock_quantity), ('Existing product', 7))
 

@@ -30,6 +30,13 @@ EXTRA_PRODUCTS = [
     ('Storage', 'External SSD 1TB', 72000),
 ]
 
+DEMO_SUPPLIERS = [
+    ('[DEMO] Fictional Office Supply', 'office@example.test'),
+    ('[DEMO] Steppe Computing', 'computing@example.test'),
+    ('[DEMO] Nomad Workspace', 'workspace@example.test'),
+    ('[DEMO] Tulpar Networks', 'networks@example.test'),
+]
+
 
 class Command(BaseCommand):
     help = 'Explicitly seed fictional records into an otherwise empty isolated jedel_dev.'
@@ -48,12 +55,7 @@ class Command(BaseCommand):
             return
         if any(model.objects.exists() for model in (Supplier, Product, PurchaseOrder, PurchaseOrderItem)):
             raise CommandError('Business tables are not empty. Refusing to mix demo data with existing records.')
-        suppliers = [Supplier.objects.create(supplier_name=name, email=email) for name, email in [
-            ('[DEMO] Fictional Office Supply', 'office@example.test'),
-            ('[DEMO] Steppe Computing', 'computing@example.test'),
-            ('[DEMO] Nomad Workspace', 'workspace@example.test'),
-            ('[DEMO] Tulpar Networks', 'networks@example.test'),
-        ]]
+        suppliers = [Supplier.objects.create(supplier_name=name, email=email) for name, email in DEMO_SUPPLIERS]
         products = []
         for category, entries in CATALOG.items():
             for name, price in entries:
