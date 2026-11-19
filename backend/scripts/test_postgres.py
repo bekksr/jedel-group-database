@@ -24,6 +24,10 @@ def run(args, *, check=True, **kwargs):
         print('Temporary PostgreSQL cluster: ' + args[-1], flush=True)
         if result.returncode:
             print(logfile.read_text(encoding='utf-8', errors='replace'), flush=True)
+            if '-l' in args:
+                server_log = Path(args[args.index('-l') + 1])
+                if server_log.exists():
+                    print(server_log.read_text(encoding='utf-8', errors='replace'), flush=True)
     elif len(args) > 2 and args[1:3] == ['manage.py', 'test']:
         # Stream diagnostics so a failed/slow browser scenario cannot hide the
         # completed tests when the outer safety timeout expires.
