@@ -22,6 +22,8 @@ import {
 } from "@angular/forms";
 import { ActivatedRoute, ParamMap } from "@angular/router";
 import { Store } from "../store";
+import { ProductSelector } from '../components/product-selector';
+import { displayProductName, isDemoProduct } from '../core/data/product-metadata';
 import {
   allowedTransitions,
   localDate,
@@ -30,10 +32,11 @@ import {
   orderTotal,
 } from "../models";
 @Component({selector:"ng-component-orders",
-  imports: [WorkspaceStatus, DecimalPipe, FormsModule, ReactiveFormsModule],
+  imports: [WorkspaceStatus, DecimalPipe, FormsModule, ReactiveFormsModule, ProductSelector],
   templateUrl: "./orders.html",
 })
 export class OrdersPage {
+  readonly isDemo = isDemoProduct;
   readonly data = inject(Store);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly injector = inject(Injector);
@@ -116,11 +119,12 @@ export class OrdersPage {
     );
   }
   productName(id: number) {
-    return (
+    return displayProductName(
       this.data.products().find((p) => p.product_id === id)?.product_name ??
       "Unknown product"
     );
   }
+  productIsDemo(id: number) { return isDemoProduct(this.data.products().find(p => p.product_id === id)?.product_name ?? ''); }
   orderItems(id: number) {
     return this.data.items().filter((i) => i.order_id === id);
   }

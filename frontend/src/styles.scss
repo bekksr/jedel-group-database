@@ -300,6 +300,7 @@ hr { margin-block: 24px; border: 0; border-top: 1px solid var(--line); }
 .catalog-toolbar select { margin-bottom: 0; }
 .result-count { margin: 0 0 10px auto; color: var(--muted); font-size: 13px; }
 .catalog-card { display: flex; flex-direction: column; }
+.catalog-cards { align-items: start; }
 .catalog-card h2 { overflow-wrap: anywhere; word-break: normal; }
 .demo-badge { display: inline-block; vertical-align: middle; font-size: .68rem; font-weight: 600; border: 1px solid var(--line); border-radius: 999px; padding: .15rem .5rem; color: var(--muted); background: var(--surface-subtle); }
 .category {
@@ -366,6 +367,14 @@ dd { margin: 0; overflow-wrap: anywhere; }
 }
 .order-line input, .order-line select { margin-bottom: 0; }
 .order-line button { justify-self: start; }
+.product-selector { position: relative; min-width: 0; }
+.product-selector input { margin-bottom: 0; }
+.selector-selection { display: block; color: var(--muted); margin-top: 4px; }
+.product-options { position: absolute; z-index: 10; top: 100%; left: 0; right: 0; max-height: 260px; overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
+.product-option { padding: 10px 12px; cursor: pointer; overflow-wrap: anywhere; }
+.product-option[aria-selected="true"], .product-option:hover { background: var(--tint); }
+.product-option small { display: block; color: var(--muted); }
+.selector-empty { padding: 10px 12px; margin: 0; color: var(--muted); }
 .order-form-footer { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 14px; padding-top: 16px; }
 .total { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; color: var(--muted); }
 .total strong { color: var(--text); font-size: 20px; font-variant-numeric: tabular-nums; }

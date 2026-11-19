@@ -24,6 +24,15 @@ test('session, catalog persistence, Pending amendment, delivery and forbidden wr
   await expect(page.locator('.account-summary')).toContainText('Purchasing Manager');
   await expect(page.getByRole('heading', {name: 'New product', exact: true})).toBeVisible();
   await page.getByRole('button', {name: 'Cancel', exact: true}).click();
+  const layoutCards = page.locator('article.catalog-card');
+  const firstBox = await layoutCards.nth(0).boundingBox();
+  const secondBox = await layoutCards.nth(1).boundingBox();
+  if (firstBox && secondBox && Math.abs(firstBox.y - secondBox.y) < 2) {
+    await layoutCards.nth(0).locator('summary').click();
+    const neighborAfter = await layoutCards.nth(1).boundingBox();
+    expect(Math.abs(neighborAfter!.height - secondBox.height)).toBeLessThan(2);
+    await layoutCards.nth(0).locator('summary').click();
+  }
   const laptop = page.locator('article.catalog-card').filter({has: page.getByRole('heading', {name: 'Notebook Air 13 Demo', exact: true})});
   const monitor = page.locator('article.catalog-card').filter({has: page.getByRole('heading', {name: 'Monitor 22 FHD Demo', exact: true})});
   await laptop.locator('summary').focus(); await page.keyboard.press('Enter');
@@ -42,6 +51,10 @@ test('session, catalog persistence, Pending amendment, delivery and forbidden wr
     await expect(card.locator('.details-content')).toContainText(productName + ' is a fictional demonstration product');
     await expect(page.locator('details.product-details[open]')).toHaveCount(1);
   }
+  await laptop.getByRole('link', {name:'Order this product'}).click();
+  await expect(page.getByRole('combobox', {name:'Product 1'})).toHaveValue('Notebook Air 13');
+  await expect(page.locator('.selector-selection')).toContainText('Demo');
+  await page.getByRole('button', {name:'Cancel', exact:true}).click();
   await page.getByRole('navigation', {name: 'Main navigation'}).getByRole('link', {name: 'Suppliers', exact: true}).click();
   await page.getByRole('button', {name: 'New supplier', exact: true}).click();
   await page.getByLabel('Supplier name', {exact: true}).fill('Browser supplier');
@@ -61,7 +74,8 @@ test('session, catalog persistence, Pending amendment, delivery and forbidden wr
   await page.getByRole('button', {name: 'New order', exact: true}).click();
   await page.getByRole('combobox', {name: 'Supplier', exact: true}).selectOption({label: 'Browser supplier'});
   const productSelect = page.getByRole('combobox', {name: 'Product 1', exact: true});
-  await productSelect.selectOption({label: await productSelect.locator('option').filter({hasText: /^\s*Browser product\s/}).innerText()});
+  await productSelect.fill('Browser product');
+  await page.getByRole('option', {name: /Browser product/}).click();
   await page.getByLabel('Quantity 1', {exact: true}).fill('2');
   await page.getByRole('button', {name: 'Create order', exact: true}).click();
   await expect(page.getByRole('button', {name: 'Edit Pending order'})).toBeVisible();
