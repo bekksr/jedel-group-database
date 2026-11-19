@@ -7,7 +7,7 @@ from .api.serializers import StrictInputMixin
 class RegistrationSerializer(StrictInputMixin, serializers.Serializer):
     name = serializers.CharField(max_length=100)
     email = serializers.EmailField(max_length=150)
-    username = serializers.CharField(max_length=150, required=False)
+    username = serializers.CharField(max_length=150)
     password = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True)
     password_confirm = serializers.CharField(max_length=128, trim_whitespace=False, write_only=True, required=False)
 
@@ -15,7 +15,6 @@ class RegistrationSerializer(StrictInputMixin, serializers.Serializer):
         if 'password_confirm' in attrs and attrs.pop('password_confirm') != attrs['password']:
             raise serializers.ValidationError({'password_confirm': 'Passwords do not match.'})
         attrs['email'] = attrs['email'].lower()
-        attrs.setdefault('username', attrs['email'])
         user = User(username=attrs['username'], email=attrs['email'], first_name=attrs['name'], is_active=False)
         try:
             User._meta.get_field('username').run_validators(user.username)

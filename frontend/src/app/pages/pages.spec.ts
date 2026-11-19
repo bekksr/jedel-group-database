@@ -97,6 +97,18 @@ describe("Pages", () => {
     expect(p.filtered()).toHaveLength(0);
     expect([...p.purchasingSuppliers().get(3)!].map((supplier) => supplier.supplier_id).sort()).toEqual([2, 3]);
   });
+  it('opens only the selected product and toggles it closed', async () => {
+    const fixture = TestBed.createComponent(ProductsPage); fixture.detectChanges(); await fixture.whenStable();
+    const summaries = fixture.nativeElement.querySelectorAll('details summary') as NodeListOf<HTMLElement>;
+    expect(summaries.length).toBeGreaterThan(1);
+    summaries[0]!.click(); fixture.detectChanges();
+    let details = fixture.nativeElement.querySelectorAll('details') as NodeListOf<HTMLDetailsElement>;
+    expect(details[0]!.open).toBe(true); expect(details[1]!.open).toBe(false);
+    summaries[1]!.click(); fixture.detectChanges();
+    details = fixture.nativeElement.querySelectorAll('details');
+    expect(details[0]!.open).toBe(false); expect(details[1]!.open).toBe(true);
+    summaries[1]!.click(); fixture.detectChanges(); expect(details[1]!.open).toBe(false);
+  });
   it("finds suppliers by contact details", () => {
     const p = TestBed.createComponent(SuppliersPage).componentInstance;
     p.query.set(" GLOBAL@EXAMPLE.COM ");
@@ -118,6 +130,7 @@ describe("Pages", () => {
     expect(p.success()).toBe(false);
     p.form.setValue({
       name: "Test User",
+      username: "test-user",
       email: "test@example.com",
       password: "test12345",
       confirm: "different",
@@ -133,7 +146,7 @@ describe("Pages", () => {
   it('never reports successful registration when account schema setup is missing', async () => {
     vi.spyOn(TestBed.inject(Auth), 'register').mockRejectedValue(new HttpErrorResponse({status: 503, error: {code: 'authentication_setup_required'}}));
     const page = TestBed.createComponent(RegisterPage).componentInstance;
-    page.form.setValue({name: 'Applicant', email: 'applicant@example.test', password: 'Valid-password-982!x', confirm: 'Valid-password-982!x'});
+    page.form.setValue({name: 'Applicant', username: 'applicant', email: 'applicant@example.test', password: 'Valid-password-982!x', confirm: 'Valid-password-982!x'});
     await page.submit();
     expect(page.success()).toBe(false);
     expect(page.error()).toContain('database setup');

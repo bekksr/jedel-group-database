@@ -181,6 +181,8 @@ The current SQL dump contains schema only; its historical data sections have bee
 
 The isolated demo initializer creates **four fictional suppliers, 55 products, eight orders and 24 order items** across all four order statuses (`Pending`, `Approved`, `Delivered`, `Cancelled`). Opening stock is fictional; old deliveries are not replayed into it. No users, passwords or sessions are imported.
 
+Descriptions for the 55 fictional products are maintained in `frontend/src/app/core/data/product-metadata.ts`, keyed by their exact demo label rather than local database IDs. They are illustrative and do not claim manufacturer specifications. Five earlier catalog examples reuse generic descriptions only when ID, name and category all match the existing sample metadata. Custom products have no editable description field in the existing database schema and show a fallback until separately approved schema support is added. Renaming a product breaks its metadata match.
+
 To verify actual PostgreSQL rows on a fresh native setup, connect to your isolated database (supply host/port if needed):
 
 ```sh

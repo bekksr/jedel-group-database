@@ -6,7 +6,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Auth, safeReturnTo } from '../auth';
 import { apiError } from '../core/data/api-errors';
-type Field = 'name' | 'email' | 'password' | 'confirm';
+type Field = 'name' | 'username' | 'email' | 'password' | 'confirm';
 @Component({imports: [ReactiveFormsModule, RouterLink], templateUrl: './auth-page.html', styleUrl: './auth-page.scss'})
 export class AuthPage {
   readonly auth = inject(Auth);
@@ -20,7 +20,7 @@ export class AuthPage {
   readonly error = signal('');
   readonly success = signal(false);
   readonly serverErrors = signal<Partial<Record<Field, string>>>({});
-  readonly form = this.fb.group({name: [''], email: [''], password: [''], confirm: ['']});
+  readonly form = this.fb.group({name: [''], username: [''], email: [''], password: [''], confirm: ['']});
   constructor() {
     this.route.queryParamMap.pipe(takeUntilDestroyed(inject(DestroyRef))).subscribe(params => {
       const mode = params.get('mode') === 'register' || this.route.snapshot.data['mode'] === 'register' ? 'register' : 'login';
@@ -31,6 +31,7 @@ export class AuthPage {
     this.mode.set(mode); this.error.set(''); this.serverErrors.set({}); this.success.set(false);
     const register = mode === 'register';
     this.form.controls.name.setValidators(register ? [Validators.required, Validators.pattern(/\S/), Validators.maxLength(100)] : []);
+    this.form.controls.username.setValidators(register ? [Validators.required, Validators.pattern(/^[\w.@+-]+$/), Validators.maxLength(150)] : []);
     this.form.controls.email.setValidators(register ? [Validators.required, Validators.email, Validators.maxLength(150)] : [Validators.required, Validators.maxLength(254)]);
     this.form.controls.password.setValidators([Validators.required, Validators.maxLength(128), ...(register ? [Validators.minLength(8)] : [])]);
     this.form.controls.confirm.setValidators(register ? [Validators.required] : []);
@@ -50,7 +51,7 @@ export class AuthPage {
     if (control.hasError('email')) return 'Enter a valid email address.';
     if (control.hasError('minlength')) return 'Use at least 8 characters.';
     if (control.hasError('maxlength')) return 'This value is too long.';
-    if (control.hasError('pattern')) return 'Enter your full name.';
+    if (control.hasError('pattern')) return field === 'username' ? 'Use letters, numbers, and @/./+/-/_ only.' : 'Enter your full name.';
     if (field === 'confirm' && this.mode() === 'register' && control.value !== this.form.controls.password.value) return 'Passwords do not match.';
     return '';
   }
@@ -66,7 +67,7 @@ export class AuthPage {
     const value = this.form.getRawValue();
     try {
       if (this.mode() === 'register') {
-        await this.auth.register({name: value.name, email: value.email, password: value.password, password_confirm: value.confirm});
+        await this.auth.register({name: value.name, username: value.username, email: value.email, password: value.password, password_confirm: value.confirm});
         this.success.set(true);
         this.form.controls.password.reset(); this.form.controls.confirm.reset();
         this.notices.show('success', 'Account created successfully. Welcome to Jedel.Group!');
@@ -79,7 +80,7 @@ export class AuthPage {
     } catch (error) {
       const fields: Partial<Record<Field, string>> = {};
       if (error instanceof HttpErrorResponse && error.status === 400 && error.error && typeof error.error === 'object') {
-        const mapping: Record<string, Field> = {name: 'name', email: 'email', identifier: 'email', username: 'email', password: 'password', password_confirm: 'confirm'};
+        const mapping: Record<string, Field> = {name: 'name', email: 'email', identifier: 'email', username: 'username', password: 'password', password_confirm: 'confirm'};
         for (const [key, messages] of Object.entries(error.error)) {
           const field = mapping[key];
           if (field) fields[field] = Array.isArray(messages) ? messages.join(' ') : String(messages);

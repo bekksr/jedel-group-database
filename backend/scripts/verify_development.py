@@ -40,7 +40,7 @@ from rest_framework.test import APIClient
 from django.test import override_settings
 with override_settings(ALLOWED_HOSTS=['testserver']):
     client=APIClient()
-    response=client.post('/api/auth/register/',{'name':'Fictional Restart User','email':'restart-user@example.test','password':os.environ['JEDEL_DEV_TEST_PASSWORD'],'password_confirm':os.environ['JEDEL_DEV_TEST_PASSWORD']},format='json')
+    response=client.post('/api/auth/register/',{'name':'Fictional Restart User','username':'fictional-restart-user','email':'restart-user@example.test','password':os.environ['JEDEL_DEV_TEST_PASSWORD'],'password_confirm':os.environ['JEDEL_DEV_TEST_PASSWORD']},format='json')
     assert response.status_code==201, 'Disposable registration failed'
     assert client.get('/api/auth/me/').status_code==200
     assert client.get('/api/ai/capabilities/').data['chat_configured'] is False

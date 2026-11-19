@@ -25,13 +25,14 @@ class AccountTests(TestCase):
         self.assertEqual(self.client.post('/api/auth/login/', {'username': 'employee', 'password': self.password}).status_code, 403)
 
     def test_registration_activation_hashing_session_and_privilege_escalation(self):
-        data = {'name': 'Team Member', 'email': 'team@example.test', 'password': self.password, 'password_confirm': self.password}
+        data = {'name': 'Team Member', 'username': 'team-member', 'email': 'team@example.test', 'password': self.password, 'password_confirm': self.password}
         self.assertEqual(self.client.post('/api/auth/register/', data).status_code, 403)
         for forbidden in [{'is_superuser': True}, {'role': 'System Administrator'}, {'groups': ['Purchasing Manager']}, {'is_staff': True}]:
             self.assertEqual(self.client.post('/api/auth/register/', {**data, **forbidden}, **self.csrf()).status_code, 400)
         response = self.client.post('/api/auth/register/', data, **self.csrf())
         self.assertEqual(response.status_code, 201)
-        user = User.objects.get(username=data['email'])
+        user = User.objects.get(username=data['username'])
+        self.assertEqual(user.email, data['email'])
         self.assertTrue(user.check_password(self.password))
         self.assertNotEqual(user.password, self.password)
         self.assertTrue(user.is_active); self.assertFalse(user.is_staff or user.is_superuser)
@@ -165,7 +166,7 @@ class AccountTests(TestCase):
         from django.db import ProgrammingError
         from types import SimpleNamespace
         headers = self.csrf()
-        response = self.client.post('/api/auth/register/', {'name': 'Applicant', 'email': 'confirm@example.test', 'password': self.password, 'password_confirm': 'different'}, **headers)
+        response = self.client.post('/api/auth/register/', {'name': 'Applicant', 'username': 'confirm-applicant', 'email': 'confirm@example.test', 'password': self.password, 'password_confirm': 'different'}, **headers)
         self.assertEqual(response.status_code, 400)
         self.assertFalse(User.objects.filter(email='confirm@example.test').exists())
         error = ProgrammingError('secret database internals')
@@ -173,7 +174,7 @@ class AccountTests(TestCase):
         cause.pgcode = '42P01'
         error.__cause__ = cause
         with patch('django.contrib.auth.models.User.objects.filter', side_effect=error):
-            response = self.client.post('/api/auth/register/', {'name': 'Applicant', 'email': 'failure@example.test', 'password': self.password}, **headers)
+            response = self.client.post('/api/auth/register/', {'name': 'Applicant', 'username': 'failure-applicant', 'email': 'failure@example.test', 'password': self.password}, **headers)
         self.assertEqual(response.status_code, 503)
         self.assertEqual(response.data['code'], 'authentication_setup_required')
         self.assertNotIn('secret', str(response.data))
@@ -226,6 +227,16 @@ class AccountTests(TestCase):
         credentials = {'identifier': 'DISTINCT@EXAMPLE.TEST', 'password': self.password}
         self.assertEqual(self.client.post('/api/auth/login/', credentials, **self.csrf()).status_code, 200)
         self.assertEqual(self.client.get('/api/auth/me/').data['username'], 'distinct-applicant')
+        self.client.post('/api/auth/logout/', {}, **self.csrf())
+        self.assertEqual(self.client.post('/api/auth/login/', {'identifier': 'distinct-applicant', 'password': self.password}, **self.csrf()).status_code, 200)
+
+    def test_registration_requires_username_and_rejects_duplicate_username_or_email(self):
+        base = {'name': 'Applicant', 'email': 'unique@example.test', 'password': self.password}
+        response = self.client.post('/api/auth/register/', base, **self.csrf())
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('username', response.data)
+        self.assertEqual(self.client.post('/api/auth/register/', {**base, 'username': 'employee'}, **self.csrf()).status_code, 400)
+        self.assertEqual(self.client.post('/api/auth/register/', {**base, 'username': 'unique-user', 'email': 'EMPLOYEE@example.test'}, **self.csrf()).status_code, 400)
 
     def test_admin_review_requires_role_and_rejection_disables_without_privilege_changes(self):
         operator = User.objects.create_superuser('review-admin', password=self.password)
@@ -248,7 +259,7 @@ class AccountTests(TestCase):
     def test_session_creation_failure_rolls_back_registration(self):
         from unittest.mock import patch
         from django.db import OperationalError
-        data = {'name': 'Rollback User', 'email': 'rollback-user@example.test', 'password': self.password}
+        data = {'name': 'Rollback User', 'username': 'rollback-user', 'email': 'rollback-user@example.test', 'password': self.password}
         with patch('django.contrib.sessions.backends.db.SessionStore.save', side_effect=OperationalError('private session error')):
             response = self.client.post('/api/auth/register/', data, **self.csrf())
         self.assertEqual(response.status_code, 503)
@@ -257,7 +268,7 @@ class AccountTests(TestCase):
 
     def test_registration_does_not_activate_existing_pending_accounts(self):
         pending = User.objects.create_user('old-pending', email='old-pending@example.test', password=self.password, is_active=False)
-        self.assertEqual(self.client.post('/api/auth/register/', {'name': 'New User', 'email': 'new-policy@example.test', 'password': self.password}, **self.csrf()).status_code, 201)
+        self.assertEqual(self.client.post('/api/auth/register/', {'name': 'New User', 'username': 'new-policy', 'email': 'new-policy@example.test', 'password': self.password}, **self.csrf()).status_code, 201)
         pending.refresh_from_db(); self.assertFalse(pending.is_active)
         self.assertEqual(pending.groups.count(), 0)
         self.user.refresh_from_db(); self.assertTrue(self.user.is_active)
@@ -267,7 +278,7 @@ class AccountTests(TestCase):
         from django.contrib.auth.models import Permission
         group, _ = Group.objects.get_or_create(name='Basic User')
         group.permissions.add(Permission.objects.first())
-        response = self.client.post('/api/auth/register/', {'name': 'Unsafe Role', 'email': 'unsafe-role@example.test', 'password': self.password}, **self.csrf())
+        response = self.client.post('/api/auth/register/', {'name': 'Unsafe Role', 'username': 'unsafe-role', 'email': 'unsafe-role@example.test', 'password': self.password}, **self.csrf())
         self.assertEqual(response.status_code, 503)
         self.assertFalse(User.objects.filter(email='unsafe-role@example.test').exists())
 

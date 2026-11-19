@@ -24,6 +24,24 @@ test('session, catalog persistence, Pending amendment, delivery and forbidden wr
   await expect(page.locator('.account-summary')).toContainText('Purchasing Manager');
   await expect(page.getByRole('heading', {name: 'New product', exact: true})).toBeVisible();
   await page.getByRole('button', {name: 'Cancel', exact: true}).click();
+  const laptop = page.locator('article.catalog-card').filter({has: page.getByRole('heading', {name: 'Notebook Air 13 Demo', exact: true})});
+  const monitor = page.locator('article.catalog-card').filter({has: page.getByRole('heading', {name: 'Monitor 22 FHD Demo', exact: true})});
+  await laptop.locator('summary').focus(); await page.keyboard.press('Enter');
+  await expect(laptop.locator('details')).toHaveAttribute('open', '');
+  await expect(laptop).toContainText('Notebook Air 13 is a fictional demonstration product');
+  await monitor.locator('summary').click();
+  await expect(laptop.locator('details')).not.toHaveAttribute('open', '');
+  await expect(monitor).toContainText('Monitor 22 FHD is a fictional demonstration product');
+  await monitor.locator('summary').click(); await expect(monitor.locator('details')).not.toHaveAttribute('open', '');
+  const demoCards = page.locator('article.catalog-card').filter({has: page.locator('.demo-badge')});
+  await expect(demoCards).toHaveCount(55);
+  for (let index = 0; index < 55; index++) {
+    const card = demoCards.nth(index);
+    const productName = (await card.locator('h2').innerText()).replace(/\s*Demo\s*$/, '').trim();
+    await card.locator('summary').click();
+    await expect(card.locator('.details-content')).toContainText(productName + ' is a fictional demonstration product');
+    await expect(page.locator('details.product-details[open]')).toHaveCount(1);
+  }
   await page.getByRole('navigation', {name: 'Main navigation'}).getByRole('link', {name: 'Suppliers', exact: true}).click();
   await page.getByRole('button', {name: 'New supplier', exact: true}).click();
   await page.getByLabel('Supplier name', {exact: true}).fill('Browser supplier');

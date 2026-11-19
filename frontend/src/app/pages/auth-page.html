@@ -14,6 +14,8 @@
       @if(mode() === 'register') {
         <label for="auth-name">Full name</label><input id="auth-name" formControlName="name" autocomplete="name" maxlength="100" (input)="clearFieldError('name')" [attr.aria-invalid]="!!fieldError('name')" aria-describedby="name-error">
         <p id="name-error" class="field-error">{{fieldError('name')}}</p>
+        <label for="auth-username">Username</label><input id="auth-username" formControlName="username" autocomplete="username" maxlength="150" (input)="clearFieldError('username')" [attr.aria-invalid]="!!fieldError('username')" aria-describedby="username-error">
+        <p id="username-error" class="field-error">{{fieldError('username')}}</p>
       }
       <label for="auth-email">{{mode() === 'register' ? 'Email address' : 'Email address or username'}}</label>
       <input id="auth-email" formControlName="email" [type]="mode() === 'register' ? 'email' : 'text'" [autocomplete]="mode() === 'register' ? 'email' : 'username'" [maxlength]="mode() === 'register' ? 150 : 254" autocapitalize="none" spellcheck="false" (input)="clearFieldError('email')" [attr.aria-invalid]="!!fieldError('email')" aria-describedby="email-error identifier-hint">

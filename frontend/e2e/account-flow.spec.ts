@@ -4,6 +4,7 @@ test('registration activates Basic User, logs in automatically, persists and pre
   const password = process.env['JEDEL_E2E_PASSWORD']!;
   await page.goto('/register');
   await page.getByLabel('Full name', {exact: true}).fill('Browser Applicant');
+  await page.getByLabel('Username', {exact: true}).fill('browser-applicant');
   await page.getByLabel('Email address', {exact: true}).fill('browser-applicant@example.test');
   await page.getByLabel('Password', {exact: true}).fill(password);
   await page.getByLabel('Confirm password', {exact: true}).fill(password);
@@ -17,6 +18,7 @@ test('registration activates Basic User, logs in automatically, persists and pre
   const me = await page.request.get('/api/auth/me/');
   expect(me.status()).toBe(200);
   const account = await me.json(); expect(account.role).toBe('Basic User'); expect(account.can_administer).toBe(false);
+  expect(account.username).toBe('browser-applicant'); expect(account.email).toBe('browser-applicant@example.test');
   expect(Object.values(account.capabilities).some(Boolean)).toBe(false);
   expect((await page.request.get('/api/suppliers/')).status()).toBe(403);
   expect((await page.request.get('/api/orders/')).status()).toBe(403);
@@ -27,7 +29,7 @@ test('registration activates Basic User, logs in automatically, persists and pre
   await expect(page.getByRole('button', {name: 'Edit', exact: true})).toHaveCount(0);
   await page.getByLabel('Search products', {exact: true}).fill('JEDEL FICTIONAL');
   await expect(page.getByRole('status').filter({hasText:'55 product(s) found.'})).toBeVisible();
-  await expect(page.getByRole('heading', {name:'[JEDEL FICTIONAL] Notebook Air 13', exact:true})).toBeVisible();
+  await expect(page.getByRole('heading', {name:'Notebook Air 13 Demo', exact:true})).toBeVisible();
   const seen = new Set<string>();
   for (let pageNumber = 1; pageNumber <= 10; pageNumber++) {
     for (const name of await page.locator('[aria-label="Public product catalog"] article h2').allTextContents()) seen.add(name);
@@ -56,7 +58,7 @@ test('registration activates Basic User, logs in automatically, persists and pre
   await expect(page.getByRole('navigation').getByRole('link', {name: 'Account', exact: true})).toBeVisible();
   expect((await page.request.get('/api/auth/me/')).status()).toBe(401);
   await page.goto('/login');
-  await page.getByLabel('Email address or username', {exact: true}).fill('browser-applicant@example.test');
+  await page.getByLabel('Email address or username', {exact: true}).fill('browser-applicant');
   await page.getByLabel('Password', {exact: true}).fill(password);
   await page.locator('form').getByRole('button', {name: 'Log in', exact: true}).click();
   await expect(page.locator('.account-summary')).toContainText('Basic User');

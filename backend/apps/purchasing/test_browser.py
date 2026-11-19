@@ -96,7 +96,8 @@ class BrowserWorkflowTests(StaticLiveServerTestCase):
             # Targeted visual capture does not run registration/CRUD scenarios.
             # Full-suite runs retain every post-workflow persistence assertion.
             return
-        applicant = User.objects.get(username='browser-applicant@example.test')
+        applicant = User.objects.get(username='browser-applicant')
+        self.assertEqual(applicant.email, 'browser-applicant@example.test')
         self.assertTrue(applicant.is_active)
         self.assertTrue(applicant.check_password(password))
         self.assertFalse(applicant.is_staff or applicant.is_superuser)
