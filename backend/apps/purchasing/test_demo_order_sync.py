@@ -69,6 +69,15 @@ class DemoOrderSyncTests(TestCase):
         self.assertEqual(PurchaseOrderItem.objects.count(), 23)
         self.assertEqual(self.stock(), before)
 
+    def test_changed_item_price_is_reported_and_not_replaced(self):
+        binding = DemoItemBinding.objects.get(key='demo-order-01/line-01')
+        item = PurchaseOrderItem.objects.get(pk=binding.item_id)
+        item.unit_price = '123.00'; item.save(update_fields=['unit_price'])
+        out = io.StringIO(); call_command('sync_demo_orders', apply=True, stdout=out)
+        item.refresh_from_db()
+        self.assertEqual(str(item.unit_price), '123.00')
+        self.assertIn('demo-order-01/line-01: changed, missing or ambiguous', out.getvalue())
+
     def test_new_fixture_line_only_added_to_bound_pending_order(self):
         before = self.stock()
         fixture = {**ORDER_FIXTURES[0], 'products': ORDER_FIXTURES[0]['products'] + ['Notebook Campus 13']}
