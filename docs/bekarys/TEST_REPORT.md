@@ -1,35 +1,64 @@
-# Jedel.Group ERP — Test Report
+# JEDEL.GROUP ERP
+## Software Testing Report
 
-**Project:** Jedel.Group ERP  
-**Testing Date:** November 20, 2026  
-**Environment:** macOS, Python 3.13.18, PostgreSQL 17, Angular 21, Docker 29.9.3  
-**Testing Type:** Backend Automated Testing, Infrastructure Testing, API Testing, Manual Integration Testing
+**Project:** Jedel.Group ERP System  
+**Testing Stage:** Intermediate Testing  
+**Date:** November 20, 2026  
+**Project Type:** Enterprise Resource Planning System  
+**Testing Environment:** macOS / Docker Compose
 
 ---
 
-## 1. Testing Objectives
+## 1. Introduction
 
-The purpose of testing was to verify that the main components of the Jedel.Group ERP system work correctly and communicate with each other.
+The purpose of this testing phase was to evaluate the functionality, stability, reliability, and integration of the current Jedel.Group ERP system.
 
-The testing focused on:
+Testing focused on the backend, frontend, database connectivity, automated testing, production build, Docker infrastructure, API availability, authentication-related endpoints, and communication between application services.
 
-- Backend functionality and database operations.
-- PostgreSQL database connectivity.
-- Frontend availability.
-- Backend API availability.
-- Authentication and CSRF endpoint.
-- Docker-based service integration.
-- Overall system connectivity.
+The testing process combined automated backend and frontend tests, infrastructure verification, API checks, and manual integration inspection.
 
-## 2. Backend Automated Testing
+This is an intermediate testing report. Its objective is to verify the current implementation, document completed testing activities, and identify areas requiring additional verification before final submission.
 
-The backend automated test suite was executed using:
+## 2. Testing Environment
 
-```bash
-PG_BIN=/Library/PostgreSQL/17/bin ./venv/bin/python scripts/test_postgres.py
-```
+The project was tested using the following environment:
 
-The test runner created a separate temporary PostgreSQL cluster to execute tests without modifying the existing application database.
+| Component | Environment |
+|---|---|
+| Operating System | macOS |
+| Backend | Django / Python 3.13.18 |
+| Database | PostgreSQL 17 |
+| Frontend | Angular 21 |
+| Frontend Testing | Vitest 4.1.12 |
+| E2E Testing | Playwright |
+| Containerization | Docker Compose |
+| Docker | 29.9.3 |
+| Node.js | v24.13.0 |
+| npm | 11.6.2 |
+
+The application consists of three Docker services:
+
+- Django Backend
+- Angular Frontend
+- PostgreSQL Database
+
+All three services reported a healthy status during infrastructure verification.
+
+### Local Service Configuration
+
+| Service | Local Address / Port |
+|---|---|
+| Frontend | 127.0.0.1:14200 |
+| Backend | 127.0.0.1:18000 |
+| PostgreSQL | Internal Docker network, port 5432 |
+
+## 3. Backend Automated Testing
+
+Backend testing was performed using a separate temporary PostgreSQL cluster.
+
+This approach allowed automated database tests to execute independently without modifying the project's regular application database.
+
+The test suite was executed using the project's PostgreSQL test runner.
 
 **Results:**
 
@@ -41,22 +70,115 @@ The test runner created a separate temporary PostgreSQL cluster to execute tests
 | Tests failed | 0 |
 | Execution time | 15.166 seconds |
 | Process exit code | 0 |
+| Overall result | PASS |
 
-One test, `test_real_browser_workflow`, was skipped because browser testing requires explicit configuration (`JEDEL_BROWSER_TESTS=1`) and Playwright Chromium installation.
+One browser workflow test, `test_real_browser_workflow`, was skipped because browser testing requires explicit configuration through `JEDEL_BROWSER_TESTS=1` and Playwright Chromium.
 
-**Status: PASSED**
+The backend test command completed successfully with exit code 0.
 
-The backend automated test suite completed successfully.
+**Conclusion:** The backend automated test suite passed successfully, with 196 passing tests, one skipped test, and no reported failures.
 
-## 3. Docker Infrastructure Testing
+## 4. Frontend Unit Testing
 
-The Docker Compose environment was checked using:
+Frontend testing was performed using Angular's testing environment and Vitest.
 
-```bash
-docker compose ps
-```
+**Results:**
 
-All three application services were running and reported a healthy status.
+| Metric | Result |
+|---|---:|
+| Test files passed | 15 |
+| Test files failed | 0 |
+| Total tests passed | 112 |
+| Total tests failed | 0 |
+| Overall result | PASS |
+
+The tested components included:
+
+- Authentication
+- Account navigation
+- Public navigation
+- Product selector
+- Product metadata
+- API data service
+- Demo data service
+- Metrics
+- Store functionality
+- Public catalog
+- Copilot
+- Application pages
+- General application sections
+- Authentication page
+- Statistics card
+
+One Angular performance warning (NG0956) appeared during a page test. It did not cause the test to fail.
+
+**Conclusion:** All 112 frontend unit tests passed successfully across 15 test files.
+
+## 5. Frontend Production Build
+
+The Angular production build was executed using:
+
+`npm run build`
+
+**Results:**
+
+| Metric | Result |
+|---|---|
+| Build status | Successful |
+| Build errors | 0 |
+| Initial bundle size | 483.12 kB |
+| Estimated transfer size | 120.00 kB |
+| Output directory | frontend/dist/frontend |
+
+The Angular application compiled successfully and generated the production output.
+
+**Conclusion:** The frontend production build completed successfully without compilation errors.
+
+## 6. End-to-End Testing
+
+Playwright was used to initiate 10 browser-based test scenarios.
+
+The Chromium browser was successfully installed. However, the tests reported that they require the project's isolated backend browser testing harness.
+
+The following scenarios were included in the suite:
+
+1. Account registration and authentication.
+2. Access control across application sections.
+3. Handling unavailable backend responses.
+4. Copilot consent functionality.
+5. Copilot search for anonymous and Basic users.
+6. Authorized Copilot functionality.
+7. Dark theme and responsive interface.
+8. Unified authentication and bookmarks.
+9. Visual regression across five viewport sizes.
+10. Purchasing workflow and restricted operations.
+
+**Results:**
+
+| Metric | Result |
+|---|---|
+| Test scenarios attempted | 10 |
+| Scenarios passed | 0 |
+| Scenarios blocked during execution | 10 |
+| Main reason | Isolated backend harness required |
+
+The tests stopped at explicit environment guards because they were launched without the required isolated test configuration.
+
+These results do not establish that the application's business functionality is broken. They indicate that the browser-based scenarios could not proceed to functional verification.
+
+Full automated browser-based end-to-end verification therefore remains outstanding.
+
+**Conclusion:** Playwright was installed successfully, and the E2E test suite was initiated. However, full execution requires additional isolated testing configuration.
+
+## 7. Docker and Infrastructure Testing
+
+Docker Compose was used to verify the availability and health of the three application services.
+
+The infrastructure was checked using:
+
+`docker compose ps`
+
+**Results:**
 
 | Service | Container | Status |
 |---|---|---|
@@ -64,133 +186,168 @@ All three application services were running and reported a healthy status.
 | Django Backend | backend | Up (healthy) |
 | Angular Frontend | frontend | Up (healthy) |
 
-The application services were accessible through the following local ports:
+All three services reported healthy statuses during verification.
 
-- Frontend: `127.0.0.1:14200`
-- Backend: `127.0.0.1:18000`
-- PostgreSQL: Internal Docker network, port 5432.
+**Conclusion:** The Docker Compose environment started successfully, and all application services were reported healthy.
 
-**Status: PASSED**
+## 8. API and HTTP Availability Testing
 
-All three Docker services were running successfully.
+The backend and frontend endpoints were checked using `curl`.
 
-## 4. Backend API Connectivity Testing
+### 8.1 Backend Health Endpoint
 
-The backend health endpoint was tested:
+Command:
 
-```bash
-curl -i http://127.0.0.1:18000/health/
-```
+`curl -i http://127.0.0.1:18000/health/`
 
 **Result:**
 
 - HTTP Status: 200 OK
 - Response: `{"status": "ok"}`
 
-This confirmed that the backend could connect to the required database tables.
+The backend health endpoint responded successfully.
 
-The CSRF endpoint was also tested:
+### 8.2 Frontend Availability
 
-```bash
-curl -i http://127.0.0.1:18000/api/auth/csrf/
-```
+Command:
+
+`curl -I http://127.0.0.1:14200/`
+
+**Result:**
+
+- HTTP Status: 200 OK
+- Content-Type: text/html
+
+The Angular frontend successfully returned the application page.
+
+### 8.3 Authentication and CSRF Endpoint
+
+Command:
+
+`curl -i http://127.0.0.1:18000/api/auth/csrf/`
 
 **Result:**
 
 - HTTP Status: 200 OK
 - JSON response containing a CSRF token.
 - CSRF cookie successfully issued.
-- Cookie configured with `SameSite=Lax`.
+- Cookie configured with SameSite=Lax.
 
-**Status: PASSED**
+This confirmed that the CSRF endpoint responded successfully and issued the expected authentication-related cookie.
 
-The backend health and CSRF endpoints responded successfully.
+**Summary:**
 
-## 5. Frontend Availability Testing
+| Endpoint | HTTP Status | Result |
+|---|---|---|
+| Backend `/health/` | 200 | PASS |
+| Frontend `/` | 200 | PASS |
+| Authentication `/api/auth/csrf/` | 200 | PASS |
 
-The frontend was checked using:
+**Conclusion:** All three HTTP endpoint checks returned successful responses during verification.
 
-```bash
-curl -I http://127.0.0.1:14200/
-```
-
-**Result:**
-
-- HTTP Status: 200 OK
-- Content-Type: text/html
-- Frontend server successfully returned the application page.
-
-**Status: PASSED**
-
-The Angular frontend was accessible through its Docker service.
-
-## 6. Manual End-to-End Integration Verification
+## 9. Manual Integration Verification
 
 A manual integration check was performed using the running Docker environment.
 
-The following components and connections were verified:
+The following components and connections were inspected:
 
-1. PostgreSQL database container was running and healthy.
-2. Django backend was running and healthy.
-3. Angular frontend was running and healthy.
-4. Backend health endpoint returned HTTP 200.
-5. Frontend returned HTTP 200.
-6. Authentication CSRF endpoint returned HTTP 200 and issued a CSRF cookie.
-7. Frontend API configuration was checked and confirmed to use `/api` as its API base URL.
-8. Angular HTTP configuration was inspected, including the session interceptor and CSRF configuration.
-9. Development and Docker proxy configurations were inspected to verify how frontend API requests are forwarded to the backend.
+- PostgreSQL database container was running and healthy.
+- Django backend was running and healthy.
+- Angular frontend was running and healthy.
+- Backend health endpoint returned HTTP 200.
+- Frontend returned HTTP 200.
+- Authentication CSRF endpoint returned HTTP 200 and issued a CSRF cookie.
+- Frontend API configuration was inspected and confirmed to use `/api` as its API base URL.
+- Angular HTTP configuration was inspected, including the session interceptor and CSRF configuration.
+- Development and Docker proxy configurations were inspected to verify how frontend API requests are forwarded to the backend.
+- The application was manually opened and checked in the running environment.
 
-The application was also manually opened and checked, and the running environment was reported to be working correctly.
+These checks provided evidence of service availability and the expected frontend/backend integration configuration.
 
-**Status: PASSED — Manual infrastructure and connectivity verification.**
+**Important:** Configuration inspection and successful endpoint responses do not independently prove that every authenticated business workflow works end to end. Full browser-based workflow verification remains pending.
 
-## 7. Frontend Automated Testing and Build
+**Conclusion:** Manual infrastructure and connectivity verification was completed successfully.
 
-Frontend unit tests, production build and Playwright E2E tests were attempted.
-
-The commands returned exit code 127:
-
-| Check | Result |
-|---|---|
-| Frontend unit tests | Not completed |
-| Production build | Not completed |
-| Playwright E2E tests | Not completed |
-
-These commands could not complete successfully in the local shell environment. Therefore, no frontend automated test pass count or successful production build is claimed in this report.
-
-## 8. Overall Testing Summary
+## 10. Summary of Testing Results
 
 | Testing Area | Result |
 |---|---|
-| Backend automated tests | PASSED |
-| PostgreSQL isolated test execution | PASSED |
-| Docker PostgreSQL service | PASSED |
-| Docker Django backend service | PASSED |
-| Docker Angular frontend service | PASSED |
-| Backend health endpoint | PASSED |
-| Frontend HTTP availability | PASSED |
-| Authentication CSRF endpoint | PASSED |
-| Manual integration verification | PASSED |
-| Frontend automated unit tests | NOT COMPLETED |
-| Frontend production build | NOT COMPLETED |
-| Browser E2E automated tests | NOT COMPLETED |
+| Backend automated tests | PASS |
+| PostgreSQL isolated test environment | PASS |
+| Frontend unit tests | PASS |
+| Frontend production build | PASS |
+| Docker PostgreSQL service | PASS |
+| Docker Django backend service | PASS |
+| Docker Angular frontend service | PASS |
+| Backend HTTP availability | PASS |
+| Frontend HTTP availability | PASS |
+| Authentication CSRF endpoint | PASS |
+| Manual integration verification | PASS |
+| Playwright E2E scenarios | BLOCKED |
+| Visual regression testing | NOT VERIFIED |
 
-## 9. Conclusion
+### Overall Testing Statistics
 
-The performed tests confirmed that the main Jedel.Group ERP infrastructure is operational.
+- 197 backend tests discovered.
+- 196 backend tests passed.
+- 1 backend test skipped.
+- 0 backend test failures.
+- 112 frontend unit tests passed.
+- 15 frontend test files passed.
+- Production build completed successfully.
+- Initial frontend bundle size: 483.12 kB.
+- All three Docker services reported healthy.
+- Three HTTP endpoint checks returned status 200.
+- Manual infrastructure and connectivity verification completed.
+- Full Playwright E2E execution remains outstanding.
 
-The backend successfully passed 197 discovered automated tests, with 196 passing and one optional browser test skipped.
+## 11. Identified Issues and Limitations
 
-The PostgreSQL, Django backend and Angular frontend Docker services were running and healthy. HTTP connectivity to the frontend and backend was confirmed, and the authentication CSRF endpoint successfully returned a token and issued a cookie.
+The testing phase identified the following points requiring further attention:
 
-Manual inspection also confirmed the frontend API configuration, HTTP interceptor and proxy configuration.
+**1. E2E Test Configuration**
 
-Frontend automated tests, production build and browser E2E tests remain unverified because their execution returned exit code 127.
+Playwright scenarios require the isolated backend browser testing harness and the appropriate environment variables.
 
-**Final Assessment:** The backend, database infrastructure, frontend availability and main service connectivity were successfully verified. The system passed the performed integration and backend testing checks, with additional frontend automated verification remaining.
+**2. Angular Performance Warning**
+
+Angular warning NG0956 indicates that a collection is being unnecessarily recreated during one page test. This should be reviewed to improve rendering efficiency.
+
+**3. Visual Regression Testing**
+
+Screenshot-based comparisons across five viewport sizes have not yet been fully verified.
+
+**4. Browser Workflow Testing**
+
+One backend browser workflow test remains skipped because browser testing is opt-in and requires additional configuration.
+
+**5. Full Business Workflow Verification**
+
+Although the infrastructure, endpoint availability, and integration configuration were checked, complete browser-based verification of authentication, purchasing, and restricted operations remains outstanding.
+
+These limitations do not invalidate the successful backend and frontend unit testing results.
+
+## 12. Conclusion
+
+The intermediate testing phase demonstrated that the current Jedel.Group ERP implementation has a stable and functional technical foundation.
+
+The backend successfully completed 196 automated tests out of 197 discovered tests, with one skipped browser test and no reported failures.
+
+The frontend successfully completed all 112 unit tests across 15 test files. The Angular production build was also generated successfully without compilation errors.
+
+Docker Compose confirmed that the PostgreSQL database, Django backend, and Angular frontend services were running and healthy.
+
+HTTP availability checks confirmed that the backend health endpoint, frontend application endpoint, and authentication CSRF endpoint all returned HTTP 200 responses.
+
+Manual integration inspection also confirmed the frontend API base URL, session interceptor configuration, CSRF configuration, and proxy settings.
+
+Although the full Playwright end-to-end suite still requires its isolated testing environment, the completed automated tests and infrastructure checks provide evidence of successful backend and frontend implementation at this development stage.
+
+**Final Assessment: The Jedel.Group ERP system successfully passed backend automated testing, frontend unit testing, production build verification, Docker infrastructure checks, API availability testing, and basic manual integration verification. Full browser-based end-to-end and visual regression testing remain planned for the next testing stage.**
 
 ---
 
 **Report prepared for:** Jedel.Group ERP Project  
-**Testing approach:** Automated backend tests and manual integration verification  
-**Environment:** Local Docker Compose development environment
+**Testing date:** November 20, 2026  
+**Testing approach:** Automated testing, infrastructure verification, API testing, and manual integration inspection  
+**Testing environment:** Local Docker Compose development environment
