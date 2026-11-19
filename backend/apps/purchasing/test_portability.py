@@ -119,3 +119,9 @@ class PortabilityTests(TestCase):
         with self.assertRaises(CommandError):
             call_command('add_fictional_products', apply=True, confirm_database=connection.settings_dict['NAME'], stdout=io.StringIO())
         self.assertEqual(Product.objects.count(), 1)
+
+    def test_existing_demo_label_cannot_be_duplicated_under_another_prefix(self):
+        Product.objects.create(product_name='[DEMO] Office Desk', category='Furniture', unit_price='100.00', stock_quantity=2)
+        with self.assertRaises(CommandError):
+            call_command('add_fictional_products', apply=True, confirm_database=connection.settings_dict['NAME'], stdout=io.StringIO())
+        self.assertEqual(Product.objects.count(), 1)

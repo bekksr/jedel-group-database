@@ -32,7 +32,14 @@ class Command(BaseCommand):
                 raise CommandError('Duplicate fictional labels already exist; review manually. No rows were changed.')
             present = set(existing)
             indexed = {p.product_name: p for p in Product.objects.using(alias).filter(product_name__in=names)}
-            existing_names = {value.casefold().strip() for value in Product.objects.using(alias).values_list('product_name', flat=True)}
+            existing_names = set()
+            for value in Product.objects.using(alias).values_list('product_name', flat=True):
+                normalized = value.strip()
+                if normalized.startswith('[JEDEL FICTIONAL] '):
+                    continue
+                if normalized.startswith('[DEMO] '):
+                    normalized = normalized[len('[DEMO] '):]
+                existing_names.add(normalized.casefold().strip())
             conflicts = [product for _, product, _ in entries if product.casefold().strip() in existing_names]
             if conflicts:
                 raise CommandError('Unlabeled existing products match fictional names; review before adding: ' + ', '.join(conflicts))

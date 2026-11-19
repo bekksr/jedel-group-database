@@ -35,6 +35,12 @@ class Command(BaseCommand):
         if len(labels) != len(set(labels)) or len(DEMO_SUPPLIERS) != len({email for _, email in DEMO_SUPPLIERS}):
             raise CommandError('The versioned demo contains duplicate identities; no changes made.')
         existing = {}
+        other_names = set()
+        for value in Product.objects.exclude(product_name__in=labels).values_list('product_name', flat=True):
+            normalized = value.strip()
+            if normalized.startswith('[JEDEL FICTIONAL] '):
+                normalized = normalized[len('[JEDEL FICTIONAL] '):]
+            other_names.add(normalized.casefold())
         for product in Product.objects.filter(product_name__in=labels):
             if product.product_name in existing:
                 raise CommandError('Duplicate demo product label detected; no changes made.')
@@ -44,7 +50,10 @@ class Command(BaseCommand):
         for index, ((category, name, price), label) in enumerate(zip(entries, labels)):
             current = existing.get(label)
             if current is None:
-                pending_products.append(Product(product_name=label, category=category, unit_price=price, stock_quantity=(index * 13 % 90) + 3))
+                if name.casefold() in other_names:
+                    conflicts.append('Another product uses this demo name: ' + label)
+                else:
+                    pending_products.append(Product(product_name=label, category=category, unit_price=price, stock_quantity=(index * 13 % 90) + 3))
             elif current.category != category or current.unit_price != Decimal(price):
                 conflicts.append('Product changed locally or in fixture: ' + label)
             else:
