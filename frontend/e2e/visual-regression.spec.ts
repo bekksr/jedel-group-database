@@ -19,13 +19,13 @@ test('visual audit: dashboard and analytics at five viewports', async ({browser}
     await page.setViewportSize({width,height:1000});
     for(const section of ['Home','Analytics']) {
       await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:section,exact:true}).click();
-      await expect(page.locator('main h1')).toBeVisible();
+      await expect(page.locator('main h1')).toHaveText(section==='Home'?'Purchasing, made simple.':'Analytics');
       if(section==='Analytics') await expect(page.getByRole('heading',{name:'Inventory summary',exact:true})).toBeVisible();
+      await expect(page.locator('.stat-skeleton')).toHaveCount(0);
       const layout=await page.locator('.stats').first().evaluate(element=>({display:getComputedStyle(element).display,columns:getComputedStyle(element).gridTemplateColumns,valueDisplay:getComputedStyle(element.querySelector('strong')!).display,labelDisplay:getComputedStyle((element.querySelector('.stat-label') ?? element.querySelector('span'))!).display}));
       evidence.push({section,width,...layout});
       if(phase!=='before') {
         expect(layout.display).toBe('grid');
-        await expect(page.locator('.stat-skeleton')).toHaveCount(0);
         expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
         const cards=page.locator('.stats').first().locator('app-stat-card');await expect(cards).toHaveCount(3);
         const boxes=await cards.evaluateAll(elements=>elements.map(element=>({x:element.getBoundingClientRect().x,y:element.getBoundingClientRect().y,width:element.getBoundingClientRect().width})));
