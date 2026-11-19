@@ -109,6 +109,14 @@ describe("Pages", () => {
     expect(details[0]!.open).toBe(false); expect(details[1]!.open).toBe(true);
     summaries[1]!.click(); fixture.detectChanges(); expect(details[1]!.open).toBe(false);
   });
+  it('edits a clean product name while preserving its stored demo marker', async () => {
+    const page = TestBed.createComponent(ProductsPage).componentInstance;
+    const save = vi.spyOn(page.data, 'saveProduct').mockResolvedValue(undefined);
+    page.edit({product_id: 91, product_name: '[DEMO] Notebook Air 13', category: 'Laptops', unit_price: 100, stock_quantity: 3});
+    expect(page.draft.product_name).toBe('Notebook Air 13');
+    await page.save();
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({product_name: '[DEMO] Notebook Air 13'}), 91);
+  });
   it("finds suppliers by contact details", () => {
     const p = TestBed.createComponent(SuppliersPage).componentInstance;
     p.query.set(" GLOBAL@EXAMPLE.COM ");
