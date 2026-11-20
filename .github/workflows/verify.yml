@@ -91,6 +91,16 @@ jobs:
           npx playwright install --with-deps chromium
           cd ../backend
           .venv/bin/python scripts/test_postgres.py apps.purchasing.test_browser
+      - name: Seeded catalog browser regression (Ubuntu)
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          JEDEL_BROWSER_TESTS: '1'
+          JEDEL_E2E_REAL_DEMO: '1'
+          JEDEL_E2E_GREP: actual seeded catalog
+        run: |
+          cd backend
+          .venv/bin/python scripts/test_postgres.py apps.purchasing.test_browser
       - name: Dependency advisory check (high/critical gate)
         if: always()
         working-directory: frontend
@@ -100,6 +110,8 @@ jobs:
     env:
       COMPOSE_PROJECT_NAME: jedel-ci-${{ github.run_id }}-${{ github.run_attempt }}
       JEDEL_COMPOSE_SMOKE: '1'
+      JEDEL_FRONTEND_PORT: '14200'
+      JEDEL_BACKEND_PORT: '18000'
     steps:
       - uses: actions/checkout@v4
       - name: Generate private config and validate Compose

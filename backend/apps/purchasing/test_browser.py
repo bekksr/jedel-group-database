@@ -32,9 +32,14 @@ class BrowserWorkflowTests(StaticLiveServerTestCase):
         User.objects.create_superuser('browser-admin', 'browser-admin@example.test', password)
         manager = User.objects.create_user('browser-manager', password=password)
         manager.groups.add(Group.objects.get(name='Purchasing Manager'))
+        if os.getenv('JEDEL_E2E_REAL_DEMO') == '1':
+            from unittest.mock import patch
+            with patch.dict(os.environ, {'JEDEL_ISOLATED_DEVELOPMENT': '1'}), patch.dict(connection.settings_dict, {'NAME': 'jedel_dev'}):
+                call_command('seed_demo', confirm=True)
         hardware = Product.objects.create(product_name='Public catalog hardware', category='Hardware', unit_price='90321.67', stock_quantity=4321)
         Product.objects.create(product_name='Public catalog office', category='Office', unit_price='81234.56', stock_quantity=9876)
-        call_command('add_fictional_products', apply=True, confirm_database=connection.settings_dict['NAME'])
+        if os.getenv('JEDEL_E2E_REAL_DEMO') != '1':
+            call_command('add_fictional_products', apply=True, confirm_database=connection.settings_dict['NAME'])
         for username, role in [('browser-employee','Purchasing Employee'), ('browser-analyst','Analyst / Tester'), ('browser-basic-pages','Basic User'), ('browser-security','Security Administrator')]:
             user = User.objects.create_user(username, password=password)
             user.groups.add(Group.objects.get(name=role))

@@ -25,14 +25,36 @@ env.update(DB_NAME='jedel_dev', JEDEL_ISOLATED_DEVELOPMENT='1')
 backend = Path(__file__).resolve().parents[1]
 for args in [['migrate', '--plan']]:
     subprocess.run([sys.executable, 'manage.py', *args], cwd=backend, env=env, check=True)
+ports = []
+while len(ports) < 2:
+    with socket.socket() as probe:
+        probe.bind(('127.0.0.1', 0))
+        port = probe.getsockname()[1]
+        if port not in ports:
+            ports.append(port)
+if os.name == 'nt':
+    startup = ['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(backend.parent / 'scripts/start-windows.ps1'), '-CheckStartup', '-BackendPort', str(ports[0]), '-FrontendPort', str(ports[1])]
+elif sys.platform == 'darwin':
+    startup = ['bash', str(backend.parent / 'scripts/start-macos.sh'), '--check-startup', '--backend-port', str(ports[0]), '--frontend-port', str(ports[1])]
+else:
+    startup = [sys.executable, str(backend.parent / 'scripts/start.py'), '--check-startup', '--backend-port', str(ports[0]), '--frontend-port', str(ports[1])]
+
 if os.getenv('JEDEL_VERIFY_NATIVE_SETUP') == '1':
     subprocess.run([sys.executable, str(backend.parent / 'scripts' / 'setup.py'), '--skip-install', '--non-interactive'], cwd=backend.parent, env=env, check=True)
 else:
-    subprocess.run([sys.executable, 'manage.py', 'setup_fresh_demo'], cwd=backend, env=env, check=True)
+    # Reproduce an existing checkout with Django auth/session tables but no business schema.
+    for app in ('auth', 'sessions'):
+        subprocess.run([sys.executable, 'manage.py', 'migrate', app, '--noinput'], cwd=backend, env=env, check=True)
+    preexisting = "from django.contrib.auth.models import User; from django.contrib.sessions.backends.db import SessionStore; u=User.objects.create_user('existing-checkout-user', password='disposable-test-password'); session=SessionStore(); session['sentinel']='preserved'; session.create(); print(u.password)"
+    before = subprocess.run([sys.executable, 'manage.py', 'shell', '-c', preexisting], cwd=backend, env=env, check=True, capture_output=True, text=True).stdout.splitlines()[-1]
+    subprocess.run(startup, cwd=backend.parent, env=env, check=True, timeout=150)
+    after = subprocess.run([sys.executable, 'manage.py', 'shell', '-c', "from django.contrib.auth.models import User; from django.contrib.sessions.models import Session; assert Session.objects.count()==1; print(User.objects.get(username='existing-checkout-user').password)"], cwd=backend, env=env, check=True, capture_output=True, text=True).stdout.splitlines()[-1]
+    assert before == after, 'Existing password hash changed'
 # Create fictional sample data explicitly, prove repeatability, then preserve it
 # and a registered Basic User/session across a real temporary server restart.
 for _ in range(2):
     subprocess.run([sys.executable, 'manage.py', 'seed_demo', '--confirm'], cwd=backend, env=env, check=True)
+expected_users = 1 if os.getenv('JEDEL_VERIFY_NATIVE_SETUP') == '1' else 2
 env['JEDEL_DEV_TEST_PASSWORD'] = secrets.token_urlsafe(40)
 probe = """
 import os,json
@@ -63,6 +85,7 @@ with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
         cursor.execute('SELECT count(*) FROM purchase_order_items'); assert cursor.fetchone()[0] == 24
         cursor.execute("SELECT (SELECT count(*) FROM products), (SELECT count(*) FROM suppliers WHERE supplier_name LIKE '[DEMO] %'), (SELECT count(*) FROM purchase_orders), (SELECT count(*) FROM purchase_order_items)")
         print('Verified demo PostgreSQL counts (products, suppliers, orders, items):', cursor.fetchone(), flush=True)
+        cursor.execute("INSERT INTO purchase_orders (supplier_id, order_date, status) SELECT supplier_id, CURRENT_DATE, 'Pending' FROM suppliers WHERE email='restart@example.test'")
 subprocess.run([sys.executable, 'manage.py', 'setup_fresh_demo'], cwd=backend, env=env, check=True)
 with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:
@@ -71,9 +94,9 @@ with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
         cursor.execute('SELECT count(*) FROM auth_group')
         assert cursor.fetchone()[0] == 6
         cursor.execute('SELECT count(*) FROM auth_user')
-        assert cursor.fetchone()[0] == 1
+        assert cursor.fetchone()[0] == expected_users
         cursor.execute('SELECT count(*) FROM django_session')
-        assert cursor.fetchone()[0] == 1
+        assert cursor.fetchone()[0] == expected_users
 data = Path(os.environ['JEDEL_TEST_CLUSTER_DATA']).resolve()
 binary = Path(os.environ['JEDEL_TEST_PG_BIN']).resolve()
 if data.name != 'cluster' or not data.parent.name.startswith('jedel-isolated-pg-'):
@@ -85,10 +108,10 @@ socket_option = f' -c unix_socket_directories={data.parent}' if os.name != 'nt' 
 run([str(binary / ('pg_ctl.exe' if os.name == 'nt' else 'pg_ctl')), '-D', str(data), '-l', str(data.parent / 'postgres.log'), '-o', f"-h 127.0.0.1 -p {env['DB_PORT']} -c jedel.isolated_test_cluster=on{socket_option}", '-w', 'start'], env=env, **flags)
 with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:
-        cursor.execute('SELECT count(*) FROM auth_user'); assert cursor.fetchone()[0] == 1
-        cursor.execute('SELECT count(*) FROM django_session'); assert cursor.fetchone()[0] == 1
+        cursor.execute('SELECT count(*) FROM auth_user'); assert cursor.fetchone()[0] == expected_users
+        cursor.execute('SELECT count(*) FROM django_session'); assert cursor.fetchone()[0] == expected_users
         cursor.execute('SELECT count(*), sum(stock_quantity) FROM products'); assert cursor.fetchone() == (55, sum((i * 13 % 90) + 3 for i in range(55)))
-        cursor.execute('SELECT count(*), count(DISTINCT status) FROM purchase_orders'); assert cursor.fetchone() == (8, 4)
+        cursor.execute('SELECT count(*), count(DISTINCT status) FROM purchase_orders'); assert cursor.fetchone() == (9, 4)
 subprocess.run([sys.executable, 'manage.py', 'check_environment'], cwd=backend, env=env, check=True)
 resume = """
 import os
@@ -102,18 +125,10 @@ with override_settings(ALLOWED_HOSTS=['testserver']):
 print('PASS: existing session cookie restores the registered user in a new Django process after PostgreSQL restart.')
 """
 subprocess.run([sys.executable, 'manage.py', 'shell', '-c', resume], cwd=backend, env=env, check=True)
-ports = []
-while len(ports) < 2:
-    with socket.socket() as probe:
-        probe.bind(('127.0.0.1', 0))
-        port = probe.getsockname()[1]
-        if port not in ports:
-            ports.append(port)
-if os.name == 'nt':
-    startup = ['powershell.exe', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', str(backend.parent / 'scripts/start-windows.ps1'), '-CheckStartup', '-BackendPort', str(ports[0]), '-FrontendPort', str(ports[1])]
-elif sys.platform == 'darwin':
-    startup = ['bash', str(backend.parent / 'scripts/start-macos.sh'), '--check-startup', '--backend-port', str(ports[0]), '--frontend-port', str(ports[1])]
-else:
-    startup = [sys.executable, str(backend.parent / 'scripts/start.py'), '--check-startup', '--backend-port', str(ports[0]), '--frontend-port', str(ports[1])]
 subprocess.run(startup, cwd=backend.parent, env=env, check=True, timeout=150)
+with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT count(*) FROM purchase_orders o JOIN suppliers s ON s.supplier_id=o.supplier_id WHERE s.email='restart@example.test'")
+        assert cursor.fetchone()[0] == 1, 'Existing order was not preserved'
+        cursor.execute('SELECT count(*) FROM products'); assert cursor.fetchone()[0] == 55
 print('PASS: fresh initialization, six roles, explicit demo idempotence, registration/session/no-key tools, repeated initialization and real isolated PostgreSQL restart preserve users, sessions and inventory.')

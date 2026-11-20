@@ -16,7 +16,7 @@ class Command(BaseCommand):
                 cursor.execute('SELECT pg_advisory_xact_lock(%s)', [74832911])
                 tables = set(connection.introspection.table_names(cursor))
                 required = {'suppliers', 'products', 'purchase_orders', 'purchase_order_items'}
-                if not tables:
+                if not (required & tables):
                     dump = (Path(settings.BASE_DIR).parent / 'database/dumps/jedel_group_db.sql').read_text(encoding='utf-8')
                     patterns = [r'CREATE TABLE public\.[a-z_]+ \(.*?;', r'ALTER TABLE public\.[a-z_]+ ALTER COLUMN.*?;', r'ALTER TABLE ONLY public\.[a-z_]+.*?;']
                     statements = [(m.start(), m.group()) for pattern in patterns for m in re.finditer(pattern, dump, re.S)]

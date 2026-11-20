@@ -27,8 +27,8 @@ def main():
     cli = ROOT / 'frontend/node_modules/@angular/cli/bin/ng.js'
     if not python.exists() or not node or not cli.exists():
         raise SystemExit('Run the platform setup script first: missing venv, Node or local Angular CLI.')
+    subprocess.run([str(python), 'manage.py', 'sync_development', '--apply', '--skip-unless-isolated'], cwd=ROOT / 'backend', check=True)
     subprocess.run([str(python), 'manage.py', 'check_environment'], cwd=ROOT / 'backend', check=True)
-    subprocess.run([str(python), 'manage.py', 'sync_demo_products', '--skip-unless-demo'], cwd=ROOT / 'backend', check=True)
     for port in (args.backend_port, args.frontend_port):
         with socket.socket() as probe:
             try:

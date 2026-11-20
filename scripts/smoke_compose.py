@@ -53,10 +53,11 @@ print('Disposable administrator bootstrap verified; credential not displayed.')
             input=json.dumps({'username':admin_name, 'email':admin_name+'@example.test', 'password':admin_password}), text=True)
     jar = http.cookiejar.CookieJar()
     client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
-    base = 'http://localhost:14200'
+    base = f"http://localhost:{os.getenv('JEDEL_FRONTEND_PORT', '4200')}"
+    backend = f"http://localhost:{os.getenv('JEDEL_BACKEND_PORT', '8000')}"
 
     def request(path, data=None):
-        headers = {'Referer':base + '/'}
+        headers = {'Referer':base + '/', 'Origin':base}
         if data is not None:
             client.open(base + '/api/auth/csrf/', timeout=10).close()
             headers.update({'Content-Type':'application/json','X-CSRFToken':next(cookie.value for cookie in jar if cookie.name=='csrftoken')})
@@ -72,11 +73,25 @@ print('Disposable administrator bootstrap verified; credential not displayed.')
     for product in catalog['results']:
         assert set(product) == {'product_id', 'product_name', 'category'}
     assert request('/api/ai/capabilities/')['chat_configured'] is False
+    results = request('/api/ai/products/search/', {'query': 'Notebook Air 13'})['results']
+    assert any('Notebook Air 13' in item['product_name'] for item in results), 'Local AI search did not reach PostgreSQL'
+    def counts():
+        sql = 'SELECT (SELECT count(*) FROM products), (SELECT count(*) FROM suppliers), (SELECT count(*) FROM purchase_orders), (SELECT count(*) FROM purchase_order_items)'
+        result = subprocess.run(['docker', 'compose', '-p', project, 'exec', '-T', 'db', 'psql', '-U', 'jedel_dev', '-d', 'jedel_dev', '-At', '-c', sql], capture_output=True, text=True, check=True)
+        return result.stdout.strip()
+
+    assert counts() == '55|4|8|24', 'Unexpected fresh PostgreSQL counts'
+    for path in ('/', '/products', '/orders', '/ai-assistant'):
+        with client.open(base + path, timeout=15) as response:
+            assert response.status == 200
+    for path in ('/', '/health/', '/api/docs/'):
+        with client.open(backend + path, timeout=15) as response:
+            assert response.status == 200
     compose('restart')
     deadline = time.monotonic() + 120
     while time.monotonic() < deadline:
         try:
-            with urllib.request.urlopen('http://localhost:18000/health/', timeout=2) as response:
+            with urllib.request.urlopen(backend + '/health/', timeout=2) as response:
                 assert response.status == 200
             request('/api/auth/me/')
             break
@@ -84,17 +99,18 @@ print('Disposable administrator bootstrap verified; credential not displayed.')
             time.sleep(1)
     else:
         raise SystemExit('Services did not recover after isolated restart.')
+    assert counts() == '55|4|8|24', 'Counts changed after restart'
     assert request('/api/auth/me/')['email'] == email
     assert request('/api/catalog/products/') == catalog
     request('/api/auth/logout/', {})
     # An unauthenticated admin request must redirect to the real CSRF-protected login form.
-    with urllib.request.urlopen('http://localhost:18000/admin/', timeout=10) as response:
+    with urllib.request.urlopen(backend + '/admin/', timeout=10) as response:
         assert response.status == 200 and urlsplit(response.geturl()).path == '/admin/login/'
         login_page = AdminElements(); login_page.feed(response.read().decode('utf-8'))
         assert {'username', 'password', 'csrfmiddlewaretoken'} <= login_page.input_names
     request('/api/auth/login/', {'identifier':admin_name,'password':admin_password})
     assert request('/api/auth/me/')['can_administer'] is True
-    with client.open('http://localhost:18000/admin/', timeout=10) as response:
+    with client.open(backend + '/admin/', timeout=10) as response:
         assert response.status == 200 and urlsplit(response.geturl()).path == '/admin/'
         admin_page = AdminElements(); admin_page.feed(response.read().decode('utf-8'))
         assert 'logout-form' in admin_page.form_ids
