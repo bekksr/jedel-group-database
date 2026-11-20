@@ -125,6 +125,18 @@ with override_settings(ALLOWED_HOSTS=['testserver']):
 print('PASS: existing session cookie restores the registered user in a new Django process after PostgreSQL restart.')
 """
 subprocess.run([sys.executable, 'manage.py', 'shell', '-c', resume], cwd=backend, env=env, check=True)
+# A just-closed listening port may remain unavailable in TIME_WAIT on Unix.
+# Select fresh ports for the second launcher instead of disturbing other processes.
+restart_ports = []
+while len(restart_ports) < 2:
+    with socket.socket() as probe:
+        probe.bind(('127.0.0.1', 0))
+        candidate = probe.getsockname()[1]
+        if candidate not in ports and candidate not in restart_ports:
+            restart_ports.append(candidate)
+backend_flag, frontend_flag = ('-BackendPort', '-FrontendPort') if os.name == 'nt' else ('--backend-port', '--frontend-port')
+startup[startup.index(backend_flag) + 1] = str(restart_ports[0])
+startup[startup.index(frontend_flag) + 1] = str(restart_ports[1])
 subprocess.run(startup, cwd=backend.parent, env=env, check=True, timeout=150)
 with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:
