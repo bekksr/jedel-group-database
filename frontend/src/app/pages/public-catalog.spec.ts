@@ -52,3 +52,22 @@ it('cancels stale filter requests and uses safe relative pagination instead of f
   const next=http.expectOne(request=>request.url==='/api/catalog/products/' && request.params.get('page')==='2');
   next.flush({count:30,next:null,previous:'ignored',results:[]});
 });
+it('clearing a search cancels the in-flight query and keeps the selected category', async () => {
+  const {fixture, request} = initial();
+  const empty = {count: 0, next: null, previous: null, results: []};
+  request.flush(empty);
+  const page = fixture.componentInstance;
+  page.setCategory('Hardware');
+  http.expectOne(request => request.url === '/api/catalog/products/').flush(empty);
+
+  page.setSearch('Notebook');
+  await new Promise(resolve => setTimeout(resolve, 300));
+  const pending = http.expectOne(request => request.params.get('search') === 'Notebook');
+  page.setSearch('');
+
+  expect(pending.cancelled).toBe(true);
+  const cleared = http.expectOne(request => request.url === '/api/catalog/products/' && !request.params.has('search'));
+  expect(cleared.request.params.get('page')).toBe('1');
+  expect(cleared.request.params.get('category')).toBe('Hardware');
+  cleared.flush(empty);
+});

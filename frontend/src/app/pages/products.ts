@@ -6,100 +6,107 @@ import { ActivatedRoute, RouterLink } from "@angular/router";
 import { Product, Supplier } from "../models";
 import { Store } from "../store";
 import { demoProductDescription, displayProductName, isDemoProduct, legacyProductDescription } from '../core/data/product-metadata';
+import { UiLanguage } from '../core/ui-language';
 
 @Component({selector:"ng-component-products",
   imports: [WorkspaceStatus, DecimalPipe, FormsModule, RouterLink],
   template: `
-    <h1>Products</h1><app-workspace-status />
-    @if(data.permissions().manageCatalog) {
-      <button [disabled]="busy() || data.loading()" (click)="edit()">New product</button>
-      @if(formOpen()) {
-        <form class="panel narrow" (ngSubmit)="save()">
-          <h2>{{editingId === undefined ? 'New product' : 'Edit product'}}</h2>
-          <label>Product name<input name="product_name" [(ngModel)]="draft.product_name" required maxlength="100"></label>
-          <label>Category<input name="category" [(ngModel)]="draft.category" maxlength="50"></label>
-          <label>Unit price<input name="unit_price" type="number" [(ngModel)]="draft.unit_price" required min="0" max="99999999.99" step="0.01"></label>
-          <p>Stock changes only through confirmed deliveries.</p>
-          <button [disabled]="busy() || data.loading()">Save product</button>
-          <button type="button" [disabled]="busy()" (click)="formOpen.set(false)">Cancel</button>
+    <h1>{{ text('Products') }}</h1>
+    <p class="subtitle">{{ text('Browse the catalog, check warehouse stock, and add items to a purchase order.') }}</p>
+    <app-workspace-status />
+    @if (data.permissions().manageCatalog) {
+      <button class="catalog-create" [disabled]="busy() || data.loading()" (click)="edit()">{{ text('New product') }}</button>
+      @if (formOpen()) {
+        <form class="panel narrow catalog-form" (ngSubmit)="save()">
+          <h2>{{ text(editingId === undefined ? 'New product' : 'Edit product') }}</h2>
+          <label>{{ text('Product name') }}<input name="product_name" [(ngModel)]="draft.product_name" required maxlength="100"></label>
+          <label>{{ text('Category') }}<input name="category" [(ngModel)]="draft.category" maxlength="50"></label>
+          <label>{{ text('Unit price') }}<input name="unit_price" type="number" [(ngModel)]="draft.unit_price" required min="0" max="99999999.99" step="0.01"></label>
+          <p>{{ text('Stock changes only through confirmed deliveries.') }}</p>
+          <div class="actions">
+            <button [disabled]="busy() || data.loading()">{{ text('Save product') }}</button>
+            <button type="button" class="secondary" [disabled]="busy()" (click)="formOpen.set(false)">{{ text('Cancel') }}</button>
+          </div>
         </form>
       }
     }
-    @if(error()) {<p class="error" role="alert">{{error()}}</p>}
+    @if(error()) {<p class="error" role="alert">{{ text(error()) }}</p>}
 
-    <p class="subtitle">Browse the catalog, check warehouse stock, and add items to a purchase order.</p>
     @if (data.loading()) {
-      <p class="panel" role="status">Loading products…</p>
+      <p class="panel" role="status">{{ text('Loading products...') }}</p>
     } @else if (data.error()) {
-      <p class="panel">Restore the business connection using Retry workspace above.</p>
+      <p class="panel">{{ text('Restore the business connection using Retry workspace above.') }}</p>
     } @else {
       <div class="catalog-toolbar">
-        <label>Search products
-          <input
-            type="search"
-            [ngModel]="query()"
-            (ngModelChange)="query.set($event)"
-            placeholder="Name, category, or description"
-          />
-        </label>
-        <label>Category
+        <div class="search-field">
+          <label for="products-search">{{ text('Search products') }}</label>
+          <div class="search-control">
+            <input id="products-search" #productSearch type="search" [ngModel]="query()"
+              (ngModelChange)="query.set($event)" [placeholder]="text('Name, category, or description')" />
+            @if (query()) {
+              <button type="button" class="secondary clear-search" [title]="text('Clear search')"
+                [attr.aria-label]="text('Clear search')" (click)="query.set(''); productSearch.focus()">×</button>
+            }
+          </div>
+        </div>
+        <label>{{ text('Category') }}
           <select [ngModel]="category()" (ngModelChange)="category.set($event)">
-            <option value="">All categories</option>
+            <option value="">{{ text('All categories') }}</option>
             @for (name of categories(); track name) {
               <option [value]="name">{{ name }}</option>
             }
           </select>
         </label>
-        <p class="result-count" role="status">{{ filtered().length }} of {{ data.products().length }} products</p>
+        <p class="result-count" role="status">{{ text('{count} of {total} products', {count: filtered().length, total: data.products().length}) }}</p>
       </div>
 
       <div class="cards catalog-cards">
         @for (product of filtered(); track product.product_id) {
           <article class="panel catalog-card" [attr.data-demo]="isDemo(product.product_name) ? 'true' : null">
-            <p class="category">{{ product.category || "Uncategorized" }}</p>
+            <p class="category">{{ product.category || text('Uncategorized') }}</p>
             <h2>{{ displayName(product.product_name) }}</h2>
-            <div class="actions">@if(data.permissions().manageCatalog) {<button type="button" class="secondary" [disabled]="busy() || data.loading()" (click)="edit(product)">Edit</button>}@if(data.permissions().deleteRecords) {<button type="button" class="secondary" [disabled]="busy() || data.loading()" (click)="remove(product)">Delete</button>}</div>
+            <div class="actions">@if(data.permissions().manageCatalog) {<button type="button" class="secondary" [disabled]="busy() || data.loading()" (click)="edit(product)">{{ text('Edit') }}</button>}@if(data.permissions().deleteRecords) {<button type="button" class="secondary" [disabled]="busy() || data.loading()" (click)="remove(product)">{{ text('Delete') }}</button>}</div>
             <dl class="product-facts">
-              <div><dt>Unit price</dt><dd class="money">{{ product.unit_price | number: "1.2-2" }} ₸</dd></div>
-              <div><dt>Warehouse stock</dt><dd>{{ product.stock_quantity }} units</dd></div>
+              <div><dt>{{ text('Unit price') }}</dt><dd class="money">{{ product.unit_price | number: "1.2-2" }} ₸</dd></div>
+              <div><dt>{{ text('Warehouse stock') }}</dt><dd>{{ product.stock_quantity }} {{ text('units') }}</dd></div>
             </dl>
             <details class="product-details" [open]="openProductId() === product.product_id">
-              <summary (click)="toggleDetails($event, product.product_id)">Product details</summary>
+              <summary (click)="toggleDetails($event, product.product_id)">{{ text('Product details') }}</summary>
               <div class="details-content">
-                <p class="hint">Product #{{ product.product_id }}</p>
-                <h3>Description</h3>
-                <p>{{ description(product) || "No description is available for this product." }}</p>
-                <h3>Suppliers from purchase orders</h3>
+                <p class="hint">{{ text('Product #{id}', {id: product.product_id}) }}</p>
+                <h3>{{ text('Description') }}</h3>
+                <p>{{ description(product) || text('No description is available for this product.') }}</p>
+                <h3>{{ text('Suppliers from purchase orders') }}</h3>
                 <ul class="supplier-history">
                   @for (supplier of purchasingSuppliers().get(product.product_id) ?? []; track supplier.supplier_id) {
                     <li>
                       @if (canOrder()) {
                         <a routerLink="/orders" [queryParams]="{ new: 1, product: product.product_id, supplier: supplier.supplier_id }">
-                          Order from {{ supplier.supplier_name }}
+                          {{ text('Order from {supplier}', {supplier: supplier.supplier_name}) }}
                         </a>
                       } @else {
                         {{ supplier.supplier_name }}
                       }
                     </li>
                   } @empty {
-                    <li>No supplier appears in this product’s purchase history.</li>
+                    <li>{{ text('No supplier appears in this product’s purchase history.') }}</li>
                   }
                 </ul>
               </div>
             </details>
             @if (canOrder()) {
               <a class="button secondary card-action" routerLink="/orders" [queryParams]="{ new: 1, product: product.product_id }">
-                Order this product
+                {{ text('Order this product') }}
               </a>
             }
           </article>
         } @empty {
           <div class="panel empty-state">
-            @if (query() || category()) {
-              <p>No products match your filters.</p>
-              <button type="button" class="secondary" (click)="query.set(''); category.set('')">Clear filters</button>
+            @if (query().trim() || category()) {
+              <p>{{ text('No products match your filters.') }}</p>
+              <button type="button" class="secondary" (click)="query.set(''); category.set('')">{{ text('Clear filters') }}</button>
             } @else {
-              <p>No products are available in this workspace.</p>
+              <p>{{ text('No products are available in this workspace.') }}</p>
             }
           </div>
         }
@@ -108,6 +115,7 @@ import { demoProductDescription, displayProductName, isDemoProduct, legacyProduc
   `,
 })
 export class ProductsPage {
+  readonly text = inject(UiLanguage).text;
   readonly displayName = displayProductName;
   readonly isDemo = isDemoProduct;
   readonly openProductId = signal<number | null>(null);
@@ -140,7 +148,7 @@ export class ProductsPage {
     catch(e) { this.error.set((e as Error).message); } finally { this.busy.set(false); }
   }
   async remove(p: Product) {
-    if (this.busy() || !confirm('Delete product ' + displayProductName(p.product_name) + '?')) return;
+    if (this.busy() || !confirm(this.text('Delete product {name}?', {name: displayProductName(p.product_name)}))) return;
     this.busy.set(true); this.error.set('');
     try { await this.data.deleteProduct(p.product_id); } catch(e) { this.error.set((e as Error).message); } finally { this.busy.set(false); }
   }

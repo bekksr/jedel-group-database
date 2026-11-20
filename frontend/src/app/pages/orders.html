@@ -1,81 +1,96 @@
 <div class="heading">
   <div>
-    <h1>Purchase orders</h1>
-    <p class="subtitle">Place a purchase order or review the status of an existing one.</p>
+    <h1>{{ text('Purchase orders') }}</h1>
+    <p class="subtitle">{{ text('Place a purchase order or review the status of an existing one.') }}</p>
   </div>
   @if (!formOpen()) {
-    <button type="button" [disabled]="!canCreate()" (click)="open()">New order</button>
+    <button type="button" [disabled]="!canCreate()" (click)="open()">{{ text('New order') }}</button>
   }
 </div>
 
 <app-workspace-status />
 @if (formOpen()) {
   <section class="panel order-form" aria-labelledby="order-form-title">
-    <h2 id="order-form-title">{{editingId() === null ? "New purchase order" : "Edit Pending order"}}</h2>
+    <h2 id="order-form-title">{{ text(editingId() === null ? 'New purchase order' : 'Edit Pending order') }}</h2>
     <form [formGroup]="form" (ngSubmit)="save()">
       <fieldset [disabled]="saving() || data.busy() || data.loading()">
         <div class="form-grid">
-          <label>Supplier
-            <select aria-label="Supplier" formControlName="supplier_id" required>
-              <option [ngValue]="0">Select supplier</option>
+          <label>{{ text('Supplier') }}
+            <select [attr.aria-label]="text('Supplier')" formControlName="supplier_id" required>
+              <option [ngValue]="0">{{ text('Select supplier') }}</option>
               @for (supplier of data.suppliers(); track supplier.supplier_id) {
                 <option [ngValue]="supplier.supplier_id">{{ supplier.supplier_name }}</option>
               }
             </select>
           </label>
-          <label>Order date
+          <label>{{ text('Order date') }}
             <input type="date" formControlName="order_date" required />
           </label>
-          <label>Expected delivery (optional)
+          <label>{{ text('Expected delivery (optional)') }}
             <input type="date" formControlName="expected_delivery_date" [min]="form.controls.order_date.value" />
           </label>
         </div>
         <div class="order-products">
-          <h3>Order items</h3>
+          <h3>{{ text('Order items') }}</h3>
           <div formArrayName="items">
             @for (item of items.controls; track item; let index = $index) {
               <div class="order-line" [formGroupName]="index">
                 <app-product-selector [index]="index" [products]="data.products()" [selectedId]="item.controls.product_id.value" (selectedIdChange)="item.controls.product_id.setValue($event)" />
-                <label>Quantity {{ index + 1 }}
+                <label>{{ text('Quantity {number}', {number: index + 1}) }}
                   <input type="number" formControlName="quantity" min="1" max="2147483647" step="1" required />
                 </label>
                 <button class="secondary" type="button" [disabled]="items.length === 1" (click)="items.removeAt(index)"
-                  [attr.aria-label]="'Remove product ' + (index + 1)">
-                  Remove
+                  [attr.aria-label]="text('Remove product {number}', {number: index + 1})">
+                  {{ text('Remove') }}
                 </button>
               </div>
             }
           </div>
-          <button class="secondary" type="button" (click)="items.push(itemGroup())">Add product</button>
+          <button class="secondary" type="button" (click)="items.push(itemGroup())">{{ text('Add product') }}</button>
         </div>
         @if (error()) {
-          <p role="alert" class="error form-feedback">{{ error() }}</p>
+          <p role="alert" class="error form-feedback">{{ text(error()) }}</p>
         }
         <div class="order-form-footer">
-          <p class="total"><span>Estimated total</span><strong>{{ draftTotal() | number: "1.2-2" }} ₸</strong></p>
+          <p class="total"><span>{{ text('Estimated total') }}</span><strong>{{ draftTotal() | number: "1.2-2" }} ₸</strong></p>
           <div class="actions">
-            <button type="submit" [disabled]="!canCreate()">{{ saving() ? "Saving..." : editingId() === null ? "Create order" : "Save amendment" }}</button>
-            <button class="secondary" type="button" (click)="formOpen.set(false); error.set('')">Cancel</button>
+            <button type="submit" [disabled]="!canCreate()">{{ text(saving() ? 'Saving...' : editingId() === null ? 'Create order' : 'Save amendment') }}</button>
+            <button class="secondary" type="button" (click)="formOpen.set(false); error.set('')">{{ text('Cancel') }}</button>
           </div>
         </div>
       </fieldset>
     </form>
   </section>
 } @else if (error()) {
-  <p role="alert" class="error">{{ error() }}</p>
+  <p role="alert" class="error">{{ text(error()) }}</p>
 }
 
 @if (selected(); as order) {
   <section class="panel detail" #orderDetails tabindex="-1" aria-labelledby="order-detail-title">
     <div class="heading">
       <div>
-        <h2 id="order-detail-title">Order #{{ order.order_id }}</h2>
-        <p class="hint">{{ supplierName(order.supplier_id) }} · {{ order.status }}</p>
+        <h2 id="order-detail-title">{{ text('Order #{id}', {id: order.order_id}) }}</h2>
+        <p class="hint">{{ supplierName(order.supplier_id) }} · {{ text(order.status) }}</p>
       </div>
-      @if(order.status === 'Pending' && data.permissions().createOrders && data.mode === 'api') {<button type="button" class="secondary" [disabled]="!canCreate()" (click)="edit(order.order_id)">Edit Pending order</button>}
-      <button class="secondary" type="button" (click)="selectedId.set(null)">Close details</button>
+      <div class="actions">
+        @if(order.status === 'Pending' && data.permissions().createOrders && data.mode === 'api') {<button type="button" class="secondary" [disabled]="!canCreate()" (click)="edit(order.order_id)">{{ text('Edit Pending order') }}</button>}
+        <button class="secondary" type="button" (click)="selectedId.set(null)">{{ text('Close details') }}</button>
+      </div>
     </div>
-    <p>Expected delivery: {{ order.expected_delivery_date || "Not specified" }}</p>
+    @if (orderStages[order.status]; as stage) {
+      @let stageText = text('Stage {stage} of 3', {stage});
+      <div class="order-progress">
+        <div class="order-progress-heading">
+          <strong id="order-progress-label">{{ text('Order progress') }}</strong>
+          <span class="hint" aria-hidden="true">{{ stageText }}</span>
+        </div>
+        <progress aria-labelledby="order-progress-label" max="3" [value]="stage" [attr.aria-valuetext]="stageText"></progress>
+        @if (order.status === 'Delivered') {
+          <span class="badge cashback-reward">{{ text('Demo cashback in points') }} · +{{ demoBonus(order) | number:'1.0-0' }}</span>
+        }
+      </div>
+    }
+    <p>{{ text('Expected delivery: {date}', {date: order.expected_delivery_date || text('Not specified')}) }}</p>
     <ul class="item-list">
       @for (item of orderItems(order.order_id); track item.item_id) {
         <li>
@@ -84,12 +99,12 @@
         </li>
       }
     </ul>
-    <p class="total"><span>Total</span><strong>{{ total(order.order_id) | number: "1.2-2" }} ₸</strong></p>
+    <p class="total"><span>{{ text('Total') }}</span><strong>{{ total(order) | number: "1.2-2" }} ₸</strong></p>
     @if (transitions(order.status).length && data.permissions().transitionOrders) {
       <div class="actions">
         @for (nextStatus of transitions(order.status); track nextStatus) {
           <button class="secondary" type="button" [disabled]="!canTransition()" (click)="transition(order.order_id, nextStatus)">
-            Mark {{ nextStatus }}
+            {{ text('Mark ' + nextStatus) }}
           </button>
         }
       </div>
@@ -98,43 +113,51 @@
 }
 
 @if (!data.loading() && !data.error()) {
+  <section class="panel heading" aria-labelledby="cashback-title">
+    <div>
+      <h2 id="cashback-title">{{ text('Demo cashback') }}</h2>
+      <p class="hint">{{ text('{rate}% on delivered orders, rounded down to whole virtual points.', {rate: demoCashbackRate}) }}</p>
+    </div>
+    <p class="total"><span>{{ text('Balance in points') }}</span><strong>{{ demoBonusBalance() | number:'1.0-0' }}</strong></p>
+  </section>
+
   <div class="catalog-toolbar">
-    <label>Filter by status
+    <label>{{ text('Filter by status') }}
       <select [ngModel]="status()" (ngModelChange)="status.set($event)">
-        <option value="">All statuses</option>
+        <option value="">{{ text('All statuses') }}</option>
         @for (status of statuses; track status) {
-          <option [value]="status">{{ status }}</option>
+          <option [value]="status">{{ text(status) }}</option>
         }
       </select>
     </label>
-    <p class="result-count" role="status">{{ filtered().length }} of {{ data.orders().length }} orders</p>
+    <p class="result-count" role="status">{{ text('{count} of {total} orders', {count: filtered().length, total: data.orders().length}) }}</p>
   </div>
   <div class="table-wrap">
-    <table aria-label="Purchase orders">
+    <table [attr.aria-label]="text('Purchase orders')">
       <thead>
         <tr>
-          <th scope="col">Order</th>
-          <th scope="col">Supplier</th>
-          <th scope="col">Date</th>
-          <th scope="col">Status</th>
-          <th scope="col">Total</th>
-          <th scope="col">Details</th>
+          <th scope="col">{{ text('Order') }}</th>
+          <th scope="col">{{ text('Supplier') }}</th>
+          <th scope="col">{{ text('Date') }}</th>
+          <th scope="col">{{ text('Status') }}</th>
+          <th scope="col">{{ text('Total') }}</th>
+          <th scope="col">{{ text('Details') }}</th>
         </tr>
       </thead>
       <tbody>
         @for (order of filtered(); track order.order_id) {
           <tr>
-            <td><span class="mobile-label" aria-hidden="true">Order</span>#{{ order.order_id }}</td>
-            <td><span class="mobile-label" aria-hidden="true">Supplier</span>{{ supplierName(order.supplier_id) }}</td>
-            <td><span class="mobile-label" aria-hidden="true">Date</span>{{ order.order_date }}</td>
-            <td><span class="mobile-label" aria-hidden="true">Status</span><span class="badge" [attr.data-status]="order.status">{{ order.status }}</span></td>
-            <td class="money"><span class="mobile-label" aria-hidden="true">Total</span>{{ total(order.order_id) | number: "1.2-2" }} ₸</td>
+            <td><span class="mobile-label" aria-hidden="true">{{ text('Order') }}</span>#{{ order.order_id }}</td>
+            <td><span class="mobile-label" aria-hidden="true">{{ text('Supplier') }}</span>{{ supplierName(order.supplier_id) }}</td>
+            <td><span class="mobile-label" aria-hidden="true">{{ text('Date') }}</span>{{ order.order_date }}</td>
+            <td><span class="mobile-label" aria-hidden="true">{{ text('Status') }}</span><span class="badge" [attr.data-status]="order.status">{{ text(order.status) }}</span></td>
+            <td class="money"><span class="mobile-label" aria-hidden="true">{{ text('Total') }}</span>{{ total(order) | number: "1.2-2" }} ₸</td>
             <td class="order-view">
-              <button class="secondary" type="button" (click)="viewOrder(order.order_id)" [attr.aria-label]="'View order ' + order.order_id">View</button>
+              <button class="secondary" type="button" (click)="viewOrder(order.order_id)" [attr.aria-label]="text('View order {id}', {id: order.order_id})">{{ text('View') }}</button>
             </td>
           </tr>
         } @empty {
-          <tr><td class="empty-order-list" colspan="6">{{ status() ? "No orders match this filter." : "There are no purchase orders yet." }}</td></tr>
+          <tr><td class="empty-order-list" colspan="6">{{ text(status() ? 'No orders match this filter.' : 'There are no purchase orders yet.') }}</td></tr>
         }
       </tbody>
     </table>
