@@ -93,6 +93,20 @@ PostgreSQL stores the four main business tables: **products**, **suppliers**, **
 
 Git transfers the versioned data and setup code; it does not transfer a running database. Existing populated databases are preserved. See the [database setup guide](docs/DEVELOPMENT.md#native-database-explicitly-isolated) and [demo order synchronization design](docs/DEMO_ORDER_SYNC_DESIGN.md) before synchronizing data.
 
+## Docker on Windows and macOS
+
+Install Docker Desktop and start it. From the repository root, create private local secrets once with `powershell -File scripts/setup-docker.ps1` on Windows or `bash scripts/setup-docker.sh` on macOS. These scripts preserve an existing `.env`. Then run:
+
+```bash
+docker compose up --build
+```
+
+Open [localhost:4200](http://localhost:4200/) for Angular, [localhost:8000](http://localhost:8000/) for Django, [admin](http://localhost:8000/admin/), [health](http://localhost:8000/health/) or [API documentation](http://localhost:8000/api/docs/). Compose uses a private PostgreSQL volume and initializes the explicitly isolated `jedel_dev` database with 55 fictional products, 4 suppliers, 8 orders and 24 order items on first startup. Repeated startup preserves the data. Never use `docker compose down -v` if the volume contains data you need. Native launchers use the same ports, so stop one environment before starting the other. Optional `JEDEL_FRONTEND_PORT` and `JEDEL_BACKEND_PORT` environment variables change the published ports.
+
+## Updating an Existing Installation
+
+Run `git pull origin main`, then start the existing environment with `.\scripts\start-windows.ps1` on Windows or `bash scripts/start-macos.sh` on macOS. The launcher synchronizes fictional data only when `backend/.env` explicitly sets `JEDEL_ISOLATED_DEVELOPMENT=1`, `DB_NAME=jedel_dev` and `DJANGO_DEBUG=true`. It preserves local records and prints the resulting table counts. A fresh demo contains 55 products, 4 suppliers, 8 orders and 24 order items; open the product catalog to verify them. Existing data or conflicts can change those totals. Partial business schemas and unbound legacy orders require manual review. To preview the isolated operation, run `python manage.py sync_development` from `backend`; add `--apply` to execute it. Other databases are never automatically changed. For another database with existing business tables, `python manage.py add_fictional_products` previews product additions; after review, `python manage.py add_fictional_products --apply --confirm-database <exact-name> --expected-additions <preview-count>` explicitly confirms them. This separate command does not initialize schema or add orders.
+
 ## 🤖 Jedel AI
 
 Open **Jedel AI** in the application to ask questions, search the catalog, compare recorded product prices and availability, and get recommendations. ERP results are based on accessible database records and respect role permissions; recommendations are educational rather than verified external offers or reviews.

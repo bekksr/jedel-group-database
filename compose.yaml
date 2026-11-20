@@ -21,6 +21,8 @@ services:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set DJANGO_SECRET_KEY in .env}
       DB_HOST: db
       DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,[::1],backend
+      CSRF_TRUSTED_ORIGINS: http://localhost:${JEDEL_FRONTEND_PORT:-4200},http://127.0.0.1:${JEDEL_FRONTEND_PORT:-4200}
+      CORS_ALLOWED_ORIGINS: http://localhost:${JEDEL_FRONTEND_PORT:-4200},http://127.0.0.1:${JEDEL_FRONTEND_PORT:-4200}
       DB_NAME: jedel_dev
       DB_USER: jedel_dev
       DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
@@ -34,11 +36,11 @@ services:
       AI_DAILY_CALL_LIMIT: ${AI_DAILY_CALL_LIMIT:-100}
       AI_USER_DAILY_CALL_LIMIT: ${AI_USER_DAILY_CALL_LIMIT:-20}
       AI_CHAT_REQUESTS_PER_MINUTE: ${AI_CHAT_REQUESTS_PER_MINUTE:-5}
-    command: [sh, -c, "python manage.py setup_fresh_demo && python manage.py check_environment && python manage.py runserver 0.0.0.0:8000"]
+    command: [sh, -c, "python manage.py sync_development --apply --skip-unless-isolated && python manage.py check_environment && python manage.py runserver 0.0.0.0:8000"]
     depends_on:
       db:
         condition: service_healthy
-    ports: ["127.0.0.1:18000:8000"]
+    ports: ["127.0.0.1:${JEDEL_BACKEND_PORT:-8000}:8000"]
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/')"]
       interval: 5s
@@ -51,7 +53,7 @@ services:
     depends_on:
       backend:
         condition: service_healthy
-    ports: ["127.0.0.1:14200:4200"]
+    ports: ["127.0.0.1:${JEDEL_FRONTEND_PORT:-4200}:4200"]
     healthcheck:
       test: [CMD, node, -e, "fetch('http://127.0.0.1:4200/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 5s
