@@ -1,5 +1,6 @@
 import { BehaviorSubject } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
+import { signal } from '@angular/core';
 import { Auth } from '../auth';
 import { vi } from 'vitest';
 import { provideHttpClient } from "@angular/common/http";
@@ -17,6 +18,7 @@ import { OrdersPage } from "./orders";
 import { ProductsPage } from "./products";
 import { SuppliersPage } from "./suppliers";
 import { HomePage } from "./home";
+import { PurchaseOrder } from '../models';
 describe("Pages", () => {
   let queryParams: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
   beforeEach(async () => {
@@ -130,6 +132,31 @@ describe("Pages", () => {
     page.items.at(0).patchValue({product_id:1,quantity:2});
     page.editingId.set(42); expect(page.draftTotal()).toBe(20);
     page.editingId.set(null); expect(page.draftTotal()).toBe(198);
+  });
+  it('calculates demo cashback only for delivered orders independently of the status filter', async () => {
+    const fixture = TestBed.createComponent(OrdersPage);
+    const page = fixture.componentInstance;
+    const base = {supplier_id: 1, order_date: '2026-11-20', expected_delivery_date: null};
+    const orders = signal<PurchaseOrder[]>([
+      {...base, order_id: 1, status: 'Delivered', total: 199.99},
+      {...base, order_id: 2, status: 'Approved', total: 305},
+      {...base, order_id: 3, status: 'Cancelled', total: 500},
+      {...base, order_id: 4, status: 'Pending', total: 700},
+    ]);
+    vi.spyOn(page.data, 'mode', 'get').mockReturnValue('api');
+    vi.spyOn(page.data, 'orders').mockImplementation(orders);
+    expect(page.demoBonusBalance()).toBe(1);
+    page.status.set('Cancelled');
+    page.selectedId.set(3);
+    await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('.cashback-reward')).toBeNull();
+    expect(page.demoBonusBalance()).toBe(1);
+
+    orders.update(items => items.map(order => order.order_id === 2 ? {...order, status: 'Delivered'} : order));
+    page.selectedId.set(2);
+    await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('.cashback-reward')?.textContent).toContain('+3');
+    expect(page.demoBonusBalance()).toBe(4);
   });
   it("rejects invalid registration and mismatched passwords then clears passwords", async () => {
     vi.spyOn(TestBed.inject(Auth), "register").mockResolvedValue(undefined);

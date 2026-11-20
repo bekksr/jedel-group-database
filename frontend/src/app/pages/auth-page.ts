@@ -6,9 +6,11 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Auth, safeReturnTo } from '../auth';
 import { apiError } from '../core/data/api-errors';
+import { UiLanguage } from '../core/ui-language';
 type Field = 'name' | 'username' | 'email' | 'password' | 'confirm';
 @Component({imports: [ReactiveFormsModule, RouterLink], templateUrl: './auth-page.html', styleUrl: './auth-page.scss'})
 export class AuthPage {
+  readonly text = inject(UiLanguage).text;
   readonly auth = inject(Auth);
   private readonly notices = inject(Notifications);
   private readonly router = inject(Router);

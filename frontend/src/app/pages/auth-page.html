@@ -1,39 +1,39 @@
 <section class="auth-shell" aria-labelledby="auth-heading">
   <div class="auth-card">
-    <a class="auth-brand" routerLink="/" aria-label="Jedel.Group Home">Jedel<span>.</span>Group</a>
-    <p class="auth-subtitle">ERP Supplier &amp; Purchasing System</p>
-    <div class="auth-tabs" role="group" aria-label="Authentication mode">
-      <button type="button" [class.selected]="mode() === 'login'" [attr.aria-pressed]="mode() === 'login'" [disabled]="busy()" (click)="switchMode('login')">Log in</button>
-      <button type="button" [class.selected]="mode() === 'register'" [attr.aria-pressed]="mode() === 'register'" [disabled]="busy()" (click)="switchMode('register')">Register</button>
+    <a class="auth-brand" routerLink="/" [attr.aria-label]="text('Jedel.Group Home')">Jedel<span>.</span>Group</a>
+    <p class="auth-subtitle">{{ text('ERP Supplier & Purchasing System') }}</p>
+    <div class="auth-tabs" role="group" [attr.aria-label]="text('Authentication mode')">
+      <button type="button" [class.selected]="mode() === 'login'" [attr.aria-pressed]="mode() === 'login'" [disabled]="busy()" (click)="switchMode('login')">{{ text('Log in') }}</button>
+      <button type="button" [class.selected]="mode() === 'register'" [attr.aria-pressed]="mode() === 'register'" [disabled]="busy()" (click)="switchMode('register')">{{ text('Register') }}</button>
     </div>
-    <h1 id="auth-heading">{{mode() === 'login' ? 'Welcome back' : 'Create an account'}}</h1>
-    <p class="auth-intro">{{mode() === 'login' ? 'Log in to your purchasing workspace.' : 'Create your account and get started with Jedel.Group.'}}</p>
-    @if(success()) {<div class="auth-success" role="status">Account created successfully. Welcome to Jedel.Group!</div>}
+    <h1 id="auth-heading">{{ text(mode() === 'login' ? 'Welcome back' : 'Create an account') }}</h1>
+    <p class="auth-intro">{{ text(mode() === 'login' ? 'Log in to your purchasing workspace.' : 'Create your account and get started with Jedel.Group.') }}</p>
+    @if(success()) {<div class="auth-success" role="status">{{ text('Account created successfully. Welcome to Jedel.Group!') }}</div>}
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate [attr.aria-busy]="busy()">
       <fieldset [disabled]="busy()">
       @if(mode() === 'register') {
-        <label for="auth-name">Full name</label><input id="auth-name" formControlName="name" autocomplete="name" maxlength="100" (input)="clearFieldError('name')" [attr.aria-invalid]="!!fieldError('name')" aria-describedby="name-error">
-        <p id="name-error" class="field-error">{{fieldError('name')}}</p>
-        <label for="auth-username">Username</label><input id="auth-username" formControlName="username" autocomplete="username" maxlength="150" (input)="clearFieldError('username')" [attr.aria-invalid]="!!fieldError('username')" aria-describedby="username-error">
-        <p id="username-error" class="field-error">{{fieldError('username')}}</p>
+        <label for="auth-name">{{ text('Full name') }}</label><input id="auth-name" formControlName="name" autocomplete="name" maxlength="100" (input)="clearFieldError('name')" [attr.aria-invalid]="!!fieldError('name')" aria-describedby="name-error">
+        <p id="name-error" class="field-error">{{ text(fieldError('name')) }}</p>
+        <label for="auth-username">{{ text('Username') }}</label><input id="auth-username" formControlName="username" autocomplete="username" maxlength="150" (input)="clearFieldError('username')" [attr.aria-invalid]="!!fieldError('username')" aria-describedby="username-error">
+        <p id="username-error" class="field-error">{{ text(fieldError('username')) }}</p>
       }
-      <label for="auth-email">{{mode() === 'register' ? 'Email address' : 'Email address or username'}}</label>
+      <label for="auth-email">{{ text(mode() === 'register' ? 'Email address' : 'Email address or username') }}</label>
       <input id="auth-email" formControlName="email" [type]="mode() === 'register' ? 'email' : 'text'" [autocomplete]="mode() === 'register' ? 'email' : 'username'" [maxlength]="mode() === 'register' ? 150 : 254" autocapitalize="none" spellcheck="false" (input)="clearFieldError('email')" [attr.aria-invalid]="!!fieldError('email')" aria-describedby="email-error identifier-hint">
-      <p id="email-error" class="field-error">{{fieldError('email')}}</p>
-      @if(mode() === 'login') {<p id="identifier-hint" class="field-hint">Use your email address. Existing accounts can also use their username.</p>}
-      <label for="auth-password">Password</label>
-      <div class="password-field"><input id="auth-password" formControlName="password" [type]="showPassword() ? 'text' : 'password'" [autocomplete]="mode() === 'register' ? 'new-password' : 'current-password'" maxlength="128" (input)="clearFieldError('password')" [attr.aria-invalid]="!!fieldError('password')" aria-describedby="password-error"><button class="visibility" type="button" [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" [attr.aria-pressed]="showPassword()" (click)="showPassword.set(!showPassword())">{{showPassword() ? 'Hide' : 'Show'}}</button></div>
-      <p id="password-error" class="field-error">{{fieldError('password')}}</p>
+      <p id="email-error" class="field-error">{{ text(fieldError('email')) }}</p>
+      @if(mode() === 'login') {<p id="identifier-hint" class="field-hint">{{ text('Use your email address. Existing accounts can also use their username.') }}</p>}
+      <label for="auth-password">{{ text('Password') }}</label>
+      <div class="password-field"><input id="auth-password" formControlName="password" [type]="showPassword() ? 'text' : 'password'" [autocomplete]="mode() === 'register' ? 'new-password' : 'current-password'" maxlength="128" (input)="clearFieldError('password')" [attr.aria-invalid]="!!fieldError('password')" aria-describedby="password-error"><button class="secondary visibility" type="button" [attr.aria-label]="text(showPassword() ? 'Hide password' : 'Show password')" [attr.aria-pressed]="showPassword()" (click)="showPassword.set(!showPassword())">{{ text(showPassword() ? 'Hide' : 'Show') }}</button></div>
+      <p id="password-error" class="field-error">{{ text(fieldError('password')) }}</p>
       @if(mode() === 'register') {
-        <p class="field-hint">Use at least 8 characters and avoid common passwords.</p>
-        <label for="auth-confirm">Confirm password</label><input id="auth-confirm" formControlName="confirm" [type]="showPassword() ? 'text' : 'password'" autocomplete="new-password" maxlength="128" (input)="clearFieldError('confirm')" [attr.aria-invalid]="!!fieldError('confirm')" aria-describedby="confirm-error">
-        <p id="confirm-error" class="field-error">{{fieldError('confirm')}}</p>
+        <p class="field-hint">{{ text('Use at least 8 characters and avoid common passwords.') }}</p>
+        <label for="auth-confirm">{{ text('Confirm password') }}</label><input id="auth-confirm" formControlName="confirm" [type]="showPassword() ? 'text' : 'password'" autocomplete="new-password" maxlength="128" (input)="clearFieldError('confirm')" [attr.aria-invalid]="!!fieldError('confirm')" aria-describedby="confirm-error">
+        <p id="confirm-error" class="field-error">{{ text(fieldError('confirm')) }}</p>
       }
-      @if(error()) {<p class="auth-error" role="alert">{{error()}}</p>}
-      <button class="auth-submit" type="submit" [disabled]="busy()">{{busy() ? 'Please wait...' : mode() === 'login' ? 'Log in' : 'Register'}}</button>
+      @if(error()) {<p class="auth-error" role="alert">{{ text(error()) }}</p>}
+      <button class="auth-submit" type="submit" [disabled]="busy()">{{ text(busy() ? 'Please wait...' : mode() === 'login' ? 'Log in' : 'Register') }}</button>
       </fieldset>
     </form>
-    <p class="auth-switch">{{mode() === 'login' ? 'New to Jedel.Group?' : 'Already have an account?'}} <button type="button" [disabled]="busy()" (click)="switchMode(mode() === 'login' ? 'register' : 'login')">{{mode() === 'login' ? 'Switch to Register' : 'Switch to Log in'}}</button></p>
-    <a class="back-home" routerLink="/">Back to Home</a>
+    <p class="auth-switch">{{ text(mode() === 'login' ? 'New to Jedel.Group?' : 'Already have an account?') }} <button type="button" [disabled]="busy()" (click)="switchMode(mode() === 'login' ? 'register' : 'login')">{{ text(mode() === 'login' ? 'Switch to Register' : 'Switch to Log in') }}</button></p>
+    <a class="back-home" routerLink="/">{{ text('Back to Home') }}</a>
   </div>
 </section>

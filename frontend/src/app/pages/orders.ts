@@ -24,24 +24,36 @@ import { ActivatedRoute, ParamMap } from "@angular/router";
 import { Store } from "../store";
 import { ProductSelector } from '../components/product-selector';
 import { displayProductName } from '../core/data/product-metadata';
+import { UiLanguage } from '../core/ui-language';
 import {
   allowedTransitions,
   localDate,
   ORDER_STATUSES,
   OrderStatus,
   orderTotal,
+  PurchaseOrder,
 } from "../models";
 @Component({selector:"ng-component-orders",
   imports: [WorkspaceStatus, DecimalPipe, FormsModule, ReactiveFormsModule, ProductSelector],
   templateUrl: "./orders.html",
 })
 export class OrdersPage {
+  readonly text = inject(UiLanguage).text;
   readonly data = inject(Store);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
   private readonly orderDetails = viewChild<ElementRef<HTMLElement>>("orderDetails");
   readonly statuses = ORDER_STATUSES;
+  readonly orderStages: Readonly<Partial<Record<OrderStatus, number>>> = {
+    Pending: 1,
+    Approved: 2,
+    Delivered: 3,
+  };
+  readonly demoCashbackRate = 1;
+  readonly demoBonusBalance = computed(() =>
+    this.data.orders().reduce((balance, order) => balance + this.demoBonus(order), 0),
+  );
   readonly transitions = allowedTransitions;
   readonly formOpen = signal(false);
   readonly saving = signal(false);
@@ -114,22 +126,27 @@ export class OrdersPage {
   supplierName(id: number) {
     return (
       this.data.suppliers().find((s) => s.supplier_id === id)?.supplier_name ??
-      "Unknown supplier"
+      this.text('Unknown supplier')
     );
   }
   productName(id: number) {
     return displayProductName(
       this.data.products().find((p) => p.product_id === id)?.product_name ??
-      "Unknown product"
+      this.text('Unknown product')
     );
   }
   orderItems(id: number) {
     return this.data.items().filter((i) => i.order_id === id);
   }
-  total(id: number) {
+  total(order: PurchaseOrder) {
     return this.data.mode === "api"
-      ? (this.data.orders().find((o) => o.order_id === id)?.total ?? 0)
-      : orderTotal(id, this.data.items());
+      ? (order.total ?? 0)
+      : orderTotal(order.order_id, this.data.items());
+  }
+  demoBonus(order: PurchaseOrder): number {
+    return order.status === "Delivered"
+      ? Math.floor(this.total(order) * this.demoCashbackRate / 100)
+      : 0;
   }
   draftTotal() {
     return (

@@ -8,6 +8,7 @@ import { ProductsPage } from './products';
 import { SuppliersPage } from './suppliers';
 import { OrdersPage } from './orders';
 import { AnalyticsPage } from './analytics';
+import { UiLanguage } from '../core/ui-language';
 @Component({imports: [SectionPreview, PublicCatalogPage, ProductsPage, SuppliersPage, OrdersPage, AnalyticsPage], template: `
 @if(section === 'products' && !auth.user()?.capabilities?.read) {<app-public-catalog />} @else if(auth.user()?.capabilities?.read) {
   @switch(section) {
@@ -23,5 +24,7 @@ export class PublicWorkspacePage {
   readonly section = inject(ActivatedRoute).snapshot.data['section'] as string;
 
 }
-@Component({imports: [RouterLink, AccessPrompt], template: `<h1>Access denied</h1><p role="alert">Your assigned role does not permit this operation.</p><a routerLink="/">Return Home</a><app-access-prompt section="" />`})
-export class AccessDeniedPage {}
+@Component({imports: [RouterLink, AccessPrompt], styles: [`app-access-prompt{margin-block-start:var(--section-gap)}`], template: `<h1>{{ text('Access denied') }}</h1><p role="alert">{{ text('Your assigned role does not permit this operation.') }}</p><a routerLink="/">{{ text('Return Home') }}</a><app-access-prompt section="" />`})
+export class AccessDeniedPage {
+  readonly text = inject(UiLanguage).text;
+}

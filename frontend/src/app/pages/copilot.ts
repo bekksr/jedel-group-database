@@ -6,9 +6,11 @@ import { Auth } from '../auth';
 import { CopilotService, CopilotCapabilities, CatalogProduct, SearchResult, Comparison, Inventory, OrderDraft, ChatResult } from '../core/data/copilot.service';
 import { apiError } from '../core/data/api-errors';
 import { displayProductName, displayProductText } from '../core/data/product-metadata';
+import { UiLanguage } from '../core/ui-language';
 
 @Component({selector: 'app-copilot', imports: [FormsModule, RouterLink], templateUrl: './copilot.html', styleUrl: './copilot.scss'})
 export class CopilotPage {
+  readonly text = inject(UiLanguage).text;
   readonly displayName = displayProductName;
   readonly displayText = displayProductText;
   auth = inject(Auth); api = inject(CopilotService);
@@ -66,6 +68,12 @@ export class CopilotPage {
     const result = await this.api.post<SearchResult>('products/search', {query: this.query, category: this.category, match: this.match});
     if (generation === this.generation) this.searchResult.set(result);
   });}
+  clearSearch() {
+    this.query = '';
+    this.category = '';
+    this.match = 'partial';
+    this.searchResult.set(null);
+  }
   choose(product: CatalogProduct) {this.selected.set(product); this.comparison.set(null); this.draft.set(null);}
   async loadFile(event: Event) {
     const file = (event.target as HTMLInputElement).files?.[0];

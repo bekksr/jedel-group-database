@@ -1,33 +1,41 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Product } from '../models';
 import { displayProductName } from '../core/data/product-metadata';
+import { UiLanguage } from '../core/ui-language';
 
 @Component({selector: 'app-product-selector', imports: [FormsModule, DecimalPipe], template: `
-  <div class="product-selector">
-    <label [attr.for]="'product-search-' + index">Product {{index + 1}}</label>
-    <input [id]="'product-search-' + index" type="text" role="combobox" autocomplete="off"
-      [attr.aria-label]="'Product ' + (index + 1)" aria-autocomplete="list" [attr.aria-expanded]="open"
-      [attr.aria-controls]="'product-options-' + index" [attr.aria-activedescendant]="open && filtered.length ? optionId(active) : null"
-      [ngModel]="query" [ngModelOptions]="{standalone:true}" (ngModelChange)="search($event)"
-      (focus)="open = true" (keydown)="key($event)" (blur)="closeLater()" placeholder="Search products">
+  <div class="product-selector" (focusout)="closeOutside($event)">
+    <label [attr.for]="'product-search-' + index">{{ text('Product {number}', {number: index + 1}) }}</label>
+    <div class="search-control">
+      <input #productSearch [id]="'product-search-' + index" type="text" role="combobox" autocomplete="off"
+        aria-autocomplete="list" [attr.aria-expanded]="open"
+        [attr.aria-controls]="'product-options-' + index" [attr.aria-activedescendant]="open && filtered.length ? optionId(active) : null"
+        [ngModel]="query" [ngModelOptions]="{standalone:true}" (ngModelChange)="search($event)"
+        (focus)="open = true" (keydown)="key($event)" [placeholder]="text('Search products')">
+      @if (query) {
+        <button type="button" class="secondary clear-search" [title]="text('Clear search')"
+          [attr.aria-label]="text('Clear search')" (click)="search(''); productSearch.focus()">×</button>
+      }
+    </div>
     @if (selectedProduct; as selected) {
-      <small class="selector-selection">{{selected.unit_price | number:'1.2-2'}} KZT · {{selected.stock_quantity}} in stock</small>
+      <small class="selector-selection">{{selected.unit_price | number:'1.2-2'}} KZT · {{ text('{count} in stock', {count: selected.stock_quantity}) }}</small>
     }
     @if(open) {
       <div class="product-options" role="listbox" [id]="'product-options-' + index">
         @for(product of filtered; track product.product_id; let i = $index) {
           <div role="option" class="product-option" [id]="optionId(i)" [attr.aria-selected]="i === active" (mousedown)="$event.preventDefault()" (click)="choose(product)">
             <span>{{displayName(product.product_name)}}</span>
-            <small>{{product.category || 'Uncategorized'}} · {{product.unit_price | number:'1.2-2'}} KZT · {{product.stock_quantity}} in stock</small>
+            <small>{{ product.category || text('Uncategorized') }} · {{ product.unit_price | number:'1.2-2' }} KZT · {{ text('{count} in stock', {count: product.stock_quantity}) }}</small>
           </div>
-        } @empty {<p class="selector-empty">No matching products.</p>}
+        } @empty {<p class="selector-empty" role="status">{{ text('No matching products.') }}</p>}
       </div>
     }
   </div>
 `})
 export class ProductSelector implements OnChanges {
+  readonly text = inject(UiLanguage).text;
   @Input() products: readonly Product[] = [];
   @Input() selectedId = 0;
   @Input() index = 0;
@@ -40,7 +48,9 @@ export class ProductSelector implements OnChanges {
   optionId(index: number) { return `product-option-${this.index}-${index}`; }
   search(value: string) { this.query = value; this.open = true; this.active = 0; if (this.selectedId) this.selectedIdChange.emit(0); }
   choose(product: Product) { this.query = displayProductName(product.product_name); this.open = false; this.selectedIdChange.emit(product.product_id); }
-  closeLater() { setTimeout(() => { this.open = false; }, 150); }
+  closeOutside(event: FocusEvent) {
+    if (!(event.currentTarget as HTMLElement).contains(event.relatedTarget as Node | null)) this.open = false;
+  }
   key(event: KeyboardEvent) {
     if (event.key === 'Escape') { this.open = false; return; }
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
