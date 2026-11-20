@@ -6,6 +6,8 @@ import json
 import os
 import re
 import secrets
+import shutil
+from pathlib import Path
 import subprocess
 import time
 import urllib.request
@@ -29,7 +31,9 @@ class AdminElements(HTMLParser):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--project', required=True)
-    project = parser.parse_args().project
+    parser.add_argument('--browser', action='store_true', help='Run Playwright against this disposable project')
+    args = parser.parse_args()
+    project = args.project
     if os.getenv('JEDEL_COMPOSE_SMOKE') != '1' or not re.fullmatch(r'jedel-ci-[a-z0-9-]+', project):
         raise SystemExit('Refusing writes outside explicitly opted-in disposable jedel-ci-* project.')
 
@@ -115,6 +119,18 @@ print('Disposable administrator bootstrap verified; credential not displayed.')
         admin_page = AdminElements(); admin_page.feed(response.read().decode('utf-8'))
         assert 'logout-form' in admin_page.form_ids
     print('PASS: fresh Compose registration, session, Basic catalog, no-key local capabilities, restart persistence and administrator authentication.')
+    if args.browser:
+        node = shutil.which('node')
+        frontend = Path(__file__).resolve().parents[1] / 'frontend'
+        playwright = frontend / 'node_modules/@playwright/test/cli.js'
+        if not node or not playwright.is_file():
+            raise SystemExit('Install frontend dependencies and Playwright Chromium before the browser smoke.')
+        browser_env = os.environ.copy()
+        browser_env.update(JEDEL_COMPOSE_BROWSER='1', JEDEL_E2E_URL=base,
+                           JEDEL_E2E_ADMIN=admin_name, JEDEL_E2E_PASSWORD=admin_password)
+        subprocess.run([node, str(playwright), 'test', 'e2e/compose-workflow.spec.ts'],
+                       cwd=frontend, env=browser_env, check=True, timeout=150)
+
 
 
 if __name__ == '__main__':
