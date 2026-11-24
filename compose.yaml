@@ -12,6 +12,23 @@ services:
       interval: 3s
       timeout: 3s
       retries: 20
+  init:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DJANGO_DEBUG: "true"
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set DJANGO_SECRET_KEY in .env}
+      DB_HOST: db
+      DB_NAME: jedel_dev
+      DB_USER: jedel_dev
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      JEDEL_ISOLATED_DEVELOPMENT: "1"
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}
+    command: [sh, -c, "python manage.py sync_development --apply --skip-unless-isolated && python /app/database/apply_app_grants.py"]
+    depends_on:
+      db:
+        condition: service_healthy        
   backend:
     build:
       context: .
@@ -24,8 +41,8 @@ services:
       CSRF_TRUSTED_ORIGINS: http://localhost:${JEDEL_FRONTEND_PORT:-4200},http://127.0.0.1:${JEDEL_FRONTEND_PORT:-4200}
       CORS_ALLOWED_ORIGINS: http://localhost:${JEDEL_FRONTEND_PORT:-4200},http://127.0.0.1:${JEDEL_FRONTEND_PORT:-4200}
       DB_NAME: jedel_dev
-      DB_USER: jedel_dev
-      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      DB_USER: erp_app
+      DB_PASSWORD: ${APP_DB_PASSWORD:?Set APP_DB_PASSWORD in .env}
       JEDEL_ISOLATED_DEVELOPMENT: "1"
       AI_ENABLED: ${AI_ENABLED:-false}
       AI_PROVIDER: ${AI_PROVIDER:-groq}
@@ -36,10 +53,10 @@ services:
       AI_DAILY_CALL_LIMIT: ${AI_DAILY_CALL_LIMIT:-100}
       AI_USER_DAILY_CALL_LIMIT: ${AI_USER_DAILY_CALL_LIMIT:-20}
       AI_CHAT_REQUESTS_PER_MINUTE: ${AI_CHAT_REQUESTS_PER_MINUTE:-5}
-    command: [sh, -c, "python manage.py sync_development --apply --skip-unless-isolated && python manage.py check_environment && python manage.py runserver 0.0.0.0:8000"]
+    command: [sh, -c, "python manage.py check_environment && python manage.py runserver 0.0.0.0:8000"]
     depends_on:
-      db:
-        condition: service_healthy
+      init:
+        condition: service_completed_successfully
     ports: ["127.0.0.1:${JEDEL_BACKEND_PORT:-8000}:8000"]
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/')"]
@@ -50,7 +67,7 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-    depends_on:
+    depends_on: 
       backend:
         condition: service_healthy
     ports: ["127.0.0.1:${JEDEL_FRONTEND_PORT:-4200}:4200"]
