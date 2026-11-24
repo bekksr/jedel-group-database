@@ -1,8 +1,16 @@
 -- Ограниченный пользователь для работы backend (Docker-база jedel_dev).
--- Владелец jedel_dev остаётся для init_development и миграций.
--- Пароль задаётся отдельно: \password erp_app
+-- Владелец jedel_dev выполняет миграции и инициализацию.
+-- Скрипт можно запускать повторно. Пароль передаётся переменной psql:
+--   psql -v app_pw="..." -f app_user_docker.sql
 
-CREATE ROLE erp_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'erp_app') THEN
+    CREATE ROLE erp_app LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION;
+  END IF;
+END $$;
+
+ALTER ROLE erp_app PASSWORD :'app_pw';
 
 GRANT USAGE ON SCHEMA public TO erp_app;
 
