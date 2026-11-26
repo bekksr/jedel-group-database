@@ -12,6 +12,7 @@ describe('fictional product metadata', () => {
     expect(demoProductDescription(first)).not.toBe(demoProductDescription(second));
     expect(demoProductDescription('Notebook Air 13')).toBeUndefined();
     expect(demoProductDescription('[DEMO] Unknown custom product')).toBeUndefined();
+    expect(demoProductDescription('[DEMO] constructor')).toBeUndefined();
     expect(displayProductText('Compare [JEDEL FICTIONAL] Notebook and [DEMO] Monitor')).toBe('Compare Notebook and Monitor');
   });
   it('uses legacy metadata only for the matching id, name and category', () => {
