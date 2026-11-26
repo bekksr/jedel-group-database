@@ -1,5 +1,7 @@
 """Only called within the marked temporary cluster by test_postgres.py."""
 import os
+import json
+from decimal import Decimal
 from pathlib import Path
 import subprocess
 import sys
@@ -23,6 +25,24 @@ finally:
 env = os.environ.copy()
 env.update(DB_NAME='jedel_dev', JEDEL_ISOLATED_DEVELOPMENT='1')
 backend = Path(__file__).resolve().parents[1]
+catalog_path = backend.parent / 'database' / 'shared_catalog.json'
+catalog = json.loads(catalog_path.read_text(encoding='utf-8'))
+expected_products = catalog['products']
+expected_suppliers = catalog['suppliers']
+
+def assert_shared_catalog(cursor):
+    cursor.execute('SELECT count(*) FROM products')
+    assert cursor.fetchone()[0] == len(expected_products), 'Product count differs from the committed shared catalog.'
+    cursor.execute('SELECT count(*) FROM suppliers')
+    assert cursor.fetchone()[0] == len(expected_suppliers) + 1, 'Shared suppliers or local restart sentinel are missing.'
+    for source in expected_products:
+        cursor.execute('SELECT category, unit_price, stock_quantity FROM products WHERE product_name=%s', [source['product_name']])
+        row = cursor.fetchone()
+        assert row is not None, f"Shared product is missing after restart: {source['product_name']}"
+        assert row == (source.get('category'), Decimal(str(source['unit_price'])), source['stock_quantity']), f"Shared product differs after restart: {source['product_name']}"
+    for source in expected_suppliers:
+        cursor.execute('SELECT supplier_name FROM suppliers WHERE email=%s', [source['email']])
+        assert cursor.fetchone() == (source['supplier_name'],), f"Shared supplier is missing after restart: {source['email']}"
 for args in [['migrate', '--plan']]:
     subprocess.run([sys.executable, 'manage.py', *args], cwd=backend, env=env, check=True)
 ports = []
@@ -50,10 +70,10 @@ else:
     subprocess.run(startup, cwd=backend.parent, env=env, check=True, timeout=150)
     after = subprocess.run([sys.executable, 'manage.py', 'shell', '-c', "from django.contrib.auth.models import User; from django.contrib.sessions.models import Session; assert Session.objects.count()==1; print(User.objects.get(username='existing-checkout-user').password)"], cwd=backend, env=env, check=True, capture_output=True, text=True).stdout.splitlines()[-1]
     assert before == after, 'Existing password hash changed'
-# Create fictional sample data explicitly, prove repeatability, then preserve it
-# and a registered Basic User/session across a real temporary server restart.
+# Reapply the current shared catalog twice, then preserve it and a registered
+# User/session across a real temporary PostgreSQL restart.
 for _ in range(2):
-    subprocess.run([sys.executable, 'manage.py', 'seed_demo', '--confirm'], cwd=backend, env=env, check=True)
+    subprocess.run([sys.executable, 'manage.py', 'sync_development', '--apply'], cwd=backend, env=env, check=True)
 expected_users = 1 if os.getenv('JEDEL_VERIFY_NATIVE_SETUP') == '1' else 2
 env['JEDEL_DEV_TEST_PASSWORD'] = secrets.token_urlsafe(40)
 probe = """
@@ -69,22 +89,15 @@ with override_settings(ALLOWED_HOSTS=['testserver']):
 print(json.dumps({'session':client.cookies['sessionid'].value}))
 """
 registration = subprocess.run([sys.executable, 'manage.py', 'shell', '-c', probe], cwd=backend, env=env, check=True, capture_output=True, text=True)
-import json
 env['JEDEL_DEV_TEST_SESSION'] = json.loads(registration.stdout.splitlines()[-1])['session']
 print('Disposable registration, session and no-key local capabilities verified. Session credential retained only in memory.')
 with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:
         cursor.execute("INSERT INTO suppliers (supplier_name, email) VALUES ('Restart sentinel', 'restart@example.test')")
-        cursor.execute("SELECT count(*) FROM products")
-        assert cursor.fetchone()[0] == 55, 'Explicit fictional sample data differs.'
-        cursor.execute('SELECT count(*) FROM purchase_order_items i LEFT JOIN products p ON p.product_id=i.product_id LEFT JOIN purchase_orders o ON o.order_id=i.order_id WHERE p.product_id IS NULL OR o.order_id IS NULL')
-        assert cursor.fetchone()[0] == 0, 'Demo item relationships are invalid.'
-        cursor.execute('SELECT count(*) FROM purchase_orders o LEFT JOIN suppliers s ON s.supplier_id=o.supplier_id WHERE s.supplier_id IS NULL')
-        assert cursor.fetchone()[0] == 0, 'Demo supplier relationships are invalid.'
-        cursor.execute("SELECT count(*) FROM suppliers WHERE supplier_name LIKE '[DEMO] %'"); assert cursor.fetchone()[0] == 4
-        cursor.execute('SELECT count(*) FROM purchase_order_items'); assert cursor.fetchone()[0] == 24
-        cursor.execute("SELECT (SELECT count(*) FROM products), (SELECT count(*) FROM suppliers WHERE supplier_name LIKE '[DEMO] %'), (SELECT count(*) FROM purchase_orders), (SELECT count(*) FROM purchase_order_items)")
-        print('Verified demo PostgreSQL counts (products, suppliers, orders, items):', cursor.fetchone(), flush=True)
+        assert_shared_catalog(cursor)
+        cursor.execute('SELECT count(*) FROM purchase_orders'); assert cursor.fetchone()[0] == 0
+        cursor.execute('SELECT count(*) FROM purchase_order_items'); assert cursor.fetchone()[0] == 0
+        print('Verified current shared catalog and no invented purchasing records.', flush=True)
         cursor.execute("INSERT INTO purchase_orders (supplier_id, order_date, status) SELECT supplier_id, CURRENT_DATE, 'Pending' FROM suppliers WHERE email='restart@example.test'")
 subprocess.run([sys.executable, 'manage.py', 'setup_fresh_demo'], cwd=backend, env=env, check=True)
 with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
@@ -92,7 +105,7 @@ with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
         cursor.execute("SELECT count(*) FROM suppliers WHERE email='restart@example.test'")
         assert cursor.fetchone()[0] == 1, 'Initializer did not preserve existing development rows.'
         cursor.execute('SELECT count(*) FROM auth_group')
-        assert cursor.fetchone()[0] == 6
+        assert cursor.fetchone()[0] == 7
         cursor.execute('SELECT count(*) FROM auth_user')
         assert cursor.fetchone()[0] == expected_users
         cursor.execute('SELECT count(*) FROM django_session')
@@ -110,8 +123,9 @@ with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:
         cursor.execute('SELECT count(*) FROM auth_user'); assert cursor.fetchone()[0] == expected_users
         cursor.execute('SELECT count(*) FROM django_session'); assert cursor.fetchone()[0] == expected_users
-        cursor.execute('SELECT count(*), sum(stock_quantity) FROM products'); assert cursor.fetchone() == (55, sum((i * 13 % 90) + 3 for i in range(55)))
-        cursor.execute('SELECT count(*), count(DISTINCT status) FROM purchase_orders'); assert cursor.fetchone() == (9, 4)
+        assert_shared_catalog(cursor)
+        cursor.execute('SELECT count(*) FROM purchase_orders'); assert cursor.fetchone()[0] == 1
+        cursor.execute('SELECT count(*) FROM purchase_order_items'); assert cursor.fetchone()[0] == 0
 subprocess.run([sys.executable, 'manage.py', 'check_environment'], cwd=backend, env=env, check=True)
 resume = """
 import os
@@ -142,5 +156,5 @@ with psycopg2.connect(dbname='jedel_dev', **kwargs) as connection:
     with connection.cursor() as cursor:
         cursor.execute("SELECT count(*) FROM purchase_orders o JOIN suppliers s ON s.supplier_id=o.supplier_id WHERE s.email='restart@example.test'")
         assert cursor.fetchone()[0] == 1, 'Existing order was not preserved'
-        cursor.execute('SELECT count(*) FROM products'); assert cursor.fetchone()[0] == 55
-print('PASS: fresh initialization, six roles, explicit demo idempotence, registration/session/no-key tools, repeated initialization and real isolated PostgreSQL restart preserve users, sessions and inventory.')
+        assert_shared_catalog(cursor)
+print('PASS: fresh initialization, seven role groups, shared catalog idempotence, registration/session/no-key tools and real isolated PostgreSQL restart preserve shared products, suppliers, users, sessions and local purchasing records.')

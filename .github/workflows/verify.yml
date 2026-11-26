@@ -91,13 +91,13 @@ jobs:
           npx playwright install --with-deps chromium
           cd ../backend
           .venv/bin/python scripts/test_postgres.py apps.purchasing.test_browser
-      - name: Seeded catalog browser regression (Ubuntu)
+      - name: Shared catalog browser regression (Ubuntu)
         if: runner.os == 'Linux'
         shell: bash
         env:
           JEDEL_BROWSER_TESTS: '1'
-          JEDEL_E2E_REAL_DEMO: '1'
-          JEDEL_E2E_GREP: actual seeded catalog
+          JEDEL_E2E_SHARED_CATALOG: '1'
+          JEDEL_E2E_GREP: actual shared catalog
         run: |
           cd backend
           .venv/bin/python scripts/test_postgres.py apps.purchasing.test_browser

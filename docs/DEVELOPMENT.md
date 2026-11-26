@@ -1,4 +1,4 @@
-> Current registration policy: new accounts activate and log in immediately as Basic User, without private business access. Old inactive accounts remain manual-review only. Current diagnostics show existing jedel_group_db auth migrations already applied; do not replay older approval/setup instructions blindly. See [the current report](AUTO_REGISTRATION_REPORT.md).
+> Current registration policy: new accounts activate and log in immediately with the User role. User can read the catalog and orders, create orders and use Jedel AI; order approval and administration remain with higher roles. Old inactive accounts remain manual-review only. Do not replay older approval/setup instructions blindly.
 
 # Team development setup
 
@@ -14,10 +14,10 @@ From the repository root:
 git clone https://github.com/bekksr/jedel-group-database.git
 cd jedel-group-database
 cp .env.example .env
-python -c "import secrets; print(secrets.token_urlsafe(48)); print(secrets.token_urlsafe(48))"
+python -c "import secrets; print(secrets.token_urlsafe(48)); print(secrets.token_urlsafe(48)); print(secrets.token_urlsafe(48))"
 ```
 
-On Windows use `Copy-Item .env.example .env` and `py -3.13` if `python` is unavailable. Put independently generated values into POSTGRES_PASSWORD and DJANGO_SECRET_KEY in .env. Do not share them in chat or commit them. Compose rejects empty values.
+On Windows use `Copy-Item .env.example .env` and `py -3.13` if `python` is unavailable. Put the three independently generated values into POSTGRES_PASSWORD, APP_DB_PASSWORD and DJANGO_SECRET_KEY, in that order. APP_DB_PASSWORD is the restricted application database user's password. Do not share them in chat or commit them. Compose rejects empty values.
 
 ```sh
 docker compose up --build
@@ -31,7 +31,7 @@ docker compose exec backend python manage.py createsuperuser
 
 This interactive local command is the explicit bootstrap authority. Choose your own username, email and password. No default users or passwords exist.
 
-Open frontend http://localhost:4200/login, backend http://localhost:8000/, admin http://localhost:8000/admin/, API http://localhost:8000/api/, readiness http://localhost:8000/health/. Register through Account ? Register for an active Basic User session. The superuser assigns any authorized business role separately; old inactive accounts still require manual review. Ordinary team members should not receive Staff or Superuser. The same account can sign into Angular. Group membership takes effect on the next API request.
+Open frontend http://localhost:4200/login, backend http://localhost:8000/, admin http://localhost:8000/admin/, API http://localhost:8000/api/, readiness http://localhost:8000/health/. Register through Account → Register for an active User session. The superuser assigns higher roles when authorized; old inactive accounts still require manual review. Ordinary team members should not receive Staff or Superuser. The same account can sign into Angular. Group membership takes effect on the next API request.
 
 Stop with Ctrl+C or `docker compose down`. Restart with `docker compose up`. The postgres_data volume persists. Do not use `down -v` unless you deliberately intend to destroy your isolated development database. The db service has no host port and cannot connect to your existing PostgreSQL service. Docker does not import historical records.
 

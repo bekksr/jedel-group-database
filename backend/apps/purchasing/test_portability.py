@@ -9,6 +9,19 @@ from .models import Product, Supplier, PurchaseOrder, PurchaseOrderItem
 
 
 class PortabilityTests(TestCase):
+    def test_compose_bootstrap_has_app_password_and_shared_catalog_rehearsal(self):
+        root = Path(__file__).resolve().parents[3]
+        env_template = (root / '.env.example').read_text(encoding='utf-8')
+        self.assertRegex(env_template, r'(?m)^APP_DB_PASSWORD=$')
+        for name in ('setup-docker.ps1', 'setup-docker.sh'):
+            script = (root / 'scripts' / name).read_text(encoding='utf-8')
+            self.assertIn('APP_DB_PASSWORD', script)
+            self.assertIn('.env', script)
+        rehearsal = (root / 'backend' / 'scripts' / 'verify_development.py').read_text(encoding='utf-8')
+        self.assertIn('shared_catalog.json', rehearsal)
+        self.assertIn('sync_development', rehearsal)
+        self.assertNotIn("'seed_demo'", rehearsal)
+
     def test_committed_schema_dump_contains_no_copy_rows(self):
         dump = (Path(__file__).resolve().parents[3] / 'database' / 'dumps' / 'jedel_group_db.sql').read_text(encoding='utf-8')
         lines = dump.splitlines()
