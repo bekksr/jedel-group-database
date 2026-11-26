@@ -39,10 +39,17 @@ export class DemoDataService implements ErpData {
   readonly lowStockThreshold = this.thresholdState.asReadonly();
   readonly loading = signal(false).asReadonly();
   readonly error = signal("").asReadonly();
-  private nextSupplierId = 4;
-  private nextProductId = 6;
-  private nextOrderId = 4;
-  private nextItemId = 7;
+  private nextSupplierId = this.nextId(SEED_SUPPLIERS, "supplier_id");
+  private nextProductId = this.nextId(SEED_PRODUCTS, "product_id");
+  private nextOrderId = this.nextId(SEED_PURCHASE_ORDERS, "order_id");
+  private nextItemId = this.nextId(SEED_PURCHASE_ORDER_ITEMS, "item_id");
+
+  private nextId<T extends Record<K, number>, K extends string>(
+    rows: readonly T[],
+    key: K,
+  ): number {
+    return rows.reduce((max, row) => Math.max(max, row[key]), 0) + 1;
+  }
 
   saveSupplier(value: Omit<Supplier, "supplier_id">, id?: number): void {
     const clean = {
@@ -231,9 +238,9 @@ export class DemoDataService implements ErpData {
     this.orderState.set(structuredClone(SEED_PURCHASE_ORDERS));
     this.itemState.set(structuredClone(SEED_PURCHASE_ORDER_ITEMS));
     this.thresholdState.set(20);
-    this.nextSupplierId = 4;
-    this.nextProductId = 6;
-    this.nextOrderId = 4;
-    this.nextItemId = 7;
+    this.nextSupplierId = this.nextId(SEED_SUPPLIERS, "supplier_id");
+    this.nextProductId = this.nextId(SEED_PRODUCTS, "product_id");
+    this.nextOrderId = this.nextId(SEED_PURCHASE_ORDERS, "order_id");
+    this.nextItemId = this.nextId(SEED_PURCHASE_ORDER_ITEMS, "item_id");
   }
 }
