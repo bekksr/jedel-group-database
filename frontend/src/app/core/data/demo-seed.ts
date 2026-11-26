@@ -62,350 +62,350 @@ export const SEED_PRODUCTS: readonly Product[] = [
   },
   {
     "product_id": 6,
-    "product_name": "[JEDEL FICTIONAL] Notebook Air 13",
+    "product_name": "Notebook Air 13",
     "category": "Laptops",
     "unit_price": 245000.0,
     "stock_quantity": 3
   },
   {
     "product_id": 7,
-    "product_name": "[JEDEL FICTIONAL] Notebook Pro 14",
+    "product_name": "Notebook Pro 14",
     "category": "Laptops",
     "unit_price": 390000.0,
     "stock_quantity": 16
   },
   {
     "product_id": 8,
-    "product_name": "[JEDEL FICTIONAL] Notebook Work 15",
+    "product_name": "Notebook Work 15",
     "category": "Laptops",
     "unit_price": 315000.0,
     "stock_quantity": 29
   },
   {
     "product_id": 9,
-    "product_name": "[JEDEL FICTIONAL] Notebook Study 14",
+    "product_name": "Notebook Study 14",
     "category": "Laptops",
     "unit_price": 210000.0,
     "stock_quantity": 42
   },
   {
     "product_id": 10,
-    "product_name": "[JEDEL FICTIONAL] Notebook Mobile 16",
+    "product_name": "Notebook Mobile 16",
     "category": "Laptops",
     "unit_price": 470000.0,
     "stock_quantity": 55
   },
   {
     "product_id": 11,
-    "product_name": "[JEDEL FICTIONAL] Monitor 22 FHD",
+    "product_name": "Monitor 22 FHD",
     "category": "Monitors",
     "unit_price": 62000.0,
     "stock_quantity": 68
   },
   {
     "product_id": 12,
-    "product_name": "[JEDEL FICTIONAL] Monitor 24 FHD",
+    "product_name": "Monitor 24 FHD",
     "category": "Monitors",
     "unit_price": 78000.0,
     "stock_quantity": 81
   },
   {
     "product_id": 13,
-    "product_name": "[JEDEL FICTIONAL] Monitor 27 QHD",
+    "product_name": "Monitor 27 QHD",
     "category": "Monitors",
     "unit_price": 145000.0,
     "stock_quantity": 4
   },
   {
     "product_id": 14,
-    "product_name": "[JEDEL FICTIONAL] Monitor 32 UHD",
+    "product_name": "Monitor 32 UHD",
     "category": "Monitors",
     "unit_price": 235000.0,
     "stock_quantity": 17
   },
   {
     "product_id": 15,
-    "product_name": "[JEDEL FICTIONAL] Monitor 29 Wide",
+    "product_name": "Monitor 29 Wide",
     "category": "Monitors",
     "unit_price": 175000.0,
     "stock_quantity": 30
   },
   {
     "product_id": 16,
-    "product_name": "[JEDEL FICTIONAL] Wireless Mouse",
+    "product_name": "Wireless Mouse",
     "category": "Accessories",
     "unit_price": 6500.0,
     "stock_quantity": 43
   },
   {
     "product_id": 17,
-    "product_name": "[JEDEL FICTIONAL] USB Keyboard",
+    "product_name": "USB Keyboard",
     "category": "Accessories",
     "unit_price": 8500.0,
     "stock_quantity": 56
   },
   {
     "product_id": 18,
-    "product_name": "[JEDEL FICTIONAL] Webcam HD",
+    "product_name": "Webcam HD",
     "category": "Accessories",
     "unit_price": 19000.0,
     "stock_quantity": 69
   },
   {
     "product_id": 19,
-    "product_name": "[JEDEL FICTIONAL] USB Hub",
+    "product_name": "USB Hub",
     "category": "Accessories",
     "unit_price": 12500.0,
     "stock_quantity": 82
   },
   {
     "product_id": 20,
-    "product_name": "[JEDEL FICTIONAL] Laptop Stand",
+    "product_name": "Laptop Stand",
     "category": "Accessories",
     "unit_price": 15500.0,
     "stock_quantity": 5
   },
   {
     "product_id": 21,
-    "product_name": "[JEDEL FICTIONAL] Gigabit Router",
+    "product_name": "Gigabit Router",
     "category": "Networking",
     "unit_price": 32000.0,
     "stock_quantity": 18
   },
   {
     "product_id": 22,
-    "product_name": "[JEDEL FICTIONAL] Wi-Fi Access Point",
+    "product_name": "Wi-Fi Access Point",
     "category": "Networking",
     "unit_price": 45000.0,
     "stock_quantity": 31
   },
   {
     "product_id": 23,
-    "product_name": "[JEDEL FICTIONAL] Network Switch 8 Port",
+    "product_name": "Network Switch 8 Port",
     "category": "Networking",
     "unit_price": 28000.0,
     "stock_quantity": 44
   },
   {
     "product_id": 24,
-    "product_name": "[JEDEL FICTIONAL] Network Switch 24 Port",
+    "product_name": "Network Switch 24 Port",
     "category": "Networking",
     "unit_price": 95000.0,
     "stock_quantity": 57
   },
   {
     "product_id": 25,
-    "product_name": "[JEDEL FICTIONAL] Ethernet Cable 5m",
+    "product_name": "Ethernet Cable 5m",
     "category": "Networking",
     "unit_price": 2500.0,
     "stock_quantity": 70
   },
   {
     "product_id": 26,
-    "product_name": "[JEDEL FICTIONAL] SSD 256GB",
+    "product_name": "SSD 256GB",
     "category": "Storage",
     "unit_price": 22000.0,
     "stock_quantity": 83
   },
   {
     "product_id": 27,
-    "product_name": "[JEDEL FICTIONAL] SSD 512GB",
+    "product_name": "SSD 512GB",
     "category": "Storage",
     "unit_price": 35000.0,
     "stock_quantity": 6
   },
   {
     "product_id": 28,
-    "product_name": "[JEDEL FICTIONAL] SSD 1TB",
+    "product_name": "SSD 1TB",
     "category": "Storage",
     "unit_price": 59000.0,
     "stock_quantity": 19
   },
   {
     "product_id": 29,
-    "product_name": "[JEDEL FICTIONAL] USB Drive 64GB",
+    "product_name": "USB Drive 64GB",
     "category": "Storage",
     "unit_price": 6500.0,
     "stock_quantity": 32
   },
   {
     "product_id": 30,
-    "product_name": "[JEDEL FICTIONAL] External Drive 2TB",
+    "product_name": "External Drive 2TB",
     "category": "Storage",
     "unit_price": 58000.0,
     "stock_quantity": 45
   },
   {
     "product_id": 31,
-    "product_name": "[JEDEL FICTIONAL] Laser Printer Mono",
+    "product_name": "Laser Printer Mono",
     "category": "Printers",
     "unit_price": 85000.0,
     "stock_quantity": 58
   },
   {
     "product_id": 32,
-    "product_name": "[JEDEL FICTIONAL] Laser Printer Color",
+    "product_name": "Laser Printer Color",
     "category": "Printers",
     "unit_price": 185000.0,
     "stock_quantity": 71
   },
   {
     "product_id": 33,
-    "product_name": "[JEDEL FICTIONAL] Inkjet Printer",
+    "product_name": "Inkjet Printer",
     "category": "Printers",
     "unit_price": 68000.0,
     "stock_quantity": 84
   },
   {
     "product_id": 34,
-    "product_name": "[JEDEL FICTIONAL] Document Scanner",
+    "product_name": "Document Scanner",
     "category": "Printers",
     "unit_price": 115000.0,
     "stock_quantity": 7
   },
   {
     "product_id": 35,
-    "product_name": "[JEDEL FICTIONAL] Label Printer",
+    "product_name": "Label Printer",
     "category": "Printers",
     "unit_price": 74000.0,
     "stock_quantity": 20
   },
   {
     "product_id": 36,
-    "product_name": "[JEDEL FICTIONAL] Office Desk",
+    "product_name": "Office Desk",
     "category": "Furniture",
     "unit_price": 78000.0,
     "stock_quantity": 33
   },
   {
     "product_id": 37,
-    "product_name": "[JEDEL FICTIONAL] Ergo Mesh Office Chair",
+    "product_name": "Ergo Mesh Office Chair",
     "category": "Furniture",
     "unit_price": 65000.0,
     "stock_quantity": 46
   },
   {
     "product_id": 38,
-    "product_name": "[JEDEL FICTIONAL] Filing Cabinet",
+    "product_name": "Filing Cabinet",
     "category": "Furniture",
     "unit_price": 89000.0,
     "stock_quantity": 59
   },
   {
     "product_id": 39,
-    "product_name": "[JEDEL FICTIONAL] Meeting Table",
+    "product_name": "Meeting Table",
     "category": "Furniture",
     "unit_price": 155000.0,
     "stock_quantity": 72
   },
   {
     "product_id": 40,
-    "product_name": "[JEDEL FICTIONAL] Mobile Pedestal",
+    "product_name": "Mobile Pedestal",
     "category": "Furniture",
     "unit_price": 42000.0,
     "stock_quantity": 85
   },
   {
     "product_id": 41,
-    "product_name": "[JEDEL FICTIONAL] Paper A4 Box",
+    "product_name": "Paper A4 Box",
     "category": "Office Supplies",
     "unit_price": 12500.0,
     "stock_quantity": 8
   },
   {
     "product_id": 42,
-    "product_name": "[JEDEL FICTIONAL] Notebook Pack",
+    "product_name": "Notebook Pack",
     "category": "Office Supplies",
     "unit_price": 4800.0,
     "stock_quantity": 21
   },
   {
     "product_id": 43,
-    "product_name": "[JEDEL FICTIONAL] Pen Pack",
+    "product_name": "Pen Pack",
     "category": "Office Supplies",
     "unit_price": 3200.0,
     "stock_quantity": 34
   },
   {
     "product_id": 44,
-    "product_name": "[JEDEL FICTIONAL] Stapler",
+    "product_name": "Stapler",
     "category": "Office Supplies",
     "unit_price": 3900.0,
     "stock_quantity": 47
   },
   {
     "product_id": 45,
-    "product_name": "[JEDEL FICTIONAL] Document Folder Pack",
+    "product_name": "Document Folder Pack",
     "category": "Office Supplies",
     "unit_price": 5600.0,
     "stock_quantity": 60
   },
   {
     "product_id": 46,
-    "product_name": "[JEDEL FICTIONAL] Office Headset",
+    "product_name": "Office Headset",
     "category": "Audio",
     "unit_price": 18500.0,
     "stock_quantity": 73
   },
   {
     "product_id": 47,
-    "product_name": "[JEDEL FICTIONAL] Conference Speaker",
+    "product_name": "Conference Speaker",
     "category": "Audio",
     "unit_price": 69000.0,
     "stock_quantity": 86
   },
   {
     "product_id": 48,
-    "product_name": "[JEDEL FICTIONAL] Desktop Speakers",
+    "product_name": "Desktop Speakers",
     "category": "Audio",
     "unit_price": 24000.0,
     "stock_quantity": 9
   },
   {
     "product_id": 49,
-    "product_name": "[JEDEL FICTIONAL] USB Microphone",
+    "product_name": "USB Microphone",
     "category": "Audio",
     "unit_price": 35000.0,
     "stock_quantity": 22
   },
   {
     "product_id": 50,
-    "product_name": "[JEDEL FICTIONAL] Wireless Headphones",
+    "product_name": "Wireless Headphones",
     "category": "Audio",
     "unit_price": 42000.0,
     "stock_quantity": 35
   },
   {
     "product_id": 51,
-    "product_name": "[JEDEL FICTIONAL] UPS 650VA",
+    "product_name": "UPS 650VA",
     "category": "Power",
     "unit_price": 35000.0,
     "stock_quantity": 48
   },
   {
     "product_id": 52,
-    "product_name": "[JEDEL FICTIONAL] UPS 1000VA",
+    "product_name": "UPS 1000VA",
     "category": "Power",
     "unit_price": 58000.0,
     "stock_quantity": 61
   },
   {
     "product_id": 53,
-    "product_name": "[JEDEL FICTIONAL] Surge Protector",
+    "product_name": "Surge Protector",
     "category": "Power",
     "unit_price": 8500.0,
     "stock_quantity": 74
   },
   {
     "product_id": 54,
-    "product_name": "[JEDEL FICTIONAL] Power Strip",
+    "product_name": "Power Strip",
     "category": "Power",
     "unit_price": 5500.0,
     "stock_quantity": 87
   },
   {
     "product_id": 55,
-    "product_name": "[JEDEL FICTIONAL] Laptop Charger",
+    "product_name": "Laptop Charger",
     "category": "Power",
     "unit_price": 16500.0,
     "stock_quantity": 10
