@@ -121,7 +121,10 @@ export class App {
   readonly auth = inject(Auth);
   async refresh() { try { await this.data.refresh(); } catch { /* The workspace displays the error. */ } }
   closeProfile(event: Event) { (event.currentTarget as HTMLElement).closest('details')?.removeAttribute('open'); }
-  visibleLinks() { return this.links; }
+  visibleLinks() {
+    const canUsePrivateWorkspace = !!this.auth.user()?.capabilities?.read;
+    return this.links.filter(link => canUsePrivateWorkspace || !['/analytics', '/ai-assistant'].includes(link.path));
+  }
   readonly loggingOut = signal(false);
   async logout() {
     if (this.loggingOut()) return;

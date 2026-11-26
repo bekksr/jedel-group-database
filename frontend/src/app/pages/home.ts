@@ -1,5 +1,5 @@
 import { Auth } from '../auth';
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { StatCard } from '../components/stat-card';
 import { RouterLink } from '@angular/router';
 import { Store } from '../store';
@@ -23,7 +23,7 @@ import { UiLanguage } from '../core/ui-language';
  } @else {<p class="panel empty-state">{{ text('Dashboard data is unavailable. Refresh the workspace to retrieve current metrics.') }}</p>}}
 }
 <section class="home-shortcuts" aria-labelledby="sections-title"><h2 id="sections-title">{{ text('Explore the workspace') }}</h2><div class="cards">
-@for(link of sections; track link.path) {<article class="panel shortcut"><h3><a [routerLink]="link.path">{{ text(link.title) }}</a></h3><p>{{ text(link.description) }}</p></article>}
+@for(link of visibleSections(); track link.path) {<article class="panel shortcut"><h3><a [routerLink]="link.path">{{ text(link.title) }}</a></h3><p>{{ text(link.description) }}</p></article>}
 </div></section>
 <section class="panel"><h2>{{ text('How purchasing works') }}</h2><ol><li>{{ text('Authorized employees maintain suppliers and prepare Pending orders with captured prices.') }}</li><li>{{ text('Managers approve eligible orders without changing stock.') }}</li><li>{{ text('Confirmed full delivery updates stock and final status atomically, once.') }}</li><li>{{ text('Authorized reports explain commitments and inventory; no retail checkout or payment ledger is implied.') }}</li></ol></section>
 @if(!auth.user()?.capabilities?.read) {<app-access-prompt section="orders" />}
@@ -34,8 +34,9 @@ export class HomePage {
  readonly data=inject(Store); readonly auth=inject(Auth);
  readonly sections=[
   {path:'/products',title:'Products',description:'Browse public product names and categories. Authorized teams manage catalog fields and inventory visibility.'},
-  {path:'/suppliers',title:'Suppliers',description:'Learn supplier-directory practices while private company contacts remain protected.'},
-  {path:'/orders',title:'Orders',description:'Understand Pending, Approved, Delivered and Cancelled procurement states and authorized actions.'},
+  {path:'/suppliers',title:'Suppliers',description:'Browse supplier names. Contact details are available after sign-in.'},
+  {path:'/orders',title:'Orders',description:'Browse read-only purchase order summaries. Creating and changing orders requires an account.'},
   {path:'/analytics',title:'Analytics',description:'Explore report definitions; authorized users see real purchasing commitments, receipts and inventory summaries.'},
  ];
+ readonly visibleSections=computed(()=>{const read=!!this.auth.user()?.capabilities?.read;return this.sections.filter(section=>read||section.path!='/analytics');});
 }

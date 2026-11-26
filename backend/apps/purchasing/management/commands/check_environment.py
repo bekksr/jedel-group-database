@@ -36,7 +36,10 @@ class Command(BaseCommand):
                     raise CommandError('Unapplied managed migrations. Review migrate --plan; do not migrate an existing business database without approval.')
                 from django.contrib.auth.models import Group
                 from apps.purchasing.accounts import ROLES
-                missing_roles = set(ROLES) - set(Group.objects.values_list('name', flat=True))
+                present_roles = set(Group.objects.values_list('name', flat=True))
+                missing_roles = set(ROLES) - present_roles
+                if 'Basic User' in present_roles:
+                    missing_roles.discard('User')
                 if missing_roles:
                     raise CommandError('Missing application roles. Review setup_roles --dry-run; existing databases require approval before writes.')
         except CommandError:
@@ -44,4 +47,4 @@ class Command(BaseCommand):
         except Exception as error:
             raise CommandError('Database readiness failed (' + type(error).__name__ +
                                '). Check PostgreSQL service and private backend/.env credentials. No database changes made.') from None
-        self.stdout.write('READY: PostgreSQL 17, four business tables, auth/session migrations and six roles. Read-only check; no records changed.')
+        self.stdout.write(f'READY: PostgreSQL 17, four business tables, auth/session migrations and {len(ROLES)} application role groups (legacy Basic User is accepted as User). Read-only check; no records changed.')

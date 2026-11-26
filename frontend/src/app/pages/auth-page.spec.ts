@@ -40,7 +40,7 @@ it('submits once, loads the authenticated profile and redirects Home only after 
   const request = http.expectOne('/api/auth/register/'); expect(request.request.body.username).toBe('member'); expect(request.request.body.email).toBe('member@example.test'); expect(request.request.body.password_confirm).toBe('Secure-test-password-928!'); expect(request.request.body.is_staff).toBeUndefined();
   request.flush({detail: 'Account created successfully. Welcome to Jedel.Group!'}, {status: 201, statusText: 'Created'});
   await new Promise(resolve => setTimeout(resolve,0));
-  const profile = {username: 'member@example.test', name: 'Member', email: 'member@example.test', role: 'Basic User', capabilities: {read: false}};
+  const profile = {username: 'member@example.test', name: 'Member', email: 'member@example.test', role: 'User', capabilities: {read: true, manage_catalog: true, create_orders: true}};
   http.expectOne('/api/auth/me/').flush(profile); await pending;
   expect(TestBed.inject(Auth).user()).toEqual(profile); expect(TestBed.inject(Router).url).toBe('/');
   expect(TestBed.inject(Notifications).messages().at(-1)?.message).toBe('Account created successfully. Welcome to Jedel.Group!');

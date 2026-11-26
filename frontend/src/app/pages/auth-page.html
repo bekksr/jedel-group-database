@@ -9,6 +9,7 @@
     <h1 id="auth-heading">{{ text(mode() === 'login' ? 'Welcome back' : 'Create an account') }}</h1>
     <p class="auth-intro">{{ text(mode() === 'login' ? 'Log in to your purchasing workspace.' : 'Create your account and get started with Jedel.Group.') }}</p>
     @if(success()) {<div class="auth-success" role="status">{{ text('Account created successfully. Welcome to Jedel.Group!') }}</div>}
+    @if(passwordResetSuccess()) {<div class="auth-success" role="status">{{ text('Your password has been reset. You can now log in.') }}</div>}
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate [attr.aria-busy]="busy()">
       <fieldset [disabled]="busy()">
       @if(mode() === 'register') {
@@ -21,6 +22,7 @@
       <input id="auth-email" formControlName="email" [type]="mode() === 'register' ? 'email' : 'text'" [autocomplete]="mode() === 'register' ? 'email' : 'username'" [maxlength]="mode() === 'register' ? 150 : 254" autocapitalize="none" spellcheck="false" (input)="clearFieldError('email')" [attr.aria-invalid]="!!fieldError('email')" aria-describedby="email-error identifier-hint">
       <p id="email-error" class="field-error">{{ text(fieldError('email')) }}</p>
       @if(mode() === 'login') {<p id="identifier-hint" class="field-hint">{{ text('Use your email address. Existing accounts can also use their username.') }}</p>}
+      @if(mode() === 'login') {<a class="forgot-password" routerLink="/password-reset">{{ text('Forgot password?') }}</a>}
       <label for="auth-password">{{ text('Password') }}</label>
       <div class="password-field"><input id="auth-password" formControlName="password" [type]="showPassword() ? 'text' : 'password'" [autocomplete]="mode() === 'register' ? 'new-password' : 'current-password'" maxlength="128" (input)="clearFieldError('password')" [attr.aria-invalid]="!!fieldError('password')" aria-describedby="password-error"><button class="secondary visibility" type="button" [attr.aria-label]="text(showPassword() ? 'Hide password' : 'Show password')" [attr.aria-pressed]="showPassword()" (click)="showPassword.set(!showPassword())">{{ text(showPassword() ? 'Hide' : 'Show') }}</button></div>
       <p id="password-error" class="field-error">{{ text(fieldError('password')) }}</p>

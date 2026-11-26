@@ -47,7 +47,7 @@ def readiness():
 
 def reserve_budget(user_id):
     # Failures count too. A shared atomic cache is required across workers.
-    for key, limit in [('global', settings.AI_DAILY_CALL_LIMIT), (str(user_id), settings.AI_USER_DAILY_CALL_LIMIT)]:
+    for key, limit in [(str(user_id), settings.AI_USER_DAILY_CALL_LIMIT), ('global', settings.AI_DAILY_CALL_LIMIT)]:
         name = 'copilot:provider-budget:' + key
         cache.add(name, 0, timeout=86400)
         if cache.incr(name) > limit:

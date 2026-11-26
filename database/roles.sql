@@ -1,40 +1,17 @@
--- Закрыть доступ по умолчанию
-REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC;
-
--- Групповые роли
-CREATE ROLE role_admin    NOLOGIN;
-CREATE ROLE role_manager  NOLOGIN;
-CREATE ROLE role_employee NOLOGIN;
-
--- Пользователи для входа
-CREATE ROLE admin_user    LOGIN IN ROLE role_admin;
-CREATE ROLE manager_user  LOGIN IN ROLE role_manager;
-CREATE ROLE employee_user LOGIN IN ROLE role_employee;
-
-GRANT USAGE ON SCHEMA public TO role_admin, role_manager, role_employee;
-
--- ADMINISTRATOR: полный доступ
-GRANT ALL PRIVILEGES ON ALL TABLES    IN SCHEMA public TO role_admin;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO role_admin;
-
--- PURCHASING MANAGER:
--- UPDATE на products
-GRANT SELECT, INSERT, UPDATE ON
-  suppliers, products, purchase_orders, purchase_order_items
-TO role_manager;
-
--- EMPLOYEE:
-GRANT SELECT (supplier_id, supplier_name)
-  ON suppliers TO role_employee;
-GRANT SELECT (product_id, product_name, category, stock_quantity)
-  ON products TO role_employee;
-GRANT SELECT (order_id, supplier_id, order_date, expected_delivery_date, status)
-  ON purchase_orders TO role_employee;
-GRANT SELECT (item_id, order_id, product_id, quantity)
-  ON purchase_order_items TO role_employee;
-
-
--- Пользователь приложения (Django): права менеджера + удаление позиций
--- при правке Pending-заказа. Пароль задаётся отдельно через \password
-CREATE ROLE erp_app LOGIN IN ROLE role_manager;
-GRANT DELETE ON purchase_order_items TO erp_app;
+-- Application access is assigned to Django groups in apps/purchasing/accounts.py.
+-- PostgreSQL uses one restricted service account (erp_app) for the web process;
+-- the browser's Django role is never mapped to a database login or SET ROLE.
+--
+-- The former role_admin/role_manager/role_employee LOGIN hierarchy was not used
+-- by the application and granted direct writes around Django's workflow checks.
+-- This file is intentionally documentation-only. Do not run it against a DB.
+-- Provision the web service account only with the reviewed grants in
+-- app_user_docker.sql, using the separate database owner credential.
+--
+-- Business-role source of truth:
+--   Basic User             public catalog only
+--   Purchasing Employee   private read, catalog management, create orders
+--   Purchasing Manager    employee access plus approve/deliver/cancel
+--   Analyst / Tester      private read only
+--   System Administrator full application capabilities
+--   Security Administrator account and role administration only

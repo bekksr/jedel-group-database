@@ -52,4 +52,4 @@ class Command(BaseCommand):
         for name, additions in plans:
             group, _ = Group.objects.get_or_create(name=name)
             group.permissions.add(*(permissions[key] for key in additions))
-        self.stdout.write('Six roles ready. User assignments, passwords and staff/superuser flags unchanged.')
+        self.stdout.write(f'{len(ROLES)} roles ready. User assignments, passwords and staff/superuser flags unchanged.')

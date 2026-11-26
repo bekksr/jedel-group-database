@@ -125,7 +125,7 @@ class OrderAdmin(BusinessReadOnly):
         for pk in queryset.order_by('pk').values_list('pk', flat=True):
             try:
                 with transaction.atomic():
-                    transition_order(pk, target)
+                    transition_order(pk, target, actor=request.user)
                     self.log_change(request, self.model.objects.get(pk=pk), 'Workflow transition to ' + target)
                 completed += 1
             except (Conflict, ApiValidationError):

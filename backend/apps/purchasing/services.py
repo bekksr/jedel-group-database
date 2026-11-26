@@ -4,6 +4,9 @@ from decimal import Decimal, InvalidOperation
 from django.db import transaction
 from django.db.models import F
 from django.shortcuts import get_object_or_404
+from django.contrib.admin.models import LogEntry, CHANGE
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.auth import get_user_model
 from rest_framework.exceptions import APIException, ValidationError
 from .models import Supplier, Product, PurchaseOrder, PurchaseOrderItem
 
@@ -42,7 +45,11 @@ def prepare_items(items, previous=None):
         if type(quantity) is not int or not 1 <= quantity <= MAX_INTEGER:
             raise ValidationError({'items': 'Quantities must be positive 32-bit whole numbers.'})
         product = products[item['product_id']]
-        price = item.get('unit_price', previous.get(product.pk, product.unit_price))
+        # New order lines snapshot the catalog price; amended lines retain the
+        # original snapshot for products already on that order.
+        if 'unit_price' in item:
+            raise ValidationError({'items': 'Order prices are set from the catalog.'})
+        price = previous.get(product.pk, product.unit_price)
         try:
             price = Decimal(str(price))
             valid = price.is_finite() and Decimal('0') <= price <= Decimal('99999999.99') and price == price.quantize(Decimal('0.01'))
@@ -54,8 +61,22 @@ def prepare_items(items, previous=None):
     return prepared
 
 
+def _order_log(order, actor, marker):
+    if actor is None or not isinstance(actor, get_user_model()) or actor.pk is None:
+        return
+    ct = ContentType.objects.get_for_model(PurchaseOrder)
+    LogEntry.objects.create(user=actor, content_type=ct, object_id=str(order.pk),
+                            object_repr=f'Purchase order #{order.pk}', action_flag=CHANGE,
+                            change_message=marker)
+
+
+def _order_actor_ids(order, marker):
+    ct = ContentType.objects.get_for_model(PurchaseOrder)
+    return LogEntry.objects.filter(content_type=ct, object_id=str(order.pk), change_message=marker).values_list('user_id', flat=True)
+
+
 @transaction.atomic
-def create_order(*, supplier_id, order_date, expected_delivery_date=None, items):
+def create_order(*, supplier_id, order_date, expected_delivery_date=None, items, actor=None):
     validate_dates(order_date, expected_delivery_date)
     supplier = Supplier.objects.select_for_update().filter(pk=supplier_id).first()
     if supplier is None:
@@ -63,6 +84,7 @@ def create_order(*, supplier_id, order_date, expected_delivery_date=None, items)
     prepared = prepare_items(items)
     order = PurchaseOrder.objects.create(supplier=supplier, order_date=order_date, expected_delivery_date=expected_delivery_date)
     PurchaseOrderItem.objects.bulk_create([PurchaseOrderItem(order=order, **item) for item in prepared])
+    _order_log(order, actor, 'jedel.order.created')
     return order
 
 
@@ -91,7 +113,7 @@ def amend_order(order_id, changes):
 
 
 @transaction.atomic
-def transition_order(order_id, target):
+def transition_order(order_id, target, actor=None):
     order = get_object_or_404(PurchaseOrder.objects.select_for_update(), pk=order_id)
     allowed = {
         PurchaseOrder.Status.PENDING: {PurchaseOrder.Status.APPROVED, PurchaseOrder.Status.CANCELLED},
@@ -101,6 +123,14 @@ def transition_order(order_id, target):
         raise Conflict(f'Cannot change an order from {order.status} to {target}.')
     if target == PurchaseOrder.Status.APPROVED and not order.items.exists():
         raise Conflict('An empty order cannot be approved.')
+    if target == PurchaseOrder.Status.APPROVED and actor is not None:
+        creators = _order_actor_ids(order, 'jedel.order.created')
+        if not creators.exists():
+            # Preserve workflow for legacy/token-created orders while making the
+            # missing creator explicit in the audit trail.
+            _order_log(order, actor, 'jedel.order.creator_unknown')
+        elif actor.pk in creators:
+            raise Conflict('The order creator cannot approve their own order.')
     if target == PurchaseOrder.Status.DELIVERED:
         lines = list(order.items.order_by('product_id'))
         if not lines:
@@ -116,4 +146,8 @@ def transition_order(order_id, target):
                 raise Conflict('Inventory changed; delivery was rolled back.')
     order.status = target
     order.save(update_fields=['status'])
+    if target == PurchaseOrder.Status.APPROVED:
+        _order_log(order, actor, 'jedel.order.approved')
+    elif target == PurchaseOrder.Status.DELIVERED:
+        _order_log(order, actor, 'jedel.order.delivered')
     return order

@@ -7,12 +7,14 @@ OPERATIONS = {
     '/api/catalog/products/{id}/': {'get': 'Public product detail; no prices or stock'},
     '/api/catalog/categories/': {'get': 'Public product category names only'},
     '/api/auth/csrf/': {'get': 'Obtain a CSRF cookie before login or registration'},
-    '/api/auth/register/': {'post': 'Create an active Basic User and authenticated session'},
+    '/api/auth/register/': {'post': 'Create an active User with catalog, AI and order-preparation access and an authenticated session'},
     '/api/auth/login/': {'post': 'Log in with email or legacy username (identifier) and password; CSRF required'},
     '/api/auth/logout/': {'post': 'Invalidate current session; CSRF required'},
     '/api/auth/me/': {'get': 'Retrieve current account and capabilities'},
     '/api/auth/profile/': {'patch': 'Update name only; CSRF required'},
-    '/api/auth/password/': {'post': 'Change password with current_password and new_password'},
+    '/api/auth/password/': {'post': 'Change password with current_password, new_password, and new_password_confirm'},
+    '/api/auth/password-reset/': {'post': 'Request an email reset link; always returns a generic acknowledgement; rate limited'},
+    '/api/auth/password-reset/confirm/': {'post': 'Confirm uid/token and set a validated password; reset token is single use'},
     '/api/security/accounts/': {'get': 'List accounts eligible for delegated activation'},
     '/api/security/accounts/{id}/': {'patch': 'Change only is_active for eligible employees or analysts'},
     '/api/access/': {'get': 'Retrieve effective account capabilities'},
@@ -46,7 +48,7 @@ def schema(request):
                 operation['responses']['204'] = {'description': 'Deleted'}
             if method == 'post' and path in ('/api/auth/register/', '/api/suppliers/', '/api/products/', '/api/orders/'):
                 operation['responses']['201'] = {'description': 'Created'}
-            if path in ('/api/auth/csrf/', '/api/auth/login/', '/api/auth/register/', '/health/', '/api/health/', '/api/catalog/products/', '/api/catalog/products/{id}/', '/api/catalog/categories/'):
+            if path in ('/api/auth/csrf/', '/api/auth/login/', '/api/auth/register/', '/api/auth/password-reset/', '/api/auth/password-reset/confirm/', '/health/', '/api/health/', '/api/catalog/products/', '/api/catalog/products/{id}/', '/api/catalog/categories/'):
                 operation['security'] = []
             paths[path][method] = operation
     return JsonResponse({'openapi': '3.1.0', 'info': {'title': 'Jedel.Group ERP', 'version': '1.0', 'description': 'Session-authenticated JSON API. See docs/API.md for payloads and permission matrix.'}, 'paths': paths, 'security': [{'session': []}], 'components': {'securitySchemes': {'session': {'type': 'apiKey', 'in': 'cookie', 'name': 'sessionid'}}}})

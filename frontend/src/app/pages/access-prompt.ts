@@ -4,7 +4,7 @@ import { Auth } from '../auth';
 import { UiLanguage } from '../core/ui-language';
 @Component({selector: 'app-access-prompt', imports: [RouterLink], template: `<aside class="panel access-panel" [attr.aria-label]="text('Workspace access')">
   @if(auth.user(); as user) {<h2>{{ text('Need workspace access?') }}</h2><p>{{ text('You are signed in as {role}. This page is available to browse; company records and actions require an assigned business role.', {role: text(user.role)}) }}</p><a class="button secondary" routerLink="/access" [queryParams]="{section: section}">{{ text('Request access') }}</a>}
-  @else {<h2>{{ text('Open your team workspace') }}</h2><p>{{ text('Log in to use features permitted by your assigned role. New Basic User accounts can browse public content; registration does not grant purchasing access.') }}</p><a class="button" routerLink="/auth" [queryParams]="{mode: 'login', returnTo: '/' + section}">{{ text('Log in to workspace') }}</a>}
+  @else {<h2>{{ text('Open your team workspace') }}</h2><p>{{ text('Log in to use features permitted by your assigned role. New User accounts can browse public records and prepare orders; approval and administration remain role-restricted.') }}</p><a class="button" routerLink="/auth" [queryParams]="{mode: 'login', returnTo: '/' + section}">{{ text('Log in to workspace') }}</a>}
 </aside>`, styles: [`:host{display:block}.access-panel{border-left:4px solid var(--accent)}`]})
 export class AccessPrompt {
  readonly text = inject(UiLanguage).text;

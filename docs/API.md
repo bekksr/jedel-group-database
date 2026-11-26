@@ -5,16 +5,18 @@ Canonical business base: /api/. The legacy /api/v1/ business alias remains. Acco
 | Method | Path | Behavior |
 |---|---|---|
 | GET | /api/auth/csrf/ | Retrieve CSRF cookie/token; anonymous allowed |
-| POST | /api/auth/register/ | name, username, email, password, optional password_confirm; persist active Basic User and server session; 201 with detail and user |
+| POST | /api/auth/register/ | name, username, email, password, optional password_confirm; persist active User and server session; 201 with detail and user |
 | POST | /api/auth/login/ | password and exactly one identifier, username or email; case-insensitive email/exact legacy username; CSRF required |
 | GET | /api/auth/me/ | Current identity, role, capabilities, can_administer; 401 means anonymous/expired |
 | POST | /api/auth/logout/ | Invalidate the current session; CSRF required |
 | PATCH | /api/auth/profile/ | Own name only; no role/staff/email escalation |
-| POST | /api/auth/password/ | current_password and new_password; validates and hashes; verifies current password |
+| POST | /api/auth/password/ | current_password, new_password, and new_password_confirm; validates and hashes; verifies current password |
+| POST | /api/auth/password-reset/ | email; always returns the same acknowledgement; sends a single-use email link only for one active account match |
+| POST | /api/auth/password-reset/confirm/ | uid, token, new_password, new_password_confirm; validates a non-expired single-use token and password |
 | GET | /api/catalog/products/ | Public paginated IDs/names/categories; search/category/page/public-field ordering only |
 | GET | /api/catalog/products/{id}/ | Public safe detail; no purchasing price or inventory |
 | GET | /api/catalog/categories/ | Public distinct category names; no prices, stock or contacts |
-| GET | /api/access/ | Protected purchasing workspace capabilities; Basic User uses /auth/me/ instead |
+| GET | /api/access/ | Protected purchasing workspace capabilities; use /auth/me/ for the current user's capabilities |
 | GET/POST | /api/suppliers/ | Protected list/create |
 | GET/PATCH/DELETE | /api/suppliers/{id}/ | Protected read/edit/eligible deletion |
 | GET/POST | /api/products/ | Protected list/create; stock server-controlled |
@@ -33,7 +35,7 @@ Canonical business base: /api/. The legacy /api/v1/ business alias remains. Acco
 | GET | /api/health/ | Liveness only; explicitly does not verify the database |
 | GET | /api/docs/, /api/schema/ | Endpoint descriptions and minimal OpenAPI reference |
 
-Registration returns "Account created successfully. Welcome to Jedel.Group!" only after account and database session persistence. Basic User is immediately active but has no private business/security/admin permissions and no Staff/Superuser flags. The transaction rolls back if initial session persistence fails. Client profile retrieval must succeed before Angular announces welcome/redirects Home. Existing inactive accounts remain inactive and require manual authorized review.
+Registration returns "Account created successfully. Welcome to Jedel.Group!" only after account and database session persistence. User is immediately active with read access, catalog management, order creation and Jedel AI access; order approval and security/admin permissions remain restricted. New registrations use the User group when provisioned, with a compatibility fallback to an empty legacy Basic User group. Existing Purchasing Employee accounts retain their group and receive equivalent capabilities through policy. No account gets Staff/Superuser flags. The transaction rolls back if initial session persistence fails. Client profile retrieval must succeed before Angular announces welcome/redirects Home. Existing inactive accounts remain inactive and require manual authorized review.
 
 Password confirmation/strength and duplicate email checks are server enforced. Email/username namespace collisions are rejected on signup; ambiguous historical identifiers fail closed during login. Both login and registration have independent 10/minute IP cache buckets, including authenticated requests. Passwords/session secrets are never returned or stored in browser localStorage.
 
@@ -43,6 +45,6 @@ Money uses decimal strings and captured item prices; delivery and cancellation u
 
 ## Public catalog policy
 
-The catalog is explicitly approved public information, including anonymous users and Basic User. It accepts no writes (405), and no private prices or stock are selected, serialized, searched or ordered. List responses are {count,next,previous,results}; every product has exactly product_id, product_name, category. Category facets are {results: [category names]}. Unknown filters/field-selection parameters and private ordering fields return 400. Search matches product_name/category only and is bounded to 100 characters; category is bounded to 50. Private business endpoints are unchanged and reject Basic User.
+Public catalog and record endpoints are explicitly allowlisted and read-only. Anonymous users may browse product/category names, supplier names and order summaries with line item names and quantities. Supplier contact details, prices, stock and other private fields are omitted. These public endpoints accept no writes (405) and reject unrecognized filters/field-selection parameters. Authenticated users use protected endpoints according to their capabilities; User and Purchasing Employee can read business data and create orders, while approval remains restricted to higher roles.
 
 No AI search endpoint exists in the inspected application. This catalog implements ordinary keyword/category search only, with no model/provider calls or exposure of purchasing data to an AI service. Any later public AI endpoint must use the same approved-field boundary.

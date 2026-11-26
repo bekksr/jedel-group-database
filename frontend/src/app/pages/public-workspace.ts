@@ -9,7 +9,8 @@ import { SuppliersPage } from './suppliers';
 import { OrdersPage } from './orders';
 import { AnalyticsPage } from './analytics';
 import { UiLanguage } from '../core/ui-language';
-@Component({imports: [SectionPreview, PublicCatalogPage, ProductsPage, SuppliersPage, OrdersPage, AnalyticsPage], template: `
+import { PublicOrdersPage, PublicSuppliersPage } from './public-records';
+@Component({imports: [SectionPreview, PublicCatalogPage, PublicOrdersPage, PublicSuppliersPage, ProductsPage, SuppliersPage, OrdersPage, AnalyticsPage], template: `
 @if(section === 'products' && !auth.user()?.capabilities?.read) {<app-public-catalog />} @else if(auth.user()?.capabilities?.read) {
   @switch(section) {
     @case('products') {<ng-component-products />}
@@ -17,7 +18,7 @@ import { UiLanguage } from '../core/ui-language';
     @case('orders') {<ng-component-orders />}
     @case('analytics') {<ng-component-analytics />}
   }
-} @else {<app-section-preview [section]="section" />
+} @else if(section === 'suppliers') {<app-public-suppliers />} @else if(section === 'orders') {<app-public-orders />} @else {<app-section-preview [section]="section" />
 }`})
 export class PublicWorkspacePage {
   readonly auth = inject(Auth);

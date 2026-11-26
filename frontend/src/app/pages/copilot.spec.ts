@@ -5,16 +5,17 @@ import { provideRouter } from '@angular/router';
 import { beforeEach, afterEach, it, expect } from 'vitest';
 import { CopilotPage } from './copilot';
 import { Auth } from '../auth';
-const basic = {username:'basic',name:'Basic Member',email:'basic@example.test',role:'Basic User',capabilities:{read:false}};
-const publicCaps = {product_search:true,offer_comparison:false,inventory:false,order_draft:false,order_status:false,chat_configured:false,chat_scope:'Public catalog only'};
+const basic = {username:'security',name:'Security Member',email:'security@example.test',role:'Security Administrator',capabilities:{read:false}};
+const employee = {username:'employee',name:'Employee',email:'employee@example.test',role:'Purchasing Employee',capabilities:{read:true}};
+const publicCaps = {product_search:true,offer_comparison:false,inventory:false,order_draft:false,order_status:false,chat_configured:false,chat_allowed:false,chat_scope:'Public catalog only'};
 const product = {product_id:1,product_name:'Real fixture laptop',category:'Electronics'};
 let http: HttpTestingController;
 beforeEach(() => {TestBed.configureTestingModule({providers:[provideHttpClient(),provideHttpClientTesting(),provideRouter([])]}); http=TestBed.inject(HttpTestingController);});
 afterEach(() => http.verify());
 async function setup(authorized=false) {
-  TestBed.inject(Auth).user.set(basic);
+  TestBed.inject(Auth).user.set(authorized ? employee : basic);
   const fixture=TestBed.createComponent(CopilotPage);fixture.detectChanges();
-  http.expectOne('/api/ai/capabilities/').flush({...publicCaps,offer_comparison:authorized,inventory:authorized,order_draft:authorized,order_status:authorized});
+  http.expectOne('/api/ai/capabilities/').flush({...publicCaps,offer_comparison:authorized,inventory:authorized,order_draft:authorized,order_status:authorized,chat_allowed:authorized});
   await fixture.whenStable();
   if(authorized) {http.expectOne('/api/ai/suppliers/').flush({results:[{supplier_id:2,supplier_name:'Authorized supplier'}]});await fixture.whenStable();}
   return fixture;
@@ -26,10 +27,19 @@ it('renders useful public tools without provider or private data requests',async
   expect(text).toContain('Search the product catalog');expect(text).not.toContain('Best offer finder');expect(text).not.toContain('Inventory assistant');
   http.expectNone('/api/ai/suppliers/');
 });
+it('starts a clean chat and clears previous tool results',async()=>{
+  const fixture=await setup(true);const page=fixture.componentInstance;
+  page.messages.set([{kind:'assistant',text:'Previous answer'}]);page.message='follow up';page.consent=true;
+  page.selected.set(product);page.searchResult.set({results:[product],truncated:false,source:'PostgreSQL',filters:{query:'',category:'',match:'partial'}});
+  page.newChat();
+  expect(page.messages()).toEqual([]);expect(page.message).toBe('');expect(page.consent).toBe(false);
+  expect(page.selected()).toBeNull();expect(page.searchResult()).toBeNull();expect(page.toolResultsOpen()).toBe(false);
+});
 it('searches using CSRF and shows grounded product cards and loading state',async()=>{
   const fixture=await setup();fixture.componentInstance.query='laptop';
-  TestBed.inject(Auth).restoring.set(true);fixture.detectChanges();expect(fixture.nativeElement.querySelector('form button').disabled).toBe(true);
-  TestBed.inject(Auth).restoring.set(false);fixture.detectChanges();expect(fixture.nativeElement.querySelector('form button').disabled).toBe(false);
+  const searchButton=fixture.nativeElement.querySelector('.toolbox form button') as HTMLButtonElement;
+  TestBed.inject(Auth).restoring.set(true);fixture.detectChanges();expect(searchButton.disabled).toBe(true);
+  TestBed.inject(Auth).restoring.set(false);fixture.detectChanges();expect(searchButton.disabled).toBe(false);
   const action=fixture.componentInstance.search();fixture.detectChanges();expect(fixture.nativeElement.textContent).toContain('Working');
   await csrf();const request=http.expectOne('/api/ai/products/search/');expect(request.request.body.query).toBe('laptop');
   request.flush({results:[product],truncated:false,source:'PostgreSQL public-safe catalog',filters:{query:'laptop',category:'',match:'partial'}});
@@ -55,14 +65,14 @@ it('clears private results on logout and ignores late private responses',async()
   expect(fixture.componentInstance.inventory()).toBeNull();expect(fixture.nativeElement.textContent).not.toContain('999');expect(fixture.nativeElement.textContent).not.toContain('Best offer finder');
 });
 it('chat uses explicit consent and displays backend-grounded messages',async()=>{
-  const fixture=await setup();fixture.componentInstance.caps.set({...publicCaps,chat_configured:true});fixture.componentInstance.message='Find laptops';fixture.componentInstance.consent=true;
+  const fixture=await setup(true);fixture.componentInstance.caps.set({...publicCaps,chat_configured:true,chat_allowed:true});fixture.componentInstance.message='Find laptops';fixture.componentInstance.consent=true;
   const action=fixture.componentInstance.chat();await csrf();const request=http.expectOne('/api/ai/chat/');expect(request.request.body.consent_to_provider).toBe(true);
   request.flush({results:[product],source:'PostgreSQL',kind:'ai_interpreted_catalog_search',truncated:false,filters:{query:'laptop',category:'',match:'partial'},message:'Found 1 matching catalog records.'});await action;await fixture.whenStable();
   expect(fixture.nativeElement.textContent).toContain('Found 1 matching catalog records.');expect(fixture.nativeElement.textContent).toContain('You:');
 });
 it('labels Groq conversation without sending displayed local results as history',async()=>{
-  const fixture=await setup();const page=fixture.componentInstance;
-  page.caps.set({...publicCaps,chat_configured:true});page.message='Hello';page.consent=true;
+  const fixture=await setup(true);const page=fixture.componentInstance;
+  page.caps.set({...publicCaps,chat_configured:true,chat_allowed:true});page.message='Hello';page.consent=true;
   page.messages.set([{kind:'assistant',text:'Previously shown private local result'}]);
   const action=page.chat();await csrf();const request=http.expectOne('/api/ai/chat/');
   expect(request.request.body.history).toEqual([]);
@@ -99,8 +109,8 @@ it('explains a missing backend SDK and keeps cloud submission disabled',async()=
   expect(fixture.nativeElement.textContent).toContain('Search the product catalog');
 });
 it('keeps message and external consent disabled until session restoration finishes',async()=>{
-  const fixture=await setup();const page=fixture.componentInstance;const auth=TestBed.inject(Auth);
-  page.caps.set({...publicCaps,chat_configured:true});auth.restoring.set(true);
+  const fixture=await setup(true);const page=fixture.componentInstance;const auth=TestBed.inject(Auth);
+  page.caps.set({...publicCaps,chat_configured:true,chat_allowed:true});auth.restoring.set(true);
   await fixture.whenStable();
   expect((fixture.nativeElement.querySelector('textarea[name="message"]') as HTMLTextAreaElement).disabled).toBe(true);
   expect((fixture.nativeElement.querySelector('input[name="consent"]') as HTMLInputElement).disabled).toBe(true);
@@ -133,7 +143,7 @@ it('retries capability and supplier initialization after an unavailable backend'
 });
 it('explains disabled external chat and distinguishes local query permissions',async()=>{
   const fixture=await setup();const page=fixture.componentInstance;
-  page.message='Find Laptop Dell';expect(page.canSend()).toBe(false);expect(page.sendHint()).toContain('not configured');
+  page.message='Find Laptop Dell';expect(page.canSend()).toBe(false);expect(page.sendHint()).toContain('business roles');
   page.message='Which products have low stock?';expect(page.canSend()).toBe(false);expect(page.sendHint()).toContain('assigned role');
   page.caps.set({...publicCaps,inventory:true});expect(page.canSend()).toBe(true);expect(page.sendHint()).toContain('No Groq key');
   page.message='What is inventory?';expect(page.canSend()).toBe(false);
@@ -145,7 +155,7 @@ it('local suggestion enables a real Ask button without external consent',async()
   const fixture=await setup(true);
   const button=[...fixture.nativeElement.querySelectorAll('button')].find((element: Element)=>element.textContent?.includes('Use local low-stock question')) as HTMLButtonElement;
   button.click();await fixture.whenStable();
-  const ask=[...fixture.nativeElement.querySelectorAll('button')].find((element: Element)=>element.textContent==='Ask Jedel AI') as HTMLButtonElement;
+  const ask=[...fixture.nativeElement.querySelectorAll('button')].find((element: Element)=>element.textContent?.includes('Ask Jedel AI')) as HTMLButtonElement;
   expect(ask.disabled).toBe(false);expect(fixture.componentInstance.consent).toBe(false);
   expect(fixture.nativeElement.textContent).toContain('this question runs locally in Django');
 });

@@ -1,9 +1,70 @@
-<section class="copilot-hero"><div><p class="eyebrow">{{ text('Jedel.Group · Procurement workspace') }}</p><h1>Jedel AI</h1><p>{{ text('Find real catalog products, compare approved quotations and review purchasing options. Every tool respects your account permissions.') }}</p></div><span class="badge">{{ text('Read-only tools · No automatic orders') }}</span></section>
-@if (busy()) {<p role="status" class="panel">{{ text('Working…') }}</p>}
+<section class="copilot-hero">
+  <div>
+    <p class="eyebrow">JEDEL.GROUP · PROCUREMENT ASSISTANT</p>
+    <h1>Jedel AI</h1>
+    <p>{{ text('Ask about products, stock and purchasing. Jedel AI uses your authorized project data.') }}</p>
+  </div>
+  @if (caps()?.chat_configured && caps()?.chat_allowed) {
+    <span class="status-pill online"><span class="status-dot"></span>{{ text('Jedel AI is ready.') }}</span>
+  } @else if (caps()) {
+    <span class="status-pill local"><span class="status-dot"></span>{{ text('Local data tools available') }}</span>
+  }
+</section>
+
+@if (busy()) {<p role="status" class="working-status">{{ text('Working…') }}</p>}
 @if (error()) {<div role="alert" class="error panel"><p>{{ text(error()) }}</p><button class="secondary" [disabled]="busy()" (click)="retry()">{{ text('Retry last request') }}</button></div>}
 @if (!caps() && !error()) {<p role="status">{{ text('Loading assistant capabilities…') }}</p>}
-<div class="copilot-grid">
-<section class="panel"><h2>{{ text('Search the product catalog') }}</h2><p class="muted">{{ text('Actual PostgreSQL records. Public fields only; no AI service is required.') }}</p>
+
+<section class="chat-shell panel" aria-label="Jedel AI chat">
+  <header class="chat-header">
+    <div class="assistant-avatar" aria-hidden="true">J</div>
+    <div class="chat-title"><h2>Jedel AI</h2><p>{{ text('Your catalog and authorized ERP assistant') }}</p></div>
+    <button type="button" class="secondary new-chat" [disabled]="busy()" (click)="newChat()">{{ text('New chat') }}</button>
+  </header>
+  @if (!auth.user()) {<div class="login-note"><a routerLink="/auth" [queryParams]="{mode:'login', returnTo:'/ai-assistant'}">{{ text('Log in') }}</a> {{ text('to ask questions and use authorized project data.') }}</div>}
+  @if (caps()?.chat_status === 'missing_sdk') {<p class="availability">{{ text('Jedel AI is unavailable. Contact your administrator for setup assistance.') }}</p>}
+  @if (caps()?.chat_configured && !caps()?.chat_allowed) {<p class="provider-note">{{ text('AI chat is available to signed-in business roles. Public product search remains available without login.') }}</p>}
+  @if (!caps()?.chat_configured) {<p class="provider-note">{{ text('Groq chat is not configured. Catalog filters and authorized local inventory/order questions still work.') }}</p>}
+  <div class="conversation" aria-live="polite" aria-relevant="additions text" role="log">
+    @if (messages().length === 0) {
+      <div class="welcome-state">
+        <div class="welcome-mark" aria-hidden="true">✦</div>
+        <h3>{{ text('How can I help with your purchasing work?') }}</h3>
+        <p>{{ text('Ask in your own words. I can search the shared catalog and, when your role allows, check inventory and order details.') }}</p>
+        <div class="prompt-list">
+          @if (caps()?.inventory) {
+            <button type="button" class="prompt-chip" [disabled]="busy()" (click)="suggestInventory()">{{ text('Use local low-stock question') }}</button>
+            <button type="button" class="prompt-chip" [disabled]="busy()" (click)="suggest('Show inventory levels for category Electronics.')">{{ text('Check Electronics inventory') }}</button>
+          }
+          @if (caps()?.chat_configured && caps()?.chat_allowed) {<button type="button" class="prompt-chip" [disabled]="busy()" (click)="suggest('Find products in category Electronics under 100000 KZT')">{{ text('Find products by category and budget') }}</button>}
+          <button type="button" class="prompt-chip" (click)="toolbox.open = true">{{ text('Browse catalog filters') }}</button>
+        </div>
+      </div>
+    }
+    @for (item of messages(); track $index) {
+      <article class="chat-message" [class.user-message]="item.kind === 'user'" [class.assistant-message]="item.kind === 'assistant'">
+        @if (item.kind === 'assistant') {<span class="message-avatar" aria-hidden="true">✦</span>}
+        <div class="message-body"><strong>{{ item.kind === 'user' ? text('You') + ':' : 'Jedel AI' }}</strong><p>{{ item.kind === 'assistant' ? text(displayText(item.text)) : item.text }}</p>@if (item.source) {<small>{{ text(item.source) }}</small>}</div>
+      </article>
+    }
+    @if (busy()) {<div class="typing-indicator" role="status"><span></span><span></span><span></span><em>{{ text('Jedel AI is thinking…') }}</em></div>}
+  </div>
+  <div class="composer-area">
+    <form class="composer" (ngSubmit)="chat()">
+      <label class="sr-only" for="copilot-message">{{ text('Message Jedel AI') }}</label>
+      <textarea id="copilot-message" name="message" aria-describedby="copilot-send-help" [(ngModel)]="message" (keydown)="onComposerKeydown($event)" [disabled]="busy() || auth.restoring() || !caps() || !auth.user()" maxlength="1000" rows="2" [placeholder]="text('Ask anything about your catalog…')"></textarea>
+      <button class="send-button" [disabled]="busy() || !canSend()" [attr.aria-label]="text('Send message')" [title]="text('Send message')"><span aria-hidden="true">↑</span><span>{{ text('Ask Jedel AI') }}</span></button>
+    </form>
+    @if (caps()?.chat_configured && caps()?.chat_allowed && auth.user()) {<label class="consent-check"><input type="checkbox" name="consent" [(ngModel)]="consent" [disabled]="busy() || auth.restoring() || localMessage()"><span>{{ text('Allow Groq to process general chat messages. Catalog and ERP results stay in this application.') }}</span></label>}
+    <p id="copilot-send-help" class="composer-hint">{{ text(sendHint()) }} <span>{{ text('Enter to send · Shift+Enter for a new line') }}</span></p>
+    <details class="privacy-note"><summary>{{ text('How Jedel AI uses data') }}</summary><p>{{ text('Product search and authorized ERP tools read data locally. Only general chat messages and recent general conversation are sent to Groq when you enable consent. Database results, supplier quotations and private records are never sent to the provider.') }}</p></details>
+  </div>
+</section>
+
+<details #toolbox class="toolbox panel" [open]="toolResultsOpen()">
+  <summary><span>{{ text('More tools') }}</span><small>{{ text('Catalog search · Quotations · Inventory · Order tools') }}</small></summary>
+  <div class="toolbox-content">
+    <section class="panel"><h2>{{ text('Search the product catalog') }}</h2><p class="muted">{{ text('Actual PostgreSQL records. Public fields only; no AI service is required.') }}</p>
 <form (ngSubmit)="search()"><label>{{ text('Product name') }}<input #copilotQuery name="query" [(ngModel)]="query" maxlength="100" [placeholder]="text('e.g. laptop')"></label><label>{{ text('Category') }}<input name="category" [(ngModel)]="category" maxlength="50" [placeholder]="text('Optional exact category')"></label><label>{{ text('Name matching') }}<select [attr.aria-label]="text('Name matching')" name="match" [(ngModel)]="match"><option value="partial">{{ text('Contains name') }}</option><option value="exact">{{ text('Exact name') }}</option></select></label><div class="actions">
     <button [disabled]="busy() || auth.restoring() || !caps()">{{ text('Search catalog') }}</button>
     @if (query || category || match !== 'partial' || searchResult()) {
@@ -27,17 +88,7 @@
   </div>
 }
 </section>
-<section class="panel"><h2>{{ text('Ask in your own words') }}</h2><p class="muted">{{ text('Chat in English or Russian, or ask for authorized local tools. Recent general conversation and your current message may go to Groq; database tool results are not transmitted.') }}</p>
-@if (!auth.user()) {<p><a routerLink="/auth" [queryParams]="{mode:'login', returnTo:'/ai-assistant'}">{{ text('Log in') }}</a>{{ text(' to use optional AI interpretation. Ordinary search remains available.') }}</p>}
-@if (caps()?.chat_configured) {<p class="availability">{{ text('Jedel AI is ready.') }}</p>}
-@if (caps()?.chat_status === 'missing_sdk') {<p class="availability">{{ text('Jedel AI is unavailable. Contact your administrator for setup assistance.') }}</p>}
-@if (!caps()?.chat_configured) {<p class="availability">{{ text('Groq chat is not configured. Catalog filters and authorized local inventory/order questions still work.') }}</p>}
-<div class="conversation" aria-live="polite">@for(item of messages(); track $index) {<div class="chat-message" [class.user-message]="item.kind==='user'"><strong>{{ item.kind === 'user' ? text('You') : 'Jedel AI' }}:</strong><p>{{item.kind === 'assistant' ? text(displayText(item.text)) : item.text}}</p>@if(item.source) {<small>{{ text(item.source) }}</small>}</div>}</div>
-<form (ngSubmit)="chat()"><label>{{ text('Message') }}<textarea [disabled]="busy() || auth.restoring() || !caps() || !auth.user()" name="message" aria-describedby="copilot-send-help" [(ngModel)]="message" maxlength="1000" rows="3" [placeholder]="text('Find laptops in our product catalog.')"></textarea></label><label class="check"><input type="checkbox" name="consent" [(ngModel)]="consent" [disabled]="busy() || auth.restoring() || !auth.user() || !caps()?.chat_configured || localMessage()">{{ text('I agree to send this message and recent general conversation to Groq. Do not include supplier contacts, confidential prices, passwords or other private information. Database results are not sent.') }}</label><button [disabled]="busy() || !canSend()">{{ text('Ask Jedel AI') }}</button></form>
-<p id="copilot-send-help" class="muted">{{ text(sendHint()) }}</p><p class="muted">{{ text('The Groq consent checkbox is only for external interpretation, never for local inventory or order tools.') }}</p>@if(caps()?.inventory) {<button type="button" class="secondary" [disabled]="busy()" (click)="suggestInventory()">{{ text('Use local low-stock question') }}</button>}
-<p class="muted">{{ text('Try: “Show products in the electronics category.” Database results show their source below the answer. Authorized local questions also work without AI: "Which products have low stock?", "Show inventory levels for category Hardware." or "Prepare a purchase order for 20 units of product 1 from supplier 2." Use actual IDs.') }}</p></section>
-</div>
-@if (!caps()?.offer_comparison) {<section class="panel access"><h2>{{ text('Purchasing tools') }}</h2><p>{{ text('Supplier quotations, inventory and company orders require an authorized business role. Your public catalog remains available.') }}</p>@if(auth.user()) {<a routerLink="/access" [queryParams]="{section:'products'}">{{ text('Request access guidance') }}</a>} @else {<a routerLink="/auth" [queryParams]="{returnTo:'/ai-assistant'}">{{ text('Log in for authorized tools') }}</a>}</section>}
+    @if (!caps()?.offer_comparison) {<section class="panel access"><h2>{{ text('Purchasing tools') }}</h2><p>{{ text('Supplier quotations, inventory and company orders require an authorized business role. Your public catalog remains available.') }}</p>@if(auth.user()) {<a routerLink="/access" [queryParams]="{section:'products'}">{{ text('Request access guidance') }}</a>} @else {<a routerLink="/auth" [queryParams]="{returnTo:'/ai-assistant'}">{{ text('Log in for authorized tools') }}</a>}</section>}
 @if (selected(); as product) {<section class="panel selected"><h2>{{ text('Selected: {product}', {product: displayName(product.product_name)}) }}</h2><p>{{ text('Product #{id}', {id: product.product_id}) }} · {{product.category || text('Uncategorized')}}</p>@if(caps()?.offer_comparison || caps()?.order_draft) {<label>{{ text('Required quantity (individual items)') }}<input type="number" min="1" max="1000000" [(ngModel)]="quantity"></label>}</section>}
 @if (caps()?.offer_comparison) {<section class="panel"><h2>{{ text('Best offer finder') }}</h2><p>{{ text('Upload approved supplier quotations for the selected product. No marketplace is queried. Imported values are user-supplied assertions, not independently verified supplier facts. Data is used only for this request.') }}</p>
 <label>{{ text('Quotation CSV') }}<input type="file" accept=".csv,text/csv" (change)="loadFile($event)" [disabled]="busy()"></label><details><summary>{{ text('CSV format and eligibility rules') }}</summary><p>{{ text('UTF-8, up to 64 KiB and 50 rows. Use existing product/supplier IDs, one currency, individual-item units and timezone-aware ISO dates. Every row needs specifications and a source/reference.') }}</p><code>product_id,supplier_id,unit_price,currency,unit,available_quantity,min_order_quantity,delivery_cost,delivery_days,quoted_at,valid_until,source,reference,specifications</code><p>{{ text('Expired quotations and quotations older than 30 days are excluded from ranking. Minimum order, availability and delivery limits are enforced. Taxes are assumed included; verify with your supplier.') }}</p></details>
@@ -90,3 +141,5 @@
 @if(caps()?.order_draft) {<section class="panel"><h2>{{ text('Purchase order assistant') }}</h2><p>{{ text('Prepare a review-only proposal using the selected product and current internal catalog price. No database records will be created.') }}</p><label>{{ text('Supplier') }}<select [attr.aria-label]="text('Supplier')" [(ngModel)]="supplierId"><option [ngValue]="0">{{ text('Choose an authorized supplier') }}</option>@for(supplier of suppliers(); track supplier.supplier_id) {<option [ngValue]="supplier.supplier_id">{{supplier.supplier_name}} (#{{supplier.supplier_id}})</option>}</select></label><button [disabled]="busy() || !selected() || !supplierId" (click)="prepare()">{{ text('Prepare review-only draft') }}</button>
 @if(draft(); as result) {<article class="draft"><h3>{{ text('Draft proposal — not saved') }}</h3><p>{{result.supplier.supplier_name}}</p>@for(item of result.items; track item.product_id) {<p>{{ text('{count} × {product} (#{id}) at {price} = {total} {currency}', {count: item.quantity, product: displayName(item.product_name), id: item.product_id, price: item.unit_price, total: item.subtotal, currency: result.currency}) }}</p>}<p class="source">{{result.source}}</p>@for(warning of result.warnings; track $index) {<p class="warning">{{warning}}</p>}<a routerLink="/orders/new">{{ text('Open the normal order form for review') }}</a></article>}</section>}
 @if(caps()?.order_status) {<section class="panel"><h2>{{ text('Check an existing order') }}</h2><label>{{ text('Purchase order ID') }}<input type="number" min="1" [(ngModel)]="orderId"></label><button [disabled]="busy() || orderId < 1" (click)="orderStatus()">{{ text('Check order status') }}</button>@if(status(); as result) {<p>{{ text('Order #{id}: {status} · PostgreSQL record, read-only', {id: result.order_id, status: text(result.status)}) }}</p>}</section>}
+  </div>
+</details>

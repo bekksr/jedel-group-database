@@ -1,6 +1,7 @@
 import { AccessRequestPage } from './pages/access-prompt';
 import { CopilotPage } from './pages/copilot';
 import { AuthPage } from './pages/auth-page';
+import { PasswordResetConfirmPage, PasswordResetRequestPage } from './pages/password-reset';
 import { PublicWorkspacePage, AccessDeniedPage } from './pages/public-workspace';
 import { capabilityGuard } from './auth';
 import { accountGuard } from './auth';
@@ -11,15 +12,17 @@ import { ProductsPage } from "./pages/products";
 import { SuppliersPage } from "./pages/suppliers";
 import { OrdersPage } from "./pages/orders";
 export const routes: Routes = [
-  {path: 'ai-assistant', component: CopilotPage, title: 'Jedel AI | Jedel.Group'},
+  {path: 'ai-assistant', component: CopilotPage, canActivate: [capabilityGuard], data: {capability: 'read'}, title: 'Jedel AI | Jedel.Group'},
   {path: 'access', component: AccessRequestPage, canActivate: [accountGuard]},
   {path: 'profile', redirectTo: 'settings', pathMatch: 'full'},
   {path: 'access-denied', component: AccessDeniedPage},
-  {path: 'analytics', component: PublicWorkspacePage, data: {section: 'analytics'}},
+  {path: 'analytics', component: PublicWorkspacePage, canActivate: [capabilityGuard], data: {capability: 'read', section: 'analytics'}},
   {path: 'products/new', component: ProductsPage, canActivate: [capabilityGuard], data: {capability: 'manage_catalog', create: true}},
   {path: 'suppliers/new', component: SuppliersPage, canActivate: [capabilityGuard], data: {capability: 'manage_catalog', create: true}},
   {path: 'orders/new', component: OrdersPage, canActivate: [capabilityGuard], data: {capability: 'create_orders', create: true}},
   {path: 'auth', component: AuthPage, title: 'Account | Jedel.Group'},
+  {path: 'password-reset', component: PasswordResetRequestPage, title: 'Reset password | Jedel.Group'},
+  {path: 'password-reset/confirm/:uid/:token', component: PasswordResetConfirmPage, title: 'Choose a new password | Jedel.Group'},
   {path: 'login', redirectTo: redirect => '/auth?mode=login' + (redirect.queryParams['returnTo'] ? '&returnTo=' + encodeURIComponent(redirect.queryParams['returnTo']) : '')},
   {
     path: "settings",

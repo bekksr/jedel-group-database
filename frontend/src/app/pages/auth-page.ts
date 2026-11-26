@@ -21,10 +21,12 @@ export class AuthPage {
   readonly showPassword = signal(false);
   readonly error = signal('');
   readonly success = signal(false);
+  readonly passwordResetSuccess = signal(false);
   readonly serverErrors = signal<Partial<Record<Field, string>>>({});
   readonly form = this.fb.group({name: [''], username: [''], email: [''], password: [''], confirm: ['']});
   constructor() {
     this.route.queryParamMap.pipe(takeUntilDestroyed(inject(DestroyRef))).subscribe(params => {
+      this.passwordResetSuccess.set(params.get('passwordReset') === 'success');
       const mode = params.get('mode') === 'register' || this.route.snapshot.data['mode'] === 'register' ? 'register' : 'login';
       this.setMode(mode);
     });

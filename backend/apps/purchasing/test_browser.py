@@ -106,7 +106,7 @@ class BrowserWorkflowTests(StaticLiveServerTestCase):
         self.assertTrue(applicant.is_active)
         self.assertTrue(applicant.check_password(password))
         self.assertFalse(applicant.is_staff or applicant.is_superuser)
-        self.assertEqual(list(applicant.groups.values_list('name', flat=True)), ['Basic User'])
+        self.assertEqual(list(applicant.groups.values_list('name', flat=True)), ['User'])
         self.assertEqual(Product.objects.get(product_name='Admin browser product').category, 'Admin verified')
         self.assertTrue(Supplier.objects.filter(supplier_name='Browser supplier').exists())
         self.assertEqual(Product.objects.get(product_name='Browser product').stock_quantity, 3)

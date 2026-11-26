@@ -1,6 +1,7 @@
 import os
 import secrets
 from pathlib import Path
+from urllib.parse import urlsplit
 from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -113,8 +114,42 @@ SECURE_REFERRER_POLICY = 'same-origin'
 
 CSRF_TRUSTED_ORIGINS = env_list('CSRF_TRUSTED_ORIGINS', 'http://localhost:4200,http://127.0.0.1:4200' if DEBUG else '')
 
+# Password recovery links always use an explicitly configured frontend origin;
+# they are never derived from the incoming Host header.
+FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'http://localhost:4200' if DEBUG else '').strip().rstrip('/')
+if not FRONTEND_BASE_URL:
+    raise ImproperlyConfigured('Set FRONTEND_BASE_URL to the public frontend origin.')
+frontend_url = urlsplit(FRONTEND_BASE_URL)
+if frontend_url.scheme not in ('http', 'https') or not frontend_url.netloc or frontend_url.username or frontend_url.password or frontend_url.query or frontend_url.fragment:
+    raise ImproperlyConfigured('FRONTEND_BASE_URL must be an absolute http(s) origin without credentials, query, or fragment.')
+if not DEBUG and frontend_url.scheme != 'https':
+    raise ImproperlyConfigured('FRONTEND_BASE_URL must use HTTPS when DJANGO_DEBUG=false.')
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com').strip()
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'true').lower() == 'true'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '').strip()
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'Jedel.Group <noreply@localhost>').strip()
+PASSWORD_RESET_TIMEOUT = int(os.getenv('PASSWORD_RESET_TIMEOUT', '1800'))
+if PASSWORD_RESET_TIMEOUT <= 0:
+    raise ImproperlyConfigured('PASSWORD_RESET_TIMEOUT must be a positive number of seconds.')
+if not DEBUG and not EMAIL_USE_TLS:
+    raise ImproperlyConfigured('EMAIL_USE_TLS must be enabled when DJANGO_DEBUG=false.')
+if not DEBUG and (EMAIL_HOST != 'smtp.gmail.com' or EMAIL_PORT != 587 or not EMAIL_HOST_USER or not EMAIL_HOST_PASSWORD or not DEFAULT_FROM_EMAIL):
+    raise ImproperlyConfigured('Configure Gmail SMTP host, port, account, app password, and sender before production startup.')
+
 AUTHENTICATION_BACKENDS = ['apps.purchasing.account_backend.EmailOrUsernameBackend']
 # Groq-only optional conversation/tool planner; local ERP tools work without it.
+REDIS_URL = os.getenv('REDIS_URL', '').strip()
+if REDIS_URL:
+    CACHES = {'default': {'BACKEND': 'django.core.cache.backends.redis.RedisCache', 'LOCATION': REDIS_URL,
+                          'OPTIONS': {'socket_connect_timeout': 2, 'socket_timeout': 2}}}
+else:
+    # Local development fallback. Set REDIS_URL for shared limits across workers.
+    CACHES = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'jedel-local-cache'}}
+
 AI_ENABLED = os.getenv('AI_ENABLED', 'false').lower() == 'true'
 AI_PROVIDER = os.getenv('AI_PROVIDER', 'groq')
 AI_MODEL = os.getenv('AI_MODEL', 'openai/gpt-oss-20b').strip()

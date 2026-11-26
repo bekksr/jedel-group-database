@@ -140,6 +140,10 @@ class SecurityBoundaryTests(SimpleTestCase):
         env = os.environ.copy()
         env.pop('DJANGO_DEBUG', None)
         env['DJANGO_SECRET_KEY'] = secrets.token_urlsafe(64)
+        env['FRONTEND_BASE_URL'] = 'https://example.test'
+        env['EMAIL_HOST_USER'] = 'test@example.test'
+        env['EMAIL_HOST_PASSWORD'] = 'test-only-not-a-real-secret'
+        env['DEFAULT_FROM_EMAIL'] = 'Jedel Test <test@example.test>'
         script = 'import config.settings as s; assert not s.DEBUG; assert s.SECURE_SSL_REDIRECT; assert s.CSRF_COOKIE_SECURE; assert s.X_FRAME_OPTIONS == "DENY"'
         result = subprocess.run([sys.executable, '-c', script], cwd=Path(__file__).resolve().parents[2], env=env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)

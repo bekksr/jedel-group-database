@@ -87,6 +87,19 @@ npx ng serve
 
 Open the website at [localhost:4200](http://localhost:4200) and the backend at [localhost:8000](http://localhost:8000). For prerequisites, database credentials, Docker setup and troubleshooting, see the [Windows guide](docs/WINDOWS_SETUP.md), [macOS guide](docs/MACOS_SETUP.md) and [development guide](docs/DEVELOPMENT.md).
 
+## Email Password Recovery (Gmail)
+
+Password reset uses Django's single-use reset token, valid for 30 minutes. The API responds identically whether an address is unknown or has multiple matching accounts. Reset links use the configured `FRONTEND_BASE_URL`, never the request Host. Production must use an HTTPS frontend URL and TLS SMTP.
+
+Create a Google App Password for the sending Google account (Google Account → Security → 2-Step Verification → App passwords). Put that app password in local configuration only; do not use your normal Google password. The sender should match `EMAIL_HOST_USER`.
+
+- **Native Windows (PowerShell):** create `backend/.env` from its example only if it does not already exist: `if (!(Test-Path backend/.env)) { Copy-Item backend/.env.example backend/.env }`. Then add or update the mail variables below in `backend/.env`; Django loads it automatically. Do not replace an existing file.
+- **Native macOS (Terminal):** create `backend/.env` from its example only if missing: `test -f backend/.env || cp backend/.env.example backend/.env`. Then add or update the mail variables below in `backend/.env`; Django loads it automatically. Do not replace an existing file.
+- **Docker Compose (Windows or macOS):** create the repository-root `.env` only if missing (`if (!(Test-Path .env)) { Copy-Item .env.example .env }` in PowerShell, or `test -f .env || cp .env.example .env` in Terminal). Add or update the mail variables below there; Compose passes them to Django. For a custom frontend port, set `FRONTEND_BASE_URL` to that browser-visible URL, such as `http://localhost:4201`. Do not replace an existing file.
+- **Production:** configure the same variables in the deployment secret/environment manager, set `DJANGO_DEBUG=false`, and use the HTTPS website URL. Never commit `.env` files or real SMTP credentials.
+
+Required variables: `EMAIL_HOST=smtp.gmail.com`, `EMAIL_PORT=587`, `EMAIL_USE_TLS=true`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`, `FRONTEND_BASE_URL`, and `PASSWORD_RESET_TIMEOUT=1800`. Automated tests use Django's in-memory email backend and send no real messages. To manually verify Gmail delivery, start the backend with its private configuration, submit a registered account email at `/password-reset`, confirm the email arrives, open the link, set a new password, then sign in using the existing username and new password. Delivery must be verified in the running deployment; configuration alone does not prove Gmail accepted the message.
+
 ## 🗄️ Database
 
 PostgreSQL stores the four main business tables: **products**, **suppliers**, **purchase orders** and **purchase order items**. A first-time setup for an explicitly isolated development database initializes the schema and synchronizes the shared catalog from [`database/shared_catalog.json`](database/shared_catalog.json): **55 products and three suppliers**. Each startup checks for missing or changed shared catalog fields, adds or updates those rows, preserves existing stock quantities, and leaves local products and all purchase orders/items intact. Conflicting rows are reported and preserved. Git transfers the versioned catalog and setup code; it does not transfer a running database. Existing populated databases outside the isolated `jedel_dev` setup are never changed automatically. See the [database setup guide](docs/DEVELOPMENT.md#native-database-explicitly-isolated) before synchronizing data.
@@ -124,6 +137,12 @@ Groq-powered conversation requires a privately configured API key. Keep it in lo
 | Kamshat | Testing & Integration |
 
 ## 📚 Documentation
+
+### Roles, public catalog and shared AI limits
+
+Visitors can browse product and category names, supplier names, and order summaries without registering. Guest views omit supplier contact details, inventory, prices and other private purchasing fields; guests cannot create or change orders. Registration creates a normal **User** account with catalog and supplier/order read access, permission to use Jedel AI, and permission to create orders. Order approval and administration remain assigned to higher roles. Existing **Purchasing Employee** accounts retain their role and equivalent User capabilities; legacy **Basic User** accounts are treated as User. Analytics and Jedel AI navigation is hidden from guests and accounts without read access. PostgreSQL uses the restricted `erp_app` service identity; per-person roles are enforced by Django, not by separate SQL logins. `database/roles.sql` is documentation-only; provision a service account only with the reviewed `database/app_user_docker.sql` procedure.
+
+For shared AI quotas across backend workers, run Redis and set `REDIS_URL` in the environment. Docker Compose starts Redis automatically. Native local development can omit `REDIS_URL` and uses a per-process cache until Redis is configured. Do not put Redis credentials into tracked files.
 
 - [Development and database setup](docs/DEVELOPMENT.md)
 - [Windows setup](docs/WINDOWS_SETUP.md) and [macOS setup](docs/MACOS_SETUP.md)

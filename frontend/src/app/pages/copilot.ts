@@ -114,7 +114,7 @@ export class CopilotPage {
   canSend() {
     if (this.auth.restoring() || !this.caps() || !this.auth.user() || !this.message.trim()) return false;
     const local = this.localCapability();
-    return local ? !!this.caps()?.[local] : !!this.caps()?.chat_configured && this.consent;
+    return local ? !!this.caps()?.[local] : !!this.caps()?.chat_configured && !!this.caps()?.chat_allowed && this.consent;
   }
   sendHint() {
     if (this.auth.restoring() || !this.caps()) return 'Wait for session and tool permissions to finish loading.';
@@ -122,11 +122,35 @@ export class CopilotPage {
     if (!this.message.trim()) return 'Enter a question, or choose an available local example below.';
     const local = this.localCapability();
     if (local) return this.caps()?.[local] ? 'Ready: this question runs locally in Django. No Groq key, consent or API credits are needed.' : 'Your assigned role cannot use this local tool. Request access from your administrator; logging in again does not grant permission.';
+    if (!this.caps()?.chat_allowed) return 'AI chat is available to signed-in business roles. Public product search remains available without login.';
     if (!this.caps()?.chat_configured) return 'This wording needs optional AI interpretation, which is not configured. Use catalog filters or one of the supported local questions.';
     if (!this.consent) return 'Select the Groq consent checkbox above to enable Jedel AI. Do not include confidential information.';
     return 'Ready: this message will be sent to the configured Groq provider and uses your Groq account quota; no provider fallback is used.';
   }
   suggestInventory() {this.message = 'Which products have low stock?';}
+  suggest(message: string) {this.message = message;}
+  newChat() {
+    this.messages.set([]);
+    this.chatHistory = [];
+    this.message = '';
+    this.consent = false;
+    this.error.set('');
+    this.clearSearch();
+    this.selected.set(null);
+    this.comparison.set(null);
+    this.inventory.set(null);
+    this.draft.set(null);
+    this.status.set(null);
+  }
+  toolResultsOpen() {
+    return !!(this.searchResult() || this.selected() || this.comparison() || this.inventory() || this.draft() || this.status());
+  }
+  onComposerKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+      event.preventDefault();
+      if (this.canSend()) void this.chat();
+    }
+  }
   chat() {const text = this.message.trim(); if (!text) return; const generation = this.generation; return this.run(async () => {
     const local = this.localMessage();
     const result = await this.api.post<ChatResult>('chat', {message: text, consent_to_provider: this.consent, history: local ? [] : this.chatHistory});

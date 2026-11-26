@@ -25,6 +25,8 @@ urlpatterns = [
     path('api/auth/login/', auth_views.sign_in), path('api/auth/logout/', auth_views.sign_out),
     path('api/auth/me/', auth_views.me), path('api/auth/profile/', auth_views.edit_profile),
     path('api/auth/password/', auth_views.password),
+    path('api/auth/password-reset/', auth_views.password_reset_request),
+    path('api/auth/password-reset/confirm/', auth_views.password_reset_confirm),
     path('api/', include('apps.purchasing.api.urls')),
     path('api/v1/', include('apps.purchasing.api.urls', namespace='purchasing-v1')),
 ]

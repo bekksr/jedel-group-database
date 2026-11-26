@@ -5,7 +5,7 @@ import { Auth } from '../../auth';
 
 export interface CatalogProduct {product_id: number; product_name: string; category: string | null;}
 export interface SearchResult {results: CatalogProduct[]; truncated: boolean; source: string; message?: string; filters: {query: string; category: string; match: string};}
-export interface CopilotCapabilities {product_search: boolean; offer_comparison: boolean; inventory: boolean; order_draft: boolean; order_status: boolean; chat_configured: boolean; chat_scope: string; chat_status?: 'disabled'|'missing_key'|'invalid_configuration'|'missing_sdk'|'configured_unverified';}
+export interface CopilotCapabilities {product_search: boolean; offer_comparison: boolean; inventory: boolean; order_draft: boolean; order_status: boolean; chat_configured: boolean; chat_allowed?: boolean; chat_scope: string; chat_status?: 'disabled'|'missing_key'|'invalid_configuration'|'missing_sdk'|'configured_unverified';}
 export interface Offer {reference: string; supplier_id: number; supplier_name: string; unit_price: string; quantity: number; subtotal: string; delivery_cost: string; total: string; effective_unit_cost: string; currency: string; unit: string; delivery_days: number; available_quantity: number; min_order_quantity: number; source: string; specifications: string; quoted_at: string; valid_until: string | null; eligible: boolean; warnings: string[]; rank?: number;}
 export interface Comparison {results: Offer[]; best_reference: string | null; warnings: string[]; assumptions?: string[]; ranking_reason?: string; imported_at?: string; source_type?: string;}
 export interface Inventory {results: (CatalogProduct & {stock_quantity: number})[]; threshold: number; threshold_basis: string; guidance: string; truncated: boolean;}

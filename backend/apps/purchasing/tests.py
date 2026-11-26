@@ -139,6 +139,26 @@ class BusinessApiTests(FixtureMixin, TestCase):
         self.assertEqual(self.client.get('/api/orders/?status=Pending&search=Test').data['count'], 1)
         self.assertEqual(self.client.get('/api/orders/?status=Delivered').data['count'], 0)
 
+    def test_order_creator_cannot_approve_and_order_price_is_catalog_controlled(self):
+        from django.contrib.auth.models import User, Group
+        creator = User.objects.create_user('order-creator')
+        approver = User.objects.create_user('order-approver')
+        creator.groups.add(Group.objects.get_or_create(name='Purchasing Manager')[0])
+        approver.groups.add(Group.objects.get_or_create(name='Purchasing Manager')[0])
+        self.client.force_authenticate(creator)
+        payload = self.draft()
+        payload['items'] = [{'product_id': self.product.pk, 'quantity': 1}]
+        order = self.client.post('/api/orders/', payload, format='json')
+        self.assertEqual(order.status_code, 201, order.data)
+        self.assertEqual(order.data['items'][0]['unit_price'], '10.25')
+        forged = self.draft(items=[{'product_id': self.product.pk, 'quantity': 1, 'unit_price': '0.01'}])
+        self.assertEqual(self.client.post('/api/orders/', forged, format='json').status_code, 400)
+        self.assertEqual(self.client.post(f"/api/orders/{order.data['order_id']}/approve/", {}, format='json').status_code, 409)
+        self.client.force_authenticate(approver)
+        approved = self.client.post(f"/api/orders/{order.data['order_id']}/approve/", {}, format='json')
+        self.assertEqual(approved.status_code, 200, approved.data)
+        self.assertEqual(approved.data['status'], 'Approved')
+
     def test_all_invalid_order_data_is_rejected_without_partial_records(self):
         invalid = [
             {'supplier_id': 999999}, {'items': []},
@@ -340,7 +360,8 @@ class BusinessApiTests(FixtureMixin, TestCase):
     def test_complete_authenticated_supplier_to_delivery_flow(self):
         from django.contrib.auth.models import User, Group
         client = APIClient()
-        user = User.objects.create_user('workflow-admin', password='Workflow-test-only-943!abcd', is_superuser=True)
+        user = User.objects.create_user('workflow-admin', password='Workflow-test-only-943!abcd')
+        user.groups.add(Group.objects.get_or_create(name='Purchasing Manager')[0])
         client.force_login(user)
         scope = client.get('/api/access/')
         self.assertEqual(scope.status_code, 200); self.assertTrue(scope.data['can_write'])
@@ -351,6 +372,9 @@ class BusinessApiTests(FixtureMixin, TestCase):
         order = client.post('/api/orders/', {'supplier_id': supplier.data['supplier_id'], 'order_date': '2026-11-06', 'items': [{'product_id': product.data['product_id'], 'quantity': 4}]}, format='json')
         self.assertEqual(order.status_code, 201, order.data); pk = order.data['order_id']
         self.assertEqual(order.data['total'], '45.00'); self.assertEqual(order.data['status'], 'Pending')
+        approver = User.objects.create_user('workflow-approver', password='Workflow-test-only-943!abcd')
+        approver.groups.add(Group.objects.get(name='Purchasing Manager'))
+        client.force_login(approver)
         self.assertEqual(client.post(f'/api/orders/{pk}/approve/', {}, format='json').status_code, 200)
         self.assertEqual(client.post(f'/api/orders/{pk}/deliver/', {}, format='json').status_code, 200)
         stock = client.get(f"/api/products/{product.data['product_id']}/")

@@ -4,8 +4,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from ..models import Product
-from .serializers import PublicProductSerializer
+from ..models import Product, Supplier, PurchaseOrder
+from .serializers import PublicProductSerializer, PublicSupplierSerializer, PublicOrderSerializer
 
 PUBLIC_FIELDS = ('product_id', 'product_name', 'category')
 
@@ -43,3 +43,28 @@ class PublicCategoryView(APIView):
             raise ValidationError({'detail': 'This endpoint does not accept filters.'})
         categories = Product.objects.exclude(category__isnull=True).exclude(category='').order_by('category').values_list('category', flat=True).distinct()
         return Response({'results': list(categories)})
+
+
+class PublicRecordsViewSet(viewsets.ReadOnlyModelViewSet):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    http_method_names = ['get', 'head', 'options']
+    filter_backends = []
+
+    def _check_params(self):
+        if set(self.request.query_params) - {'page', 'format'}:
+            raise ValidationError({'detail': 'Only pagination is supported for public records.'})
+
+
+class PublicSupplierViewSet(PublicRecordsViewSet):
+    serializer_class = PublicSupplierSerializer
+    def get_queryset(self):
+        self._check_params()
+        return Supplier.objects.only('supplier_id', 'supplier_name').order_by('supplier_id')
+
+
+class PublicOrderViewSet(PublicRecordsViewSet):
+    serializer_class = PublicOrderSerializer
+    def get_queryset(self):
+        self._check_params()
+        return PurchaseOrder.objects.select_related('supplier').prefetch_related('items__product').order_by('order_id')

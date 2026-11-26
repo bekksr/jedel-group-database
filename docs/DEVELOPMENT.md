@@ -44,7 +44,7 @@ createuser --pwprompt jedel_dev
 createdb --owner=jedel_dev jedel_dev
 ```
 
-Supply connection options (`-h`, `-p`, `-U`) for your separate cluster when necessary. Existing PostgreSQL deployment roles and the application groups are different systems. Do not modify database/roles.sql to enable Django account groups. Runtime needs access to the new Django tables as well as the business tables; use separate owner/runtime credentials for a reviewed production deployment.
+Supply connection options (`-h`, `-p`, `-U`) for your separate cluster when necessary. PostgreSQL service credentials and Django application groups are separate systems: browser roles do not map to SQL logins. `database/roles.sql` and `database/test_roles.sql` are now documentation-only; provision a restricted runtime service identity with `database/app_user_docker.sql` only in an isolated/deployment setup, using separate owner/runtime credentials.
 
 ### Shared catalog updates
 

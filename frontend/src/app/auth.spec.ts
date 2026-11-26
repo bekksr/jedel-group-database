@@ -64,7 +64,7 @@ it('does not overwrite an automatically logged-in account with a late anonymous 
   http.expectOne('/api/auth/csrf/').flush({}); await new Promise(resolve => setTimeout(resolve,0));
   http.expectOne('/api/auth/register/').flush({detail: 'Created'}, {status: 201,statusText: 'Created'});
   await new Promise(resolve => setTimeout(resolve,0));
-  const basic = {...user, role: 'Basic User', capabilities: {read: false}};
+  const basic = {...user, role: 'User', capabilities: {read: true, manage_catalog: true, create_orders: true}};
   http.expectOne('/api/auth/me/').flush(basic); await registering;
   old.flush({}, {status: 401,statusText: 'Unauthorized'}); await restoring;
   expect(auth.user()).toEqual(basic);

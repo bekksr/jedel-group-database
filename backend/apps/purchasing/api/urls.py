@@ -2,12 +2,14 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 from .views import HealthView, SupplierViewSet, ProductViewSet, OrderViewSet, DashboardView, SupplierSpendingView, OrderStatusView, AccessView
 
-from .catalog import PublicProductViewSet, PublicCategoryView
+from .catalog import PublicProductViewSet, PublicCategoryView, PublicSupplierViewSet, PublicOrderViewSet
 from ..copilot import views as copilot
 
 app_name = 'purchasing'
 router = DefaultRouter()
 router.register('catalog/products', PublicProductViewSet, basename='public-product')
+router.register('catalog/suppliers', PublicSupplierViewSet, basename='public-supplier')
+router.register('catalog/orders', PublicOrderViewSet, basename='public-order')
 router.register('suppliers', SupplierViewSet, basename='supplier')
 router.register('products', ProductViewSet, basename='product')
 router.register('orders', OrderViewSet, basename='order')

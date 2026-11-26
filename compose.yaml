@@ -1,4 +1,11 @@
 services:
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 3s
+      timeout: 3s
+      retries: 20
   db:
     image: postgres:17
     environment:
@@ -53,10 +60,21 @@ services:
       AI_DAILY_CALL_LIMIT: ${AI_DAILY_CALL_LIMIT:-100}
       AI_USER_DAILY_CALL_LIMIT: ${AI_USER_DAILY_CALL_LIMIT:-20}
       AI_CHAT_REQUESTS_PER_MINUTE: ${AI_CHAT_REQUESTS_PER_MINUTE:-5}
+      REDIS_URL: redis://redis:6379/0
+      EMAIL_HOST: ${EMAIL_HOST:-smtp.gmail.com}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-true}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-Jedel.Group <noreply@localhost>}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:${JEDEL_FRONTEND_PORT:-4200}}
+      PASSWORD_RESET_TIMEOUT: ${PASSWORD_RESET_TIMEOUT:-1800}
     command: [sh, -c, "python manage.py check_environment && python manage.py runserver 0.0.0.0:8000"]
     depends_on:
       init:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
     ports: ["127.0.0.1:${JEDEL_BACKEND_PORT:-8000}:8000"]
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/')"]

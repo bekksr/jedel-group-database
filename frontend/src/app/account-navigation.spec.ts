@@ -6,7 +6,7 @@ import { App } from './app';
 import { Auth } from './auth';
 import { routes } from './routes';
 import { beforeEach, afterEach, it, expect } from 'vitest';
-const basic = {username: 'basic@example.test', name: 'Basic Member', email: 'basic@example.test', role: 'Basic User', can_administer: false, capabilities: {read: false}};
+const basic = {username: 'security@example.test', name: 'Security Member', email: 'security@example.test', role: 'Security Administrator', can_administer: false, capabilities: {read: false}};
 let http: HttpTestingController;
 beforeEach(() => {TestBed.configureTestingModule({providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter(routes)]}); http = TestBed.inject(HttpTestingController);});
 afterEach(() => http.verify());
@@ -16,7 +16,7 @@ it('preserves team theme controls without replacing Account or storing session c
   const button = fixture.nativeElement.querySelector('button[aria-label="Dark theme"]') as HTMLButtonElement;
   expect(button.getAttribute('aria-pressed')).toBe('false'); button.click(); await fixture.whenStable();
   expect(button.getAttribute('aria-pressed')).toBe('true'); expect(document.documentElement.dataset['theme']).toBe('dark');
-  expect(localStorage.getItem('jedel.theme')).toBe('dark'); expect(fixture.nativeElement.querySelector('.account-summary').textContent).toContain('Basic User');
+  expect(localStorage.getItem('jedel.theme')).toBe('dark'); expect(fixture.nativeElement.querySelector('.account-summary').textContent).toContain('Security Administrator');
   fixture.destroy(); const restored = TestBed.createComponent(App); await restored.whenStable();
   expect(restored.componentInstance.darkTheme()).toBe(true);
   localStorage.removeItem('jedel.theme'); document.documentElement.dataset['theme']='light';
@@ -25,14 +25,14 @@ it('shows exactly one Account link and no separate Register/Log in links in the 
   const fixture = TestBed.createComponent(App); http.expectOne('/api/auth/me/').flush({}, {status: 401,statusText: 'Unauthorized'});
   await fixture.whenStable();
   const links = [...fixture.nativeElement.querySelectorAll('header nav a')] as HTMLAnchorElement[];
-  expect(links.map(link => link.textContent?.trim())).toEqual(['Home','Products','Suppliers','Orders','Analytics','Jedel AI','Account']);
+  expect(links.map(link => link.textContent?.trim())).toEqual(['Home','Products','Suppliers','Orders','Account']);
   expect(links.at(-1)?.getAttribute('href')).toBe('/auth');
 });
-it('shows actual identity and profile/settings/logout without exposing an admin link to Basic User', async () => {
+it('shows actual identity and profile/settings/logout without exposing admin links to Security Administrator', async () => {
   TestBed.inject(Auth).user.set(basic); const fixture = TestBed.createComponent(App); await fixture.whenStable();
   const header = fixture.nativeElement.querySelector('header') as HTMLElement;
-  expect(header.querySelector('.account-summary')?.textContent).toContain('Basic Member');
-  expect(header.querySelector('.account-summary')?.textContent).toContain('Basic User');
+  expect(header.querySelector('.account-summary')?.textContent).toContain('Security Member');
+  expect(header.querySelector('.account-summary')?.textContent).toContain('Security Administrator');
   expect(header.querySelector('.profile-dropdown')?.textContent).toContain('My Profile');
   expect(header.querySelector('.profile-dropdown')?.textContent).toContain('Settings');
   expect(header.querySelector('.profile-dropdown')?.textContent).toContain('Log out');

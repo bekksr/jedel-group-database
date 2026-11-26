@@ -51,6 +51,7 @@ class CapabilitiesView(CopilotView):
         return Response({'product_search': True, 'offer_comparison': bool(caps.get('read')), 'inventory': bool(caps.get('read')),
                          'order_draft': bool(caps.get('create_orders')), 'order_status': bool(caps.get('read')),
                          'chat_configured': readiness() == 'configured_unverified', 'chat_requires_login': True,
+                         'chat_allowed': bool(private and caps.get('read')),
                          'chat_status': readiness(),
                          'provider': 'groq',
                          'chat_scope': 'Your consented message and recent general conversation go to Groq. ERP tool results are not transmitted.',
@@ -94,6 +95,8 @@ class ChatView(InventoryView):
         data = tools.validated(ChatInput, self.arguments(request))
         local = local_request(request.user, data['message'])
         if local is not None: return Response(local)
+        if not capabilities(request.user).get('read'):
+            raise PermissionDenied('Jedel AI chat requires a business role. Public catalog search remains available.')
         if not data['consent_to_provider']:
             raise PermissionDenied('Confirm consent to send this message to the configured AI provider. Do not include confidential information.')
         provider = get_provider()

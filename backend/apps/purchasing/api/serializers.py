@@ -49,6 +49,34 @@ class PublicProductSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class PublicSupplierSerializer(serializers.ModelSerializer):
+    """Only supplier identity is public; contact and address fields stay private."""
+    class Meta:
+        model = Supplier
+        fields = ['supplier_id', 'supplier_name']
+        read_only_fields = fields
+
+
+class PublicOrderItemSerializer(serializers.ModelSerializer):
+    product_id = serializers.IntegerField(read_only=True)
+    product_name = serializers.CharField(source='product.product_name', read_only=True)
+
+    class Meta:
+        model = PurchaseOrderItem
+        fields = ['product_id', 'product_name', 'quantity']
+        read_only_fields = fields
+
+
+class PublicOrderSerializer(serializers.ModelSerializer):
+    supplier_name = serializers.CharField(source='supplier.supplier_name', read_only=True)
+    items = PublicOrderItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = PurchaseOrder
+        fields = ['order_id', 'supplier_name', 'order_date', 'expected_delivery_date', 'status', 'items']
+        read_only_fields = fields
+
+
 class ProductSerializer(StrictInputMixin, serializers.ModelSerializer):
     product_name = StrictTextField(max_length=100)
     category = StrictTextField(max_length=50, required=False, allow_null=True, allow_blank=True)
@@ -86,7 +114,6 @@ class OrderReadSerializer(serializers.ModelSerializer):
 class OrderItemWriteSerializer(StrictInputMixin, serializers.Serializer):
     product_id = serializers.IntegerField(min_value=1, max_value=2147483647)
     quantity = serializers.IntegerField(min_value=1, max_value=2147483647)
-    unit_price = serializers.DecimalField(max_digits=10, decimal_places=2, min_value=Decimal('0.00'), required=False)
 
 
     def validate(self, attrs):
@@ -109,7 +136,8 @@ class OrderWriteSerializer(StrictInputMixin, serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
-        return services.create_order(**validated_data)
+        request = self.context.get('request')
+        return services.create_order(**validated_data, actor=getattr(request, 'user', None))
 
     def update(self, instance, validated_data):
         return services.amend_order(instance.pk, validated_data)

@@ -86,13 +86,13 @@ class OrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.Crea
         return rows.filter(status=status) if status else rows
 
     def create(self, request, *args, **kwargs):
-        serializer = OrderWriteSerializer(data=request.data)
+        serializer = OrderWriteSerializer(data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
         return Response(OrderReadSerializer(order_queryset().get(pk=order.pk)).data, status=201)
 
     def partial_update(self, request, *args, **kwargs):
-        serializer = OrderWriteSerializer(self.get_object(), data=request.data, partial=True)
+        serializer = OrderWriteSerializer(self.get_object(), data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         order = serializer.save()
         return Response(OrderReadSerializer(order_queryset().get(pk=order.pk)).data)
@@ -101,7 +101,7 @@ class OrderViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.Crea
         if self.request.data:
             from rest_framework.exceptions import ValidationError
             raise ValidationError({'detail': 'This action accepts an empty body only.'})
-        order = transition_order(self.get_object().pk, target)
+        order = transition_order(self.get_object().pk, target, actor=self.request.user)
         return Response(OrderReadSerializer(order_queryset().get(pk=order.pk)).data)
 
     @action(detail=True, methods=['post'])

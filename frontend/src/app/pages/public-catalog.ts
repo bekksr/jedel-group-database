@@ -1,16 +1,13 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Subject, EMPTY, catchError, finalize, of, startWith, switchMap, tap, timer } from 'rxjs';
 import { PublicCatalogService, PublicProduct } from '../core/data/public-catalog.service';
 import { apiError } from '../core/data/api-errors';
-import { Auth } from '../auth';
 import { displayProductName } from '../core/data/product-metadata';
 import { UiLanguage } from '../core/ui-language';
-@Component({selector: 'app-public-catalog', imports: [FormsModule, RouterLink], template: `
+@Component({selector: 'app-public-catalog', imports: [FormsModule], template: `
   <div class="heading"><div><h1>{{ text('Products') }}</h1><p class="subtitle">{{ text('Explore the Jedel.Group product catalog.') }}</p></div>
-    @if(!auth.user()) {<a class="button secondary" routerLink="/products/new">{{ text('Create product') }}</a>}
   </div>
   <p class="hint">{{ text('Product names and categories are public. Purchasing prices, inventory and supplier contacts remain private.') }}</p>
   <div class="catalog-toolbar">
@@ -47,7 +44,6 @@ import { UiLanguage } from '../core/ui-language';
 export class PublicCatalogPage {
   readonly displayName = displayProductName;
   readonly text = inject(UiLanguage).text;
-  readonly auth = inject(Auth);
   private readonly service = inject(PublicCatalogService);
   private readonly destroy = inject(DestroyRef);
   private readonly requests = new Subject<number>();

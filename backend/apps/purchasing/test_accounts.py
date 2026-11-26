@@ -1,6 +1,8 @@
 from django.test import TestCase
 from django.contrib.auth.models import User, Group
 from django.core.cache import cache
+from django.core import mail
+from django.test import override_settings
 from rest_framework.test import APIClient
 from .models import Product
 
@@ -25,6 +27,9 @@ class AccountTests(TestCase):
         self.assertEqual(self.client.post('/api/auth/login/', {'username': 'employee', 'password': self.password}).status_code, 403)
 
     def test_registration_activation_hashing_session_and_privilege_escalation(self):
+        from django.core.management import call_command
+        from io import StringIO
+        call_command('setup_roles', confirm=True, stdout=StringIO())
         data = {'name': 'Team Member', 'username': 'team-member', 'email': 'team@example.test', 'password': self.password, 'password_confirm': self.password}
         self.assertEqual(self.client.post('/api/auth/register/', data).status_code, 403)
         for forbidden in [{'is_superuser': True}, {'role': 'System Administrator'}, {'groups': ['Purchasing Manager']}, {'is_staff': True}]:
@@ -36,15 +41,18 @@ class AccountTests(TestCase):
         self.assertTrue(user.check_password(self.password))
         self.assertNotEqual(user.password, self.password)
         self.assertTrue(user.is_active); self.assertFalse(user.is_staff or user.is_superuser)
-        self.assertEqual(list(user.groups.values_list('name',flat=True)), ['Basic User'])
-        self.assertEqual(response.data['user']['role'], 'Basic User')
-        self.assertFalse(any(response.data['user']['capabilities'].values()))
+        self.assertEqual(list(user.groups.values_list('name',flat=True)), ['User'])
+        self.assertEqual(response.data['user']['role'], 'User')
+        self.assertTrue(response.data['user']['capabilities']['read'])
+        self.assertTrue(response.data['user']['capabilities']['create_orders'])
         self.assertEqual(self.client.get('/api/auth/me/').data['id'], user.pk)
         restored = APIClient(); restored.cookies = self.client.cookies.copy()
         self.assertEqual(restored.get('/api/auth/me/').data['id'], user.pk)
         self.assertEqual(self.client.post('/api/auth/register/', data, **self.csrf()).status_code, 400)
         self.assertEqual(self.client.post('/api/auth/register/', {**data, 'email': data['email'].upper()}, **self.csrf()).status_code, 400)
-        for path in ['/api/products/', '/api/suppliers/', '/api/orders/', '/api/analytics/supplier-spending/', '/api/security/accounts/']:
+        for path in ['/api/products/', '/api/suppliers/', '/api/orders/', '/api/analytics/supplier-spending/']:
+            self.assertEqual(self.client.get(path).status_code, 200, path)
+        for path in ['/api/security/accounts/']:
             self.assertEqual(self.client.get(path).status_code, 403, path)
         self.assertEqual(self.client.post('/api/orders/999/approve/', {}, **self.csrf()).status_code, 403)
         self.assertEqual(self.client.post('/api/orders/999/deliver/', {}, **self.csrf()).status_code, 403)
@@ -63,13 +71,90 @@ class AccountTests(TestCase):
 
     def test_profile_password_and_role_escalation(self):
         headers = self.login()
+        old_session = APIClient(); old_session.cookies = self.client.cookies.copy()
         self.assertEqual(self.client.patch('/api/auth/profile/', {'name': 'New Name'}, **headers).status_code, 200)
         self.assertEqual(self.client.patch('/api/auth/profile/', {'is_staff': True}, **headers).status_code, 400)
         url = '/api/auth/password/'
         self.assertEqual(self.client.post(url, {'current_password': 'wrong', 'new_password': 'Another-secure-928!xyz'}, **headers).status_code, 400)
-        self.assertEqual(self.client.post(url, {'current_password': self.password, 'new_password': 'Another-secure-928!xyz'}, **headers).status_code, 200)
+        self.assertEqual(self.client.post(url, {'current_password': self.password, 'new_password': 'Another-secure-928!xyz', 'new_password_confirm': 'different'}, **headers).status_code, 400)
+        changed = 'Another-secure-928!xyz'
+        self.assertEqual(self.client.post(url, {'current_password': self.password, 'new_password': changed, 'new_password_confirm': changed}, **headers).status_code, 200)
         self.assertEqual(self.client.get('/api/auth/me/').status_code, 200)
-        self.user.refresh_from_db(); self.assertTrue(self.user.check_password('Another-secure-928!xyz'))
+        self.assertEqual(old_session.get('/api/auth/me/').status_code, 401)
+        self.user.refresh_from_db(); self.assertTrue(self.user.check_password(changed))
+        self.assertEqual(self.client.post('/api/auth/logout/', {}, **self.csrf()).status_code, 200)
+        self.assertEqual(self.client.post('/api/auth/login/', {'identifier': 'employee', 'password': self.password}, **self.csrf()).status_code, 400)
+        self.assertEqual(self.client.post('/api/auth/login/', {'identifier': 'employee', 'password': changed}, **self.csrf()).status_code, 200)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend', FRONTEND_BASE_URL='https://shop.example.test', ALLOWED_HOSTS=['testserver', 'attacker.example'])
+    def test_password_reset_request_is_generic_and_sends_configured_single_user_link(self):
+        from django.core import mail
+        headers = self.csrf()
+        existing = self.client.post('/api/auth/password-reset/', {'email': 'EMPLOYEE@example.test'}, **headers, HTTP_HOST='attacker.example')
+        self.assertEqual(existing.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['employee@example.test'])
+        self.assertIn('https://shop.example.test/password-reset/confirm/', mail.outbox[0].body)
+        self.assertNotIn('attacker.example', mail.outbox[0].body)
+        unknown = self.client.post('/api/auth/password-reset/', {'email': 'unknown@example.test'}, **headers)
+        self.assertEqual((unknown.status_code, unknown.data), (existing.status_code, existing.data))
+        self.assertEqual(len(mail.outbox), 1)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend', FRONTEND_BASE_URL='https://shop.example.test')
+    def test_password_reset_fails_closed_for_duplicate_case_insensitive_email(self):
+        from django.core import mail
+        User.objects.create_user('duplicate', email='EMPLOYEE@example.test', password=self.password)
+        response = self.client.post('/api/auth/password-reset/', {'email': 'employee@example.test'}, **self.csrf())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 0)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend', FRONTEND_BASE_URL='https://shop.example.test')
+    def test_password_reset_token_is_single_use_and_new_password_keeps_username_login(self):
+        import re
+        response = self.client.post('/api/auth/password-reset/', {'email': self.user.email}, **self.csrf())
+        self.assertEqual(response.status_code, 200)
+        match = re.search(r'https://shop\.example\.test/password-reset/confirm/([^/]+)/([^\s]+)', mail.outbox[0].body)
+        self.assertIsNotNone(match)
+        uid, token = match.groups()
+        new_password = 'Reset-secure-password-847!xyz'
+        reset_url = '/api/auth/password-reset/confirm/'
+        body = {'uid': uid, 'token': token, 'new_password': new_password, 'new_password_confirm': new_password}
+        self.assertEqual(self.client.post(reset_url, body, **self.csrf()).status_code, 200)
+        self.assertEqual(self.client.post(reset_url, body, **self.csrf()).status_code, 400)
+        self.assertEqual(self.client.post('/api/auth/login/', {'identifier': 'employee', 'password': self.password}, **self.csrf()).status_code, 400)
+        self.assertEqual(self.client.post('/api/auth/login/', {'identifier': 'employee', 'password': new_password}, **self.csrf()).status_code, 200)
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_password_reset_rejects_expired_token_and_requires_csrf_and_valid_password(self):
+        import re
+        no_csrf = self.client.post('/api/auth/password-reset/', {'email': self.user.email})
+        self.assertEqual(no_csrf.status_code, 403)
+        self.client.post('/api/auth/password-reset/', {'email': self.user.email}, **self.csrf())
+        match = re.search(r'/password-reset/confirm/([^/]+)/([^\s]+)', mail.outbox[0].body)
+        uid, token = match.groups()
+        with override_settings(PASSWORD_RESET_TIMEOUT=-1):
+            expired = self.client.post('/api/auth/password-reset/confirm/', {'uid': uid, 'token': token, 'new_password': 'Secure-reset-password-637!abc', 'new_password_confirm': 'Secure-reset-password-637!abc'}, **self.csrf())
+        self.assertEqual(expired.status_code, 400)
+        invalid = self.client.post('/api/auth/password-reset/confirm/', {'uid': uid, 'token': 'invalid', 'new_password': self.password, 'new_password_confirm': self.password}, **self.csrf())
+        self.assertEqual(invalid.status_code, 400)
+        token = __import__('django.contrib.auth.tokens', fromlist=['default_token_generator']).default_token_generator.make_token(self.user)
+        weak = self.client.post('/api/auth/password-reset/confirm/', {'uid': uid, 'token': token, 'new_password': 'password', 'new_password_confirm': 'password'}, **self.csrf())
+        self.assertEqual(weak.status_code, 400)
+        self.assertIn(self.client.post('/api/auth/password/', {}, **self.csrf()).status_code, (401, 403))
+
+    def test_password_reset_request_and_confirmation_are_rate_limited(self):
+        headers = self.csrf()
+        url = '/api/auth/password-reset/'
+        for _ in range(5):
+            self.assertEqual(self.client.post(url, {'email': 'unknown@example.test'}, **headers).status_code, 200)
+        self.assertEqual(self.client.post(url, {'email': 'unknown@example.test'}, **headers).status_code, 429)
+        from .auth_views import PasswordResetConfirmThrottle
+        from rest_framework.test import APIRequestFactory
+        from rest_framework.request import Request
+        request = Request(APIRequestFactory().post('/api/auth/password-reset/confirm/'))
+        throttle = PasswordResetConfirmThrottle()
+        for _ in range(20): self.assertTrue(throttle.allow_request(request, None))
+        self.assertFalse(throttle.allow_request(request, None))
 
     def test_roles_csrf_and_admin_boundaries(self):
         headers = self.login()
@@ -218,6 +303,9 @@ class AccountTests(TestCase):
             self.assertEqual(self.client.post('/api/auth/login/', body, format='json', **headers).status_code, 400)
 
     def test_registered_user_with_distinct_username_can_login_by_email_immediately(self):
+        from django.core.management import call_command
+        from io import StringIO
+        call_command('setup_roles', confirm=True, stdout=StringIO())
         data = {'username': 'distinct-applicant', 'name': 'Applicant', 'email': 'distinct@example.test', 'password': self.password, 'password_confirm': self.password}
         self.assertEqual(self.client.post('/api/auth/register/', data, **self.csrf()).status_code, 201)
         user = User.objects.get(username='distinct-applicant')
@@ -267,6 +355,9 @@ class AccountTests(TestCase):
         self.assertNotIn('private session error', str(response.data))
 
     def test_registration_does_not_activate_existing_pending_accounts(self):
+        from django.core.management import call_command
+        from io import StringIO
+        call_command('setup_roles', confirm=True, stdout=StringIO())
         pending = User.objects.create_user('old-pending', email='old-pending@example.test', password=self.password, is_active=False)
         self.assertEqual(self.client.post('/api/auth/register/', {'name': 'New User', 'username': 'new-policy', 'email': 'new-policy@example.test', 'password': self.password}, **self.csrf()).status_code, 201)
         pending.refresh_from_db(); self.assertFalse(pending.is_active)
@@ -276,7 +367,10 @@ class AccountTests(TestCase):
 
     def test_misconfigured_default_group_rejects_registration_without_escalation(self):
         from django.contrib.auth.models import Permission
-        group, _ = Group.objects.get_or_create(name='Basic User')
+        from django.core.management import call_command
+        from io import StringIO
+        call_command('setup_roles', confirm=True, stdout=StringIO())
+        group = Group.objects.get(name='User')
         group.permissions.add(Permission.objects.first())
         response = self.client.post('/api/auth/register/', {'name': 'Unsafe Role', 'username': 'unsafe-role', 'email': 'unsafe-role@example.test', 'password': self.password}, **self.csrf())
         self.assertEqual(response.status_code, 503)
