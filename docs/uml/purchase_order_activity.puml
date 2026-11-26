@@ -1,0 +1,150 @@
+@startuml purchase_order_activity
+title Purchase Order Management - Complete Lifecycle
+skinparam activity {
+  BackgroundColor White
+  BorderColor #334155
+  DiamondBackgroundColor #FFF7E6
+  DiamondBorderColor #B45309
+  FontSize 13
+}
+skinparam partition {
+  BorderColor #64748B
+  FontSize 14
+  FontStyle bold
+}
+skinparam shadowing false
+
+|Buyer / Purchasing Employee|
+start
+:Access ERP system;
+
+|ERP System|
+if (Authenticated?) then ([No])
+  :Authentication failure;
+  stop
+endif
+if (Authorized to read and create?) then ([No])
+  :Authorization failure;
+  stop
+endif
+
+|Buyer / Purchasing Employee|
+:Open Purchase Orders page;
+:Initiate a new Purchase Order;
+:Select an existing Supplier;
+:Add Product lines and quantities;
+:Specify order date and optional delivery date;
+:Submit Purchase Order;
+
+|ERP System|
+:Validate Supplier, dates, Products and quantities;
+
+while (Valid data?) is ([No])
+  :Reject data; no order is created;
+  |Buyer / Purchasing Employee|
+  :Review and correct information;
+  if (Retry submission?) then ([Yes])
+    :Submit corrected information;
+  else ([No])
+    stop
+  endif
+  |ERP System|
+  :Validate corrected information;
+endwhile ([Yes])
+
+:Create Purchase Order and items;
+:Set status to Pending;
+:Capture item unit prices;
+
+|Buyer / Purchasing Employee|
+:Review the Pending order;
+
+if (Amend before approval? - backend API) then ([Yes])
+  :Submit amendment;
+  |ERP System|
+  :Validate amendment and Pending status;
+  if (Valid amendment?) then ([Yes])
+    :Apply amendment and retain Pending status;
+  else ([No])
+    :Reject amendment;
+  endif
+else ([No])
+endif
+
+|Approver / Purchasing Manager or Admin|
+:Review order, supplier and items;
+if (Decision?) then ([Cancel])
+  :Request Cancel operation;
+elseif (Decision is Approve?) then ([Approve])
+  :Request Approve operation;
+else ([Take no action])
+  stop
+endif
+
+|ERP System|
+if (Authenticated?) then ([No])
+  :Authentication failure;
+  stop
+endif
+if (Authorized to transition Purchase Orders?) then ([No])
+  :Authorization failure;
+  stop
+endif
+
+if (Decision is Approve?) then ([Yes])
+  if (Status Pending and order contains items?) then ([Yes])
+    :Set status Approved;
+  else ([No])
+    :Reject approval: invalid state or empty order;
+    stop
+  endif
+else ([Cancel])
+  if (Status Pending or Approved?) then ([Yes])
+    :Set status Cancelled;
+  else ([No])
+    :Reject cancellation: invalid state transition;
+    stop
+  endif
+endif
+
+if (Final transition?) then ([Cancelled])
+  |Approver / Purchasing Manager or Admin|
+  stop
+else ([Approved])
+  |Approver / Purchasing Manager or Admin|
+  :Confirm full physical receipt;
+endif
+
+|ERP System|
+if (Authenticated?) then ([No])
+  :Authentication failure;
+  stop
+endif
+if (Authorized to transition Purchase Orders?) then ([No])
+  :Authorization failure;
+  stop
+endif
+if (Status Approved and order contains items?) then ([No])
+  :Reject delivery: invalid state or empty order;
+  stop
+endif
+if (Inventory quantities are valid?) then ([No])
+  :Reject delivery;
+  stop
+endif
+
+:Increase Product stock;
+:Set status Delivered;
+
+if (Delivery write successful?) then ([No])
+  :Delivery failed; preserve previous state;
+  stop
+else ([Yes])
+  :Return Delivered order;
+endif
+
+|Approver / Purchasing Manager or Admin|
+:Review final Delivered state;
+stop
+
+@enduml

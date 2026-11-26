@@ -1,0 +1,127 @@
+@startuml jedel_group_use_case
+title Jedel.Group ERP - Purchasing Management Use Case Diagram
+
+skinparam actorStyle awesome
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor #FFFFFF
+  BorderColor #334155
+  ArrowColor #334155
+  FontSize 12
+}
+skinparam package {
+  BorderColor #64748B
+  FontSize 14
+  FontStyle bold
+}
+
+actor "System Administrator\n(Admin)" as Admin
+actor "Purchasing Employee\n(Buyer)" as Buyer
+actor "Purchasing Manager\n(Approver)" as Approver
+actor "Analyst / Tester\n(Viewer)" as Viewer
+actor "Security Administrator" as SecurityAdmin
+actor "Basic User" as BasicUser
+
+rectangle "Jedel.Group ERP System" {
+  package "Authentication and Access" {
+    usecase "Authenticate User" as UC_AUTH
+    usecase "View Own Profile" as UC_PROFILE
+    usecase "Manage Eligible Account Activation" as UC_ACTIVATE
+  }
+
+  package "Catalog Management" {
+    usecase "View Suppliers" as UC_VIEW_SUPPLIERS
+    usecase "Manage Supplier Information" as UC_SUPPLIER
+    usecase "View Products" as UC_VIEW_PRODUCTS
+    usecase "Manage Product Information" as UC_PRODUCT
+  }
+
+  package "Purchase Order Management" {
+    usecase "Create Purchase Order" as UC_CREATE_PO
+    usecase "Select Existing Supplier" as UC_SELECT_SUP
+    usecase "Add Products and Quantities" as UC_ADD_ITEMS
+    usecase "Validate Purchase Order" as UC_VALIDATE_PO
+    usecase "Amend Pending Purchase Order" as UC_AMEND_PO
+    usecase "View Purchase Orders" as UC_VIEW_PO
+    usecase "Review Purchase Order" as UC_REVIEW_PO
+    usecase "Approve Purchase Order" as UC_APPROVE_PO
+    usecase "Cancel Purchase Order" as UC_CANCEL_PO
+    usecase "Confirm Full Delivery" as UC_DELIVER_PO
+  }
+
+  package "Inventory and Reporting" {
+    usecase "View Product Stock" as UC_VIEW_STOCK
+    usecase "Update Product Stock" as UC_UPDATE_STOCK
+    usecase "View Purchasing Dashboard" as UC_DASHBOARD
+  }
+}
+
+' Authentication and access associations
+BasicUser --> UC_AUTH
+BasicUser --> UC_PROFILE
+Buyer --> UC_AUTH
+Approver --> UC_AUTH
+Viewer --> UC_AUTH
+Admin --> UC_AUTH
+SecurityAdmin --> UC_AUTH
+
+' Shared read access
+Buyer --> UC_VIEW_SUPPLIERS
+Buyer --> UC_VIEW_PRODUCTS
+Buyer --> UC_VIEW_PO
+Buyer --> UC_VIEW_STOCK
+Buyer --> UC_DASHBOARD
+
+Approver --> UC_VIEW_SUPPLIERS
+Approver --> UC_VIEW_PRODUCTS
+Approver --> UC_VIEW_PO
+Approver --> UC_VIEW_STOCK
+Approver --> UC_DASHBOARD
+Approver --> UC_SUPPLIER
+Approver --> UC_PRODUCT
+
+Viewer --> UC_VIEW_SUPPLIERS
+Viewer --> UC_VIEW_PRODUCTS
+Viewer --> UC_VIEW_PO
+Viewer --> UC_VIEW_STOCK
+Viewer --> UC_DASHBOARD
+
+Admin --> UC_VIEW_SUPPLIERS
+Admin --> UC_VIEW_PRODUCTS
+Admin --> UC_VIEW_PO
+Admin --> UC_VIEW_STOCK
+Admin --> UC_DASHBOARD
+
+' Buyer and catalog operations
+Buyer --> UC_SUPPLIER
+Buyer --> UC_PRODUCT
+Buyer --> UC_CREATE_PO
+
+' Mandatory and optional PO relationships
+UC_CREATE_PO ..> UC_SELECT_SUP : <<include>>
+UC_CREATE_PO ..> UC_ADD_ITEMS : <<include>>
+UC_CREATE_PO ..> UC_VALIDATE_PO : <<include>>
+UC_AMEND_PO ..> UC_VALIDATE_PO : <<include>>
+Buyer --> UC_REVIEW_PO
+Buyer --> UC_AMEND_PO
+
+' Approval, cancellation and delivery
+Approver --> UC_REVIEW_PO
+Approver --> UC_APPROVE_PO
+Approver --> UC_CANCEL_PO
+Approver --> UC_DELIVER_PO
+Admin --> UC_SUPPLIER
+Admin --> UC_PRODUCT
+Admin --> UC_CREATE_PO
+Admin --> UC_AMEND_PO
+Admin --> UC_REVIEW_PO
+Admin --> UC_APPROVE_PO
+Admin --> UC_CANCEL_PO
+Admin --> UC_DELIVER_PO
+Admin --> UC_ACTIVATE
+SecurityAdmin --> UC_ACTIVATE
+
+UC_DELIVER_PO ..> UC_UPDATE_STOCK : <<include>>
+
+@enduml
