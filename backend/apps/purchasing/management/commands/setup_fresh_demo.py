@@ -1,11 +1,11 @@
-"""Bootstrap an explicitly isolated empty database; leave every existing schema alone."""
+"""Bootstrap the shared catalog in an explicitly isolated empty database."""
 import os
 from django.core.management import BaseCommand, CommandError, call_command
 from django.db import connection
 
 
 class Command(BaseCommand):
-    help = 'Initialize and seed only a completely empty isolated jedel_dev database.'
+    help = 'Initialize and synchronize only a completely empty isolated jedel_dev database.'
 
     def add_arguments(self, parser):
         parser.add_argument('--skip-unless-isolated', action='store_true')
@@ -22,4 +22,4 @@ class Command(BaseCommand):
             self.stdout.write('Existing database schema detected; automatic initialization and seeding skipped.')
             return
         call_command('init_development')
-        call_command('seed_demo', confirm=True)
+        call_command('sync_shared_catalog')

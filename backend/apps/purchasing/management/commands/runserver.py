@@ -1,6 +1,8 @@
+import os
 from django.conf import settings
 from django.db import DatabaseError
 from django.core.management.base import CommandError
+from django.core.management import call_command
 from django.contrib.staticfiles.management.commands.runserver import Command as DjangoRunserver
 
 
@@ -27,6 +29,10 @@ class Command(DjangoRunserver):
             ))
             return
         try:
+            if (settings.DEBUG
+                    and os.getenv('JEDEL_ISOLATED_DEVELOPMENT') == '1'
+                    and settings.DATABASES['default']['NAME'] == 'jedel_dev'):
+                call_command('sync_shared_catalog', skip_unless_isolated=True)
             if settings.DATABASES['default']['NAME'] == 'jedel_group_db':
                 from django.db import connections
                 from django.db.migrations.executor import MigrationExecutor

@@ -49,9 +49,5 @@ class Command(BaseCommand):
                         if {field.column for field in model._meta.local_fields} - columns:
                             raise CommandError('Business schema differs for ' + model._meta.db_table + '; no changes made.')
             call_command('init_development')
-            if not any(model.objects.exists() for model in models):
-                call_command('seed_demo', confirm=True)
-            else:
-                call_command('sync_demo_products', apply=True, skip_unless_demo=True)
-                call_command('sync_demo_orders', apply=True)
+            call_command('sync_shared_catalog')
             self.stdout.write('Database counts: ' + ', '.join(f'{m._meta.db_table}={m.objects.count()}' for m in models))

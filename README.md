@@ -89,9 +89,9 @@ Open the website at [localhost:4200](http://localhost:4200) and the backend at [
 
 ## 🗄️ Database
 
-PostgreSQL stores the four main business tables: **products**, **suppliers**, **purchase orders** and **purchase order items**. A first-time setup for an approved, empty isolated development database initializes the schema and loads educational data, including **55 fictional products**, four suppliers, eight orders and 24 order items.
+PostgreSQL stores the four main business tables: **products**, **suppliers**, **purchase orders** and **purchase order items**. A first-time setup for an explicitly isolated development database initializes the schema and synchronizes the shared catalog from [`database/shared_catalog.json`](database/shared_catalog.json): **55 products and three suppliers**. Each startup checks for missing or changed shared catalog fields, adds or updates those rows, preserves existing stock quantities, and leaves local products and all purchase orders/items intact. Conflicting rows are reported and preserved. Git transfers the versioned catalog and setup code; it does not transfer a running database. Existing populated databases outside the isolated `jedel_dev` setup are never changed automatically. See the [database setup guide](docs/DEVELOPMENT.md#native-database-explicitly-isolated) before synchronizing data.
 
-Git transfers the versioned data and setup code; it does not transfer a running database. Existing populated databases are preserved. See the [database setup guide](docs/DEVELOPMENT.md#native-database-explicitly-isolated) and [demo order synchronization design](docs/DEMO_ORDER_SYNC_DESIGN.md) before synchronizing data.
+Git transfers the versioned catalog and setup code; it does not transfer or replace a running database. The automatic sync is limited to explicitly isolated `jedel_dev` databases. See the [database setup guide](docs/DEVELOPMENT.md#shared-catalog-updates) before changing its source data.
 
 ## Docker on Windows and macOS
 

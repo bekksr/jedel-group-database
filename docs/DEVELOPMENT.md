@@ -46,6 +46,12 @@ createdb --owner=jedel_dev jedel_dev
 
 Supply connection options (`-h`, `-p`, `-U`) for your separate cluster when necessary. Existing PostgreSQL deployment roles and the application groups are different systems. Do not modify database/roles.sql to enable Django account groups. Runtime needs access to the new Django tables as well as the business tables; use separate owner/runtime credentials for a reviewed production deployment.
 
+### Shared catalog updates
+
+`database/shared_catalog.json` is the versioned project catalog. After `git pull`, the Docker init service, `scripts/start.py`, or `runserver` synchronizes it automatically when the connection is explicitly marked `JEDEL_ISOLATED_DEVELOPMENT=1` and targets `jedel_dev`. Repeated startups leave already matching rows alone. Missing shared products and suppliers are added; changed shared names, categories, prices and supplier contact fields are updated. Existing stock quantities, unrecognized local catalog rows, and every purchase order and order item are preserved. If a shared product is renamed in Git, add its previous name to `legacy_product_names` in the JSON so installations can update that same row. Conflicting duplicate names are reported and preserved.
+
+This automatic synchronization is intentionally limited to the isolated `jedel_dev` database. It never targets the existing `jedel_group_db` or a production database. Keep the isolation flag and database name aligned with the setup instructions above.
+
 ## Windows native
 
 From repository root:
@@ -150,7 +156,7 @@ Set JEDEL_VERIFY_DEVELOPMENT=1 when invoking scripts/test_postgres.py. This crea
 
 ### Single-command local backend startup
 
-From the backend folder run `python manage.py runserver`. The private, Git-ignored backend/.env stores local DJANGO_DEBUG, a stable secret key and PostgreSQL connection settings. Set DB_USER and DB_PASSWORD there once using your editor; no PowerShell environment commands are needed afterward. The local file created in this workspace targets jedel_group_db but contains no database credentials until you supply them. Missing/unavailable database access is reported without stopping the development server; database-dependent pages remain unavailable. Startup never runs migrations. Existing-database authentication migrations still require approval.
+From the backend folder run `python manage.py runserver`. The private, Git-ignored backend/.env stores local DJANGO_DEBUG, a stable secret key and PostgreSQL connection settings. Set DB_USER and DB_PASSWORD there once using your editor; no PowerShell environment commands are needed afterward. The local file created in this workspace targets jedel_group_db but contains no database credentials until you supply them. Missing/unavailable database access is reported without stopping the development server; database-dependent pages remain unavailable. Startup does not run migrations. It synchronizes the shared catalog only for an explicitly isolated `jedel_dev`; existing-database authentication migrations still require approval.
 
 Set JEDEL_LOAD_DOTENV=false to disable local-file loading, as the isolated PostgreSQL test harness does.
 
