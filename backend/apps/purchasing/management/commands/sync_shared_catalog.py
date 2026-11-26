@@ -10,6 +10,14 @@ from django.db import connection, transaction
 from apps.purchasing.models import Product, Supplier
 
 
+def product_identity(name):
+    """Match an old tagged name to its clean shared name without storing labels in the fixture."""
+    value = name.strip()
+    while value.startswith("[") and "] " in value:
+        value = value.split("] ", 1)[1].strip()
+    return value.casefold()
+
+
 class Command(BaseCommand):
     help = "Add missing shared products and suppliers and update changed shared fields."
 
@@ -45,7 +53,6 @@ class Command(BaseCommand):
             fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
             products = fixture["products"]
             suppliers = fixture["suppliers"]
-            legacy_names = fixture.get("legacy_product_names", {})
             if fixture["version"] < 1 or not products or not suppliers:
                 raise ValueError("unsupported or empty shared catalog")
         except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -60,28 +67,19 @@ class Command(BaseCommand):
         current_suppliers = list(Supplier.objects.all())
         by_product_name = {}
         for product in current_products:
-            by_product_name.setdefault(product.product_name.casefold(), []).append(product)
+            by_product_name.setdefault(product_identity(product.product_name), []).append(product)
 
         added_products = updated_products = unchanged_products = conflicts = 0
         for source in products:
             name = source["product_name"]
-            aliases = [alias.casefold() for alias in legacy_names.get(name, [])]
-            matches = []
-            for candidate in [name.casefold(), *aliases]:
-                matches.extend(by_product_name.get(candidate, []))
+            identity = product_identity(name)
+            matches = by_product_name.get(identity, [])
             matches = list({row.pk: row for row in matches}.values())
             if len(matches) > 1:
                 conflicts += 1
                 self.stdout.write(self.style.WARNING(f"Conflict preserved: multiple products match shared item {name!r}."))
                 continue
             if not matches:
-                # Never shadow an existing locally named product that only differs by a demo label.
-                clean_name = name.removeprefix("[JEDEL FICTIONAL] ").removeprefix("[DEMO] ").casefold()
-                local_matches = [p for p in current_products if p.product_name.casefold() == clean_name]
-                if local_matches:
-                    conflicts += 1
-                    self.stdout.write(self.style.WARNING(f"Conflict preserved: local product uses the shared name {name!r}."))
-                    continue
                 created = Product.objects.create(
                     product_name=name,
                     category=source.get("category"),
@@ -89,7 +87,7 @@ class Command(BaseCommand):
                     stock_quantity=source["stock_quantity"],
                 )
                 current_products.append(created)
-                by_product_name.setdefault(name.casefold(), []).append(created)
+                by_product_name.setdefault(identity, []).append(created)
                 added_products += 1
                 continue
 
@@ -105,8 +103,6 @@ class Command(BaseCommand):
                 product.unit_price = source["unit_price"]
                 product.save(update_fields=["product_name", "category", "unit_price"])
                 updated_products += 1
-                # Keep the in-memory index consistent for any remaining aliases.
-                by_product_name.setdefault(name.casefold(), []).append(product)
             else:
                 unchanged_products += 1
 

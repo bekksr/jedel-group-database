@@ -67,7 +67,7 @@ describe("Pages", () => {
     await f.whenStable();
     expect(p.selected()?.supplier_id).toBe(2);
     expect(p.formOpen()).toBe(false);
-    expect(f.nativeElement.textContent).toContain("Order #4");
+    expect(f.nativeElement.textContent).toContain("Order #7");
   });
   it("retains a rejected draft and shows its error", async () => {
     const f = TestBed.createComponent(OrdersPage);

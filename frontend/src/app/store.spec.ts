@@ -13,9 +13,10 @@ const draft = (): OrderDraft => ({
 describe("Purchase orders", () => {
   it("keeps the provided seed and calculates its totals", () => {
     const s = new Store();
-    expect(s.products()).toHaveLength(5);
+    expect(s.products()).toHaveLength(55);
     expect(s.suppliers()).toHaveLength(3);
-    expect(s.orders()).toHaveLength(3);
+    expect(s.orders()).toHaveLength(6);
+    expect(s.items()).toHaveLength(10);
     expect(orderTotal(1, s.items())).toBe(955000);
   });
   it("creates an order with captured prices without changing stock", () => {
@@ -23,7 +24,7 @@ describe("Purchase orders", () => {
     const before = s.products();
     const id = s.createOrder(draft());
     expect(s.orders().find((o) => o.order_id === id)?.status).toBe("Pending");
-    expect(orderTotal(id, s.items())).toBe(955000);
+    expect(orderTotal(id, s.items())).toBe(940000);
     expect(s.products()).toEqual(before);
   });
   it.each([0, -1, 1.5, NaN, 2147483648])(
@@ -33,8 +34,8 @@ describe("Purchase orders", () => {
       const d = draft();
       d.items[0].quantity = q;
       expect(() => s.createOrder(d)).toThrow();
-      expect(s.orders()).toHaveLength(3);
-      expect(s.items()).toHaveLength(6);
+      expect(s.orders()).toHaveLength(6);
+      expect(s.items()).toHaveLength(10);
     },
   );
   it("rejects duplicates and missing products or suppliers", () => {

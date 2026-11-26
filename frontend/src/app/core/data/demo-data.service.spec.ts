@@ -1,25 +1,28 @@
 import { DemoDataService } from "./demo-data.service";
 import { orderTotal } from "./models";
 
-describe("Explicit SQL demo data store", () => {
+describe("Shared database snapshot data store", () => {
   let data: DemoDataService;
   beforeEach(() => {
     data = new DemoDataService();
   });
-  it("uses the original SQL snapshot and derives exact purchasing totals", () => {
+  it("uses the complete shared snapshot and derives exact purchasing totals", () => {
     expect([
       data.suppliers().length,
       data.products().length,
       data.orders().length,
       data.items().length,
-    ]).toEqual([3, 5, 3, 6]);
+    ]).toEqual([3, 55, 6, 10]);
+    expect(
+      data.products().every((product) => !product.product_name.startsWith("[")),
+    ).toBe(true);
     expect(
       data
         .orders()
         .reduce((sum, o) => sum + orderTotal(o.order_id, data.items()), 0),
-    ).toBe(1620000);
+    ).toBe(2536000);
     expect(data.products().reduce((sum, p) => sum + p.stock_quantity, 0)).toBe(
-      132,
+      2357,
     );
   });
   it("does not replay stock changes for historical Delivered orders", () => {
@@ -72,8 +75,8 @@ describe("Explicit SQL demo data store", () => {
         items: [{ product_id: 1, quantity: 2147483647 }],
       }),
     ).toThrow();
-    expect(data.orders().length).toBe(3);
-    expect(data.items().length).toBe(6);
+    expect(data.orders().length).toBe(6);
+    expect(data.items().length).toBe(10);
   });
   it("preserves captured prices when the product catalog changes", () => {
     data.saveProduct(

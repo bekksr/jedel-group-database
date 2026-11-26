@@ -10,23 +10,23 @@ describe("Derived purchasing analytics", () => {
       providers: [{ provide: ERP_DATA, useValue: data }],
     });
     const metrics = TestBed.runInInjectionContext(() => useMetrics());
-    expect(metrics.purchasingValue()).toBe(1620000);
-    expect(metrics.deliveredValue()).toBe(1240000);
+    expect(metrics.purchasingValue()).toBe(2536000);
+    expect(metrics.deliveredValue()).toBe(1690000);
     expect(metrics.spending().map((s) => [s.label, s.value])).toEqual([
-      ["TechnoSupply", 955000],
-      ["Global Parts", 380000],
+      ["TechnoSupply", 1755000],
+      ["Global Parts", 496000],
       ["Smart Logistics", 285000],
     ]);
-    expect(metrics.lowStock().length).toBe(3);
+    expect(metrics.lowStock().length).toBe(15);
     data.transitionOrder(2, "Cancelled");
-    expect(metrics.purchasingValue()).toBe(1240000);
+    expect(metrics.purchasingValue()).toBe(2156000);
     expect(
       metrics.statusCounts().find((s) => s.status === "Cancelled")?.count,
     ).toBe(1);
     expect(
       metrics.spending().find((s) => s.label === "Global Parts")?.value,
-    ).toBe(0);
+    ).toBe(116000);
     data.setLowStockThreshold(10);
-    expect(metrics.lowStock().length).toBe(0);
+    expect(metrics.lowStock().length).toBe(8);
   });
 });
