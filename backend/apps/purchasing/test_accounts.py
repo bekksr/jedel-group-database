@@ -365,6 +365,19 @@ class AccountTests(TestCase):
         self.user.refresh_from_db(); self.assertTrue(self.user.is_active)
         self.assertTrue(self.user.groups.filter(name='Purchasing Employee').exists())
 
+    def test_registration_falls_back_to_configured_legacy_basic_user_group(self):
+        from django.core.management import call_command
+        from django.contrib.auth.models import Group
+        from io import StringIO
+        call_command('setup_roles', confirm=True, stdout=StringIO())
+        Group.objects.filter(name='User').delete()
+        response = self.client.post('/api/auth/register/', {'name': 'Legacy User', 'username': 'legacy-default', 'email': 'legacy-default@example.test', 'password': self.password}, **self.csrf())
+        self.assertEqual(response.status_code, 201)
+        created = User.objects.get(username='legacy-default')
+        self.assertEqual(list(created.groups.values_list('name', flat=True)), ['Basic User'])
+        self.assertEqual(response.data['user']['role'], 'User')
+        self.assertTrue(response.data['user']['capabilities']['read'])
+
     def test_misconfigured_default_group_rejects_registration_without_escalation(self):
         from django.contrib.auth.models import Permission
         from django.core.management import call_command

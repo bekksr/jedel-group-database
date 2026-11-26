@@ -16,7 +16,7 @@ import { UiLanguage } from '../core/ui-language';
  <app-workspace-status />
  @if(data.loading()) {<section class="stats" [attr.aria-label]="text('Overview')"><app-stat-card label="Products" [loading]="true"/><app-stat-card label="Suppliers" [loading]="true"/><app-stat-card label="Purchase orders" [loading]="true"/></section>}
  @else if(!data.error()) { @if(data.dashboard(); as dashboard) {
-  <section class="stats" [attr.aria-label]="text('Overview')"><app-stat-card label="Products" [value]="dashboard.productCount"/><app-stat-card label="Suppliers" [value]="dashboard.supplierCount"/><app-stat-card label="Purchase orders" [value]="dashboard.orderCount"/></section>
+  <section class="stats" [attr.aria-label]="text('Overview')"><app-stat-card label="Products" [value]="dashboard.productCount"/><app-stat-card label="Suppliers" [value]="dashboard.supplierCount"/><app-stat-card label="Purchase orders" [value]="dashboard.orderCount" [description]="text('Awaiting approval · {count}', {count: pendingOrders()})"/></section>
   <section class="stats" [attr.aria-label]="text('Purchasing metrics')"><app-stat-card label="Purchasing commitments" [value]="dashboard.purchasingValue" format="money" unit="KZT" description="Non-cancelled procurement value"/><app-stat-card label="Delivered order value" [value]="dashboard.deliveredValue" format="money" unit="KZT" description="Confirmed receipts, not payments"/><app-stat-card label="Current inventory" [value]="dashboard.stockUnits" unit="units" description="Authorized warehouse quantities"/></section>
   <p class="hint">{{ text('Commitments include non-cancelled orders. Delivered order value reflects receipts, not actual payments.') }}</p>
   <section class="panel"><h2>{{ text('Low stock') }}</h2><p class="hint">{{ text('Products at or below the current {threshold}-unit report threshold.', {threshold: data.lowStockThreshold()}) }}</p><ul class="stock-list">@for(product of dashboard.lowStock; track product.product_id) {<li><span class="stock-name">{{displayName(product.product_name)}}</span><span class="stock-quantity"><strong>{{product.stock_quantity}}</strong><span>{{ text('units') }}</span></span></li>} @empty {<li class="empty-state">{{ text('No products at or below the current threshold.') }}</li>}</ul></section>
@@ -32,6 +32,9 @@ export class HomePage {
  readonly text = inject(UiLanguage).text;
  readonly displayName=displayProductName;
  readonly data=inject(Store); readonly auth=inject(Auth);
+ readonly pendingOrders = computed(() =>
+  this.data.dashboard()?.statuses.find(row => row.status === 'Pending')?.count ?? 0,
+ );
  readonly sections=[
   {path:'/products',title:'Products',description:'Browse public product names and categories. Authorized teams manage catalog fields and inventory visibility.'},
   {path:'/suppliers',title:'Suppliers',description:'Browse supplier names. Contact details are available after sign-in.'},

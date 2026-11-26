@@ -33,8 +33,7 @@ it('shows actual identity and profile/settings/logout without exposing admin lin
   const header = fixture.nativeElement.querySelector('header') as HTMLElement;
   expect(header.querySelector('.account-summary')?.textContent).toContain('Security Member');
   expect(header.querySelector('.account-summary')?.textContent).toContain('Security Administrator');
-  expect(header.querySelector('.profile-dropdown')?.textContent).toContain('My Profile');
-  expect(header.querySelector('.profile-dropdown')?.textContent).toContain('Settings');
+  expect(header.querySelector('.profile-dropdown')?.textContent).toContain('Open profile');
   expect(header.querySelector('.profile-dropdown')?.textContent).toContain('Log out');
   expect(header.querySelector('[href="/admin/"]')).toBeNull();
   expect(header.querySelector('.account-button')).toBeNull();

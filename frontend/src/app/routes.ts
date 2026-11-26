@@ -5,16 +5,16 @@ import { PasswordResetConfirmPage, PasswordResetRequestPage } from './pages/pass
 import { PublicWorkspacePage, AccessDeniedPage } from './pages/public-workspace';
 import { capabilityGuard } from './auth';
 import { accountGuard } from './auth';
-import { ConnectionPage } from "./pages/connection";
 import { Routes } from "@angular/router";
 import { HomePage } from "./pages/home";
 import { ProductsPage } from "./pages/products";
 import { SuppliersPage } from "./pages/suppliers";
 import { OrdersPage } from "./pages/orders";
+const loadAccountPage = () => import('./pages/connection').then(module => module.ConnectionPage);
 export const routes: Routes = [
   {path: 'ai-assistant', component: CopilotPage, canActivate: [capabilityGuard], data: {capability: 'read'}, title: 'Jedel AI | Jedel.Group'},
   {path: 'access', component: AccessRequestPage, canActivate: [accountGuard]},
-  {path: 'profile', redirectTo: 'settings', pathMatch: 'full'},
+  {path: 'profile', loadComponent: loadAccountPage, canActivate: [accountGuard], title: 'My Profile | Jedel.Group'},
   {path: 'access-denied', component: AccessDeniedPage},
   {path: 'analytics', component: PublicWorkspacePage, canActivate: [capabilityGuard], data: {capability: 'read', section: 'analytics'}},
   {path: 'products/new', component: ProductsPage, canActivate: [capabilityGuard], data: {capability: 'manage_catalog', create: true}},
@@ -24,11 +24,7 @@ export const routes: Routes = [
   {path: 'password-reset', component: PasswordResetRequestPage, title: 'Reset password | Jedel.Group'},
   {path: 'password-reset/confirm/:uid/:token', component: PasswordResetConfirmPage, title: 'Choose a new password | Jedel.Group'},
   {path: 'login', redirectTo: redirect => '/auth?mode=login' + (redirect.queryParams['returnTo'] ? '&returnTo=' + encodeURIComponent(redirect.queryParams['returnTo']) : '')},
-  {
-    path: "settings",
-    component: ConnectionPage, canActivate: [accountGuard],
-    title: "Connection | Jedel.Group",
-  },
+  {path: 'settings', redirectTo: 'profile', pathMatch: 'full'},
   { path: "", component: HomePage, title: "Home | Jedel.Group" },
   {
     path: "products",

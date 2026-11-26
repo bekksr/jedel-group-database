@@ -23,7 +23,7 @@ const descriptions: Record<string, string> = {
   "SSD 256GB": "SSD 256GB is a fictional demonstration product. A 256 GB solid-state storage concept for a basic workstation. Characteristics and labels are illustrative, not verified manufacturer specifications.",
   "SSD 512GB": "SSD 512GB is a fictional demonstration product. A 512 GB solid-state storage concept for a general office computer. Characteristics and labels are illustrative, not verified manufacturer specifications.",
   "SSD 1TB": "SSD 1TB is a fictional demonstration product. A 1 TB solid-state storage concept for a larger local file collection. Characteristics and labels are illustrative, not verified manufacturer specifications.",
-  "USB Drive 64GB": "USB Drive 64GB is a fictional demonstration product. A 64 GB removable USB storage concept for transferring demonstration files. Characteristics and labels are illustrative, not verified manufacturer specifications.",
+  "USB Drive 64GB": "USB Drive 64GB is a fictional demonstration product. A 64 GB removable USB storage concept for transferring files. Characteristics and labels are illustrative, not verified manufacturer specifications.",
   "External Drive 2TB": "External Drive 2TB is a fictional demonstration product. A 2 TB external drive concept for storing larger project files. Characteristics and labels are illustrative, not verified manufacturer specifications.",
   "Laser Printer Mono": "Laser Printer Mono is a fictional demonstration product. A monochrome laser printer concept for routine office documents. Characteristics and labels are illustrative, not verified manufacturer specifications.",
   "Laser Printer Color": "Laser Printer Color is a fictional demonstration product. A colour laser printer concept for presentations and mixed office documents. Characteristics and labels are illustrative, not verified manufacturer specifications.",
@@ -59,10 +59,19 @@ const descriptions: Record<string, string> = {
 
 const demoPrefix = /^(?:\[DEMO\]|\[JEDEL FICTIONAL\])\s+/;
 export function isDemoProduct(name: string): boolean { return demoPrefix.test(name); }
-export function displayProductName(name: string): string { return name.replace(demoPrefix, ""); }
+export function catalogNamePrefix(name: string): string { return name.match(demoPrefix)?.[0] ?? ''; }
+export function displayCatalogName(name: string): string { return name.replace(demoPrefix, ''); }
+export { displayCatalogName as displayProductName };
 export function displayProductText(text: string): string { return text.replace(/\[(?:DEMO|JEDEL FICTIONAL)\]\s+/g, ''); }
 export function demoProductDescription(name: string): string | undefined {
-  return isDemoProduct(name) ? descriptions[displayProductName(name)] : undefined;
+  if (!isDemoProduct(name)) return undefined;
+  const productName = displayCatalogName(name);
+  const description = descriptions[productName];
+  if (typeof description !== 'string') return undefined;
+  // The seed descriptions retain their full context. The catalog shows this notice once above the cards.
+  return description
+    .replace(productName + ' is a fictional demonstration product. ', '')
+    .replace(' Characteristics and labels are illustrative, not verified manufacturer specifications.', '');
 }
 
 // Earlier catalog examples have no demo marker. Require all three fields to

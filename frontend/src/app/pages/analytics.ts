@@ -3,7 +3,7 @@ import { DecimalPipe } from '@angular/common';
 import { Store } from '../store';
 import { WorkspaceStatus } from './workspace-status';
 import { StatCard, MONEY_DIGITS } from '../components/stat-card';
-import { displayProductName } from '../core/data/product-metadata';
+import { displayCatalogName } from '../core/data/product-metadata';
 import { UiLanguage } from '../core/ui-language';
 @Component({selector:'ng-component-analytics',imports:[DecimalPipe,WorkspaceStatus,StatCard],host:{class:'analytics-page'},styleUrl:'./analytics.scss',template:`
 <header><h1>{{ text('Analytics') }}</h1><p class="subtitle">{{ text('Company purchasing and inventory reports from the authorized workspace.') }}</p></header>
@@ -22,13 +22,13 @@ import { UiLanguage } from '../core/ui-language';
    <section class="panel"><h2>{{ text('Order status distribution') }}</h2><p class="hint">{{ text('Current records grouped by procurement state.') }}</p><dl class="status-list">@for(row of data.orderStatuses();track row.status) {<div><dt><span class="badge" [attr.data-status]="row.status">{{ text(row.status) }}</span></dt><dd>{{row.count | number:'1.0-0'}}</dd></div>} @empty {<div><dt class="empty-state">{{ text('No orders to report.') }}</dt></div>}</dl></section>
   </div>
  } @else {<p class="panel empty-state">{{ text('Summary data is unavailable. Refresh the workspace to retrieve current metrics.') }}</p>}
- <section class="panel"><h2>{{ text('Supplier spending') }}</h2><p class="hint">{{ text('Non-cancelled purchasing commitments grouped by supplier, not paid invoices.') }}</p><div class="report-table" tabindex="0" role="region" [attr.aria-label]="text('Supplier spending')"><table><thead><tr><th scope="col">{{ text('Supplier') }}</th><th scope="col" class="numeric">{{ text('Orders') }}</th><th scope="col" class="numeric">{{ text('Total KZT') }}</th></tr></thead><tbody>@for(row of data.supplierSpending(); track row.label) {<tr><th scope="row">{{row.label}}</th><td class="numeric">{{row.orders | number:'1.0-0'}}</td><td class="numeric money">{{row.value | number:moneyDigits}} <span class="currency">KZT</span></td></tr>} @empty {<tr><td colspan="3" class="empty-state">{{ text('No spending data.') }}</td></tr>}</tbody></table></div></section>
+ <section class="panel"><h2>{{ text('Supplier spending') }}</h2><p class="hint">{{ text('Non-cancelled purchasing commitments grouped by supplier, not paid invoices.') }}</p><div class="report-table" tabindex="0" role="region" [attr.aria-label]="text('Supplier spending')"><table><thead><tr><th scope="col">{{ text('Supplier') }}</th><th scope="col" class="numeric">{{ text('Orders') }}</th><th scope="col" class="numeric">{{ text('Total KZT') }}</th></tr></thead><tbody>@for(row of data.supplierSpending(); track row.label) {<tr><th scope="row">{{displayName(row.label)}}</th><td class="numeric">{{row.orders | number:'1.0-0'}}</td><td class="numeric money">{{row.value | number:moneyDigits}} <span class="currency">KZT</span></td></tr>} @empty {<tr><td colspan="3" class="empty-state">{{ text('No spending data.') }}</td></tr>}</tbody></table></div></section>
  <section class="panel"><h2>{{ text('Monthly order activity') }}</h2><p class="hint">{{ text('Counts use order dates across all statuses, not delivery or payment dates. Only recorded months are shown.') }}</p>@if(monthlyActivity().length > 1) {<ul class="activity-list">@for(month of monthlyActivity();track month.period) {<li><span>{{month.period}}</span><strong>{{ text('{count} order(s)', {count: (month.orders | number:'1.0-0') ?? ''}) }}</strong></li>}</ul>} @else {<p class="empty-state">{{ text('At least two months of dated orders are needed to show an activity trend.') }}</p>}</section>
 }
 `})
 export class AnalyticsPage {
  readonly text = inject(UiLanguage).text;
- readonly displayName=displayProductName;
+ readonly displayName=displayCatalogName;
  readonly data=inject(Store);
  readonly moneyDigits=MONEY_DIGITS;
  readonly monthlyActivity=computed(()=>{
