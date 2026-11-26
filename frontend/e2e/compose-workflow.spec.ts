@@ -38,7 +38,7 @@ test('disposable Compose browser workflow', async ({ page }) => {
   const laptop = page.locator('article.catalog-card').filter({has: page.getByRole('heading', {name: 'Notebook Air 13', exact: true})});
   await expect(laptop).toBeVisible();
   await laptop.locator('summary').click();
-  await expect(laptop).toContainText('Notebook Air 13 is a fictional demonstration product');
+  await expect(laptop).toContainText('A compact 13-inch-class laptop concept');
   await page.getByLabel('Search products', {exact: true}).fill('');
   await page.getByRole('button', {name: 'New product', exact: true}).click();
   await page.getByLabel('Product name', {exact: true}).fill('Compose browser product');
@@ -48,7 +48,7 @@ test('disposable Compose browser workflow', async ({ page }) => {
   await expect(page.getByRole('heading', {name: 'Compose browser product', exact: true})).toBeVisible();
   await page.goto('/orders');
   await page.getByRole('button', {name: 'New order', exact: true}).click();
-  await page.getByRole('combobox', {name: 'Supplier', exact: true}).selectOption({label: '[DEMO] Fictional Office Supply'});
+  await page.getByRole('combobox', {name: 'Supplier', exact: true}).selectOption({label: 'Fictional Office Supply'});
   await page.getByRole('combobox', {name: 'Product 1', exact: true}).fill('Compose browser product');
   await page.getByRole('option', {name: /Compose browser product/}).click();
   await page.getByLabel('Quantity 1', {exact: true}).fill('3');

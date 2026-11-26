@@ -37,20 +37,22 @@ test('session, catalog persistence, Pending amendment, delivery and forbidden wr
   const monitor = page.locator('article.catalog-card').filter({has: page.getByRole('heading', {name: 'Monitor 22 FHD', exact: true})});
   await laptop.locator('summary').focus(); await page.keyboard.press('Enter');
   await expect(laptop.locator('details')).toHaveAttribute('open', '');
-  await expect(laptop).toContainText('Notebook Air 13 is a fictional demonstration product');
+  await expect(laptop).toContainText('A compact 13-inch-class laptop concept');
   await monitor.locator('summary').click();
   await expect(laptop.locator('details')).not.toHaveAttribute('open', '');
-  await expect(monitor).toContainText('Monitor 22 FHD is a fictional demonstration product');
+  await expect(monitor).toContainText('A 22-inch-class Full HD display concept');
   await monitor.locator('summary').click(); await expect(monitor.locator('details')).not.toHaveAttribute('open', '');
   const demoCards = page.locator('article.catalog-card[data-demo="true"]');
   await expect(demoCards).toHaveCount(55);
+  await expect(page.getByText('Descriptions of sample products are illustrative.', {exact: true})).toHaveCount(1);
   for (let index = 0; index < 55; index++) {
     const card = demoCards.nth(index);
-    const productName = (await card.locator('h2').innerText()).replace(/\s*Demo\s*$/, '').trim();
+    const productName = (await card.locator('h2').innerText()).trim();
     expect(productName).not.toContain('[JEDEL FICTIONAL]');
     expect(productName).not.toContain('[DEMO]');
     await card.locator('summary').click();
-    await expect(card.locator('.details-content')).toContainText(productName + ' is a fictional demonstration product');
+    await expect(card.locator('.details-content > p').last()).toHaveText(/^.+\.$/);
+    await expect(card.locator('.details-content')).not.toContainText('No description is available');
     await expect(page.locator('details.product-details[open]')).toHaveCount(1);
   }
   await laptop.getByRole('link', {name:'Order this product'}).click();
@@ -95,7 +97,7 @@ test('session, catalog persistence, Pending amendment, delivery and forbidden wr
   await page.getByRole('navigation', {name: 'Main navigation'}).getByRole('link', {name: 'Analytics', exact: true}).click();
   await expect(page.getByRole('table')).toContainText('37.50');
   await page.locator('.profile-menu summary').click();
-  await page.locator('.profile-dropdown').getByRole('link', {name: 'Settings', exact: true}).click();
+  await page.locator('.profile-dropdown').getByRole('link', {name: 'Open profile', exact: true}).click();
   await page.getByRole('button', {name: 'Sign out', exact: true}).click();
   await expect(page).toHaveURL(/auth\?mode=login/);
   await page.getByLabel('Email address or username', {exact: true}).fill('browser-viewer');

@@ -5,8 +5,11 @@ import { FormsModule } from "@angular/forms";
 import { ActivatedRoute, RouterLink } from "@angular/router";
 import { Product, Supplier } from "../models";
 import { Store } from "../store";
-import { demoProductDescription, displayProductName, isDemoProduct, legacyProductDescription } from '../core/data/product-metadata';
+import { catalogNamePrefix, demoProductDescription, displayCatalogName, isDemoProduct, legacyProductDescription } from '../core/data/product-metadata';
 import { UiLanguage } from '../core/ui-language';
+
+type ProductOrdering = '' | 'product_name' | '-product_name' | 'unit_price' | '-unit_price';
+type StockFilter = '' | 'in' | 'out';
 
 @Component({selector:"ng-component-products",
   imports: [WorkspaceStatus, DecimalPipe, FormsModule, RouterLink],
@@ -57,9 +60,28 @@ import { UiLanguage } from '../core/ui-language';
             }
           </select>
         </label>
+        <label>{{ text('Warehouse stock') }}
+          <select [ngModel]="stock()" (ngModelChange)="stock.set($event)">
+            <option value="">{{ text('Any availability') }}</option>
+            <option value="in">{{ text('In stock') }}</option>
+            <option value="out">{{ text('Out of stock') }}</option>
+          </select>
+        </label>
+        <label>{{ text('Sort by') }}
+          <select [ngModel]="ordering()" (ngModelChange)="ordering.set($event)">
+            <option value="">{{ text('Default order') }}</option>
+            <option value="product_name">{{ text('Product name ↑') }}</option>
+            <option value="-product_name">{{ text('Product name ↓') }}</option>
+            <option value="unit_price">{{ text('Unit price ↑') }}</option>
+            <option value="-unit_price">{{ text('Unit price ↓') }}</option>
+          </select>
+        </label>
         <p class="result-count" role="status">{{ text('{count} of {total} products', {count: filtered().length, total: data.products().length}) }}</p>
       </div>
 
+      @if (hasSampleProducts()) {
+        <p class="hint">{{ text('Descriptions of sample products are illustrative.') }}</p>
+      }
       <div class="cards catalog-cards">
         @for (product of filtered(); track product.product_id) {
           <article class="panel catalog-card" [attr.data-demo]="isDemo(product.product_name) ? 'true' : null">
@@ -82,10 +104,10 @@ import { UiLanguage } from '../core/ui-language';
                     <li>
                       @if (canOrder()) {
                         <a routerLink="/orders" [queryParams]="{ new: 1, product: product.product_id, supplier: supplier.supplier_id }">
-                          {{ text('Order from {supplier}', {supplier: supplier.supplier_name}) }}
+                          {{ text('Order from {supplier}', {supplier: displayName(supplier.supplier_name)}) }}
                         </a>
                       } @else {
-                        {{ supplier.supplier_name }}
+                        {{ displayName(supplier.supplier_name) }}
                       }
                     </li>
                   } @empty {
@@ -102,9 +124,9 @@ import { UiLanguage } from '../core/ui-language';
           </article>
         } @empty {
           <div class="panel empty-state">
-            @if (query().trim() || category()) {
+            @if (query().trim() || category() || stock()) {
               <p>{{ text('No products match your filters.') }}</p>
-              <button type="button" class="secondary" (click)="query.set(''); category.set('')">{{ text('Clear filters') }}</button>
+              <button type="button" class="secondary" (click)="query.set(''); category.set(''); stock.set('')">{{ text('Clear filters') }}</button>
             } @else {
               <p>{{ text('No products are available in this workspace.') }}</p>
             }
@@ -115,8 +137,9 @@ import { UiLanguage } from '../core/ui-language';
   `,
 })
 export class ProductsPage {
-  readonly text = inject(UiLanguage).text;
-  readonly displayName = displayProductName;
+  private readonly language = inject(UiLanguage);
+  readonly text = this.language.text;
+  readonly displayName = displayCatalogName;
   readonly isDemo = isDemoProduct;
   readonly openProductId = signal<number | null>(null);
   description(product: Product) { return product.description || demoProductDescription(product.product_name) || legacyProductDescription(product.product_id, product.product_name, product.category); }
@@ -137,8 +160,8 @@ export class ProductsPage {
   edit(p?: Product) {
     if (this.busy() || !this.data.permissions().manageCatalog) return;
     this.editingId = p?.product_id;
-    this.editingPrefix = p?.product_name.match(/^(?:\[DEMO\]|\[JEDEL FICTIONAL\])\s+/)?.[0] ?? '';
-    this.draft = p ? {product_name: displayProductName(p.product_name), category: p.category, unit_price: p.unit_price} : {product_name: '', category: '', unit_price: 0};
+    this.editingPrefix = catalogNamePrefix(p?.product_name ?? '');
+    this.draft = p ? {product_name: this.displayName(p.product_name), category: p.category, unit_price: p.unit_price} : {product_name: '', category: '', unit_price: 0};
     this.error.set(''); this.formOpen.set(true);
   }
   async save() {
@@ -148,7 +171,7 @@ export class ProductsPage {
     catch(e) { this.error.set((e as Error).message); } finally { this.busy.set(false); }
   }
   async remove(p: Product) {
-    if (this.busy() || !confirm(this.text('Delete product {name}?', {name: displayProductName(p.product_name)}))) return;
+    if (this.busy() || !confirm(this.text('Delete product {name}?', {name: this.displayName(p.product_name)}))) return;
     this.busy.set(true); this.error.set('');
     try { await this.data.deleteProduct(p.product_id); } catch(e) { this.error.set((e as Error).message); } finally { this.busy.set(false); }
   }
@@ -156,6 +179,8 @@ export class ProductsPage {
   readonly data = inject(Store);
   readonly query = signal("");
   readonly category = signal("");
+  readonly stock = signal<StockFilter>('');
+  readonly ordering = signal<ProductOrdering>('');
   readonly canOrder = computed(() => this.data.canWrite() && this.data.permissions().createOrders);
   readonly categories = computed(() =>
     [...new Set(this.data.products().map((product) => product.category).filter(Boolean))].sort(),
@@ -163,12 +188,34 @@ export class ProductsPage {
   readonly filtered = computed(() => {
     const query = this.query().trim().toLowerCase();
     const category = this.category();
-    return this.data.products().filter((product) =>
-      (!category || product.category === category) &&
-      [product.product_name, product.category, this.description(product) ?? ""]
-        .some((field) => field.toLowerCase().includes(query)),
-    );
+    const stock = this.stock();
+    const products = this.data.products().filter((product) => {
+      const inStock = product.stock_quantity > 0;
+      return (!category || product.category === category) &&
+        (!stock || inStock === (stock === 'in')) &&
+        [product.product_name, product.category, this.description(product) ?? ""]
+          .some((field) => field.toLowerCase().includes(query));
+    });
+
+    const ordering = this.ordering();
+    switch (ordering) {
+      case 'product_name':
+      case '-product_name': {
+        const collator = new Intl.Collator(this.language.current());
+        const direction = ordering === 'product_name' ? 1 : -1;
+        return products.sort((a, b) =>
+          direction * collator.compare(this.displayName(a.product_name), this.displayName(b.product_name)),
+        );
+      }
+      case 'unit_price':
+        return products.sort((a, b) => a.unit_price - b.unit_price);
+      case '-unit_price':
+        return products.sort((a, b) => b.unit_price - a.unit_price);
+      default:
+        return products;
+    }
   });
+  readonly hasSampleProducts = computed(() => this.filtered().some(product => isDemoProduct(product.product_name)));
   readonly purchasingSuppliers = computed(() => {
     const orderSuppliers = new Map(this.data.orders()
       .filter((order) => order.status !== "Cancelled")

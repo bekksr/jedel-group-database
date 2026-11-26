@@ -28,13 +28,15 @@ it('shows exactly one Account link and no separate Register/Log in links in the 
   expect(links.map(link => link.textContent?.trim())).toEqual(['Home','Products','Suppliers','Orders','Analytics','Jedel AI','Account']);
   expect(links.at(-1)?.getAttribute('href')).toBe('/auth');
 });
-it('shows actual identity and profile/settings/logout without exposing an admin link to Basic User', async () => {
+it('shows account identity, profile and logout actions for Basic User', async () => {
   TestBed.inject(Auth).user.set(basic); const fixture = TestBed.createComponent(App); await fixture.whenStable();
   const header = fixture.nativeElement.querySelector('header') as HTMLElement;
   expect(header.querySelector('.account-summary')?.textContent).toContain('Basic Member');
   expect(header.querySelector('.account-summary')?.textContent).toContain('Basic User');
-  expect(header.querySelector('.profile-dropdown')?.textContent).toContain('My Profile');
-  expect(header.querySelector('.profile-dropdown')?.textContent).toContain('Settings');
+  expect(header.querySelector('.account-summary summary .avatar')?.textContent?.trim()).toBe('B');
+  expect(header.querySelector('.profile-dropdown .avatar')).toBeNull();
+  expect(header.querySelector('.profile-dropdown a[href="/profile"]')?.textContent?.trim()).toBe('Open profile');
+  expect(header.querySelector('.profile-dropdown')?.textContent).not.toContain('Edit profile');
   expect(header.querySelector('.profile-dropdown')?.textContent).toContain('Log out');
   expect(header.querySelector('[href="/admin/"]')).toBeNull();
   expect(header.querySelector('.account-button')).toBeNull();
