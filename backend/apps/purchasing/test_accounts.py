@@ -317,3 +317,20 @@ class AccountTests(TestCase):
             self.assertEqual(self.client.post('/api/auth/register/', body, **self.csrf()).status_code, 400)
         legacy.refresh_from_db(); self.assertTrue(legacy.is_active); self.assertTrue(legacy.check_password(self.password))
         self.assertFalse(User.objects.filter(username='new-collision').exists())
+
+
+    def test_database_restricted_flag_is_exposed_only_to_system_administrator(self):
+        self.login()
+        employee = self.client.get('/api/auth/me/').data
+        self.assertNotIn('database_restricted', employee)
+        admin = User.objects.create_user('sysadmin', password=self.password)
+        admin.groups.add(Group.objects.get_or_create(name='System Administrator')[0])
+        admin_client = APIClient(enforce_csrf_checks=True)
+        admin_client.get('/api/auth/csrf/')
+        token = {'HTTP_X_CSRFTOKEN': admin_client.cookies['csrftoken'].value}
+        response = admin_client.post('/api/auth/login/', {'username': 'sysadmin', 'password': self.password}, **token)
+        self.assertEqual(response.status_code, 200, response.content)
+        profile = admin_client.get('/api/auth/me/').data
+        self.assertIn('database_restricted', profile)
+        self.assertIn(profile['database_restricted'], (True, False, None))
+        self.assertNotIn('database_user', profile)
