@@ -5,13 +5,13 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Auth } from '../auth';
 import { CopilotService, CopilotCapabilities, CatalogProduct, SearchResult, Comparison, Inventory, OrderDraft, ChatResult } from '../core/data/copilot.service';
 import { apiError } from '../core/data/api-errors';
-import { displayProductName, displayProductText } from '../core/data/product-metadata';
+import { displayCatalogName, displayProductText } from '../core/data/product-metadata';
 import { UiLanguage } from '../core/ui-language';
 
 @Component({selector: 'app-copilot', imports: [FormsModule, RouterLink], templateUrl: './copilot.html', styleUrl: './copilot.scss'})
 export class CopilotPage {
   readonly text = inject(UiLanguage).text;
-  readonly displayName = displayProductName;
+  readonly displayName = displayCatalogName;
   readonly displayText = displayProductText;
   auth = inject(Auth); api = inject(CopilotService);
   caps = signal<CopilotCapabilities | null>(null); busy = signal(false); error = signal('');

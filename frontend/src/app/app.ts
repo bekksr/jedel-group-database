@@ -15,7 +15,7 @@ import { UiLanguage } from './core/ui-language';
     .profile-menu summary::-webkit-details-marker{display:none}
     .avatar{width:34px;height:34px;display:grid;place-items:center;flex-shrink:0;border-radius:50%;background:var(--tint);color:var(--accent);font-weight:700}
     .profile-identity{display:flex;flex-direction:column;min-width:0;line-height:1.4}.profile-identity strong{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.profile-identity small{font-size:11px;color:var(--muted)}
-    .profile-dropdown{position:absolute;inset-inline-end:0;top:calc(100% + 8px);width:max-content;max-width:min(260px,calc(100vw - 32px));padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--surface);box-shadow:0 12px 28px #20344d1a;z-index:20}
+    .profile-dropdown{position:absolute;inset-inline-end:0;top:calc(100% + 8px);width:max-content;min-width:100%;max-width:calc(100vw - 2 * var(--gutter));padding:6px;border:1px solid var(--line);border-radius:10px;background:var(--surface);box-shadow:0 12px 28px #20344d1a;z-index:20}
     .profile-dropdown a,.profile-dropdown button{display:block;width:100%;text-align:left;padding:9px 12px;font:inherit;font-size:14px;text-decoration:none;color:var(--text);border:0;border-radius:6px;background:transparent}.profile-dropdown a:hover,.profile-dropdown button:hover{background:var(--tint);color:var(--accent)}
     @media (max-width: 540px) { .profile-dropdown{inset-inline:0 auto} }
   `],
@@ -44,16 +44,16 @@ import { UiLanguage } from './core/ui-language';
         </nav>
         <div class="header-actions">
           @if (auth.user(); as user) {
+            @let displayName = user.name || user.username;
             <details class="profile-menu account-summary">
               <summary [attr.aria-label]="text('Open profile menu')">
-                <span class="avatar" aria-hidden="true">{{ (user.name || user.username).charAt(0).toUpperCase() }}</span>
-                <span class="profile-identity"><strong>{{ user.name || user.username }}</strong><small>{{ text(user.role) }}</small></span>
+                <span class="avatar" aria-hidden="true">{{ displayName.charAt(0).toUpperCase() }}</span>
+                <span class="profile-identity"><strong>{{ displayName }}</strong><small>{{ text(user.role) }}</small></span>
               </summary>
               <div class="profile-dropdown">
-                <a routerLink="/profile" (click)="closeProfile($event)">{{ text('My Profile') }}</a>
-                <a routerLink="/settings" (click)="closeProfile($event)">{{ text('Settings') }}</a>
+                <a routerLink="/profile" (click)="closeProfile($event)">{{ text('Open profile') }}</a>
                 @if (user.can_manage_security) {
-                  <a routerLink="/settings" (click)="closeProfile($event)">{{ text('Security access') }}</a>
+                  <a routerLink="/profile" (click)="closeProfile($event)">{{ text('Security access') }}</a>
                 }
                 @if (user.can_administer) {
                   <a href="http://127.0.0.1:8000/admin/">{{ text('Administration') }}</a>
@@ -79,7 +79,7 @@ import { UiLanguage } from './core/ui-language';
     @if(auth.user()?.capabilities?.read) {
     <div class="workspace-bar"><div class="workspace-inner">
       <span>{{ text('Supplier Purchasing System') }}</span>
-      <a routerLink="/settings" class="workspace-status" [class.ready]="!data.loading() && !data.error() && data.api.connected()">{{ text(data.loading() ? 'Loading workspace...' : data.error() ? 'API disconnected' : 'API connected') }}</a>
+      <a routerLink="/profile" class="workspace-status" [class.ready]="!data.loading() && !data.error() && data.api.connected()">{{ text(data.loading() ? 'Loading workspace...' : data.error() ? 'API disconnected' : 'API connected') }}</a>
       <button type="button" class="secondary" [disabled]="data.loading() || data.busy()" (click)="refresh()">{{ text('Refresh') }}</button>
     </div></div>
     }

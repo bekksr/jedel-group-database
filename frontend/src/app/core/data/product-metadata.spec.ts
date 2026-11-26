@@ -7,8 +7,8 @@ describe('fictional product metadata', () => {
     const second = '[DEMO] Monitor 22 FHD';
     expect(displayProductName(first)).toBe('Notebook Air 13');
     expect(isDemoProduct(first)).toBe(true);
-    expect(demoProductDescription(first)).toContain('Notebook Air 13');
-    expect(demoProductDescription(second)).toContain('Monitor 22 FHD');
+    expect(demoProductDescription(first)).toBe('A compact 13-inch-class laptop concept for mobile office work and light presentations.');
+    expect(demoProductDescription(second)).toBe('A 22-inch-class Full HD display concept for a compact workstation.');
     expect(demoProductDescription(first)).not.toBe(demoProductDescription(second));
     expect(demoProductDescription('Notebook Air 13')).toBeUndefined();
     expect(demoProductDescription('[DEMO] Unknown custom product')).toBeUndefined();

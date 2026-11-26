@@ -19,7 +19,7 @@
             <select [attr.aria-label]="text('Supplier')" formControlName="supplier_id" required>
               <option [ngValue]="0">{{ text('Select supplier') }}</option>
               @for (supplier of data.suppliers(); track supplier.supplier_id) {
-                <option [ngValue]="supplier.supplier_id">{{ supplier.supplier_name }}</option>
+                <option [ngValue]="supplier.supplier_id">{{ displayName(supplier.supplier_name) }}</option>
               }
             </select>
           </label>
@@ -86,7 +86,7 @@
         </div>
         <progress aria-labelledby="order-progress-label" max="3" [value]="stage" [attr.aria-valuetext]="stageText"></progress>
         @if (order.status === 'Delivered') {
-          <span class="badge cashback-reward">{{ text('Demo cashback in points') }} · +{{ demoBonus(order) | number:'1.0-0' }}</span>
+          <span class="badge cashback-reward">{{ text('Virtual cashback points') }} · +{{ demoBonus(order) | number:'1.0-0' }}</span>
         }
       </div>
     }

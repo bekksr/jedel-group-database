@@ -40,7 +40,7 @@ test('visual audit: dashboard and analytics at five viewports', async ({browser}
   if(phase!=='before') {
     for(const width of [1440,1280,768,390,375]) {
       await page.setViewportSize({width,height:1000});
-      for(const path of ['/products','/suppliers','/orders','/ai-assistant','/settings']) {
+      for(const path of ['/products','/suppliers','/orders','/ai-assistant','/profile']) {
         await page.goto(path);await expect(page.locator('.account-summary')).toContainText('Purchasing Manager');
         await expect(page.locator('main h1')).toBeVisible();
         expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);

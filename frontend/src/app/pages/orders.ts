@@ -23,7 +23,7 @@ import {
 import { ActivatedRoute, ParamMap } from "@angular/router";
 import { Store } from "../store";
 import { ProductSelector } from '../components/product-selector';
-import { displayProductName } from '../core/data/product-metadata';
+import { displayCatalogName } from '../core/data/product-metadata';
 import { UiLanguage } from '../core/ui-language';
 import {
   allowedTransitions,
@@ -39,6 +39,7 @@ import {
 })
 export class OrdersPage {
   readonly text = inject(UiLanguage).text;
+  readonly displayName = displayCatalogName;
   readonly data = inject(Store);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly injector = inject(Injector);
@@ -124,13 +125,13 @@ export class OrdersPage {
     return this.form.controls.items;
   }
   supplierName(id: number) {
-    return (
+    return this.displayName(
       this.data.suppliers().find((s) => s.supplier_id === id)?.supplier_name ??
       this.text('Unknown supplier')
     );
   }
   productName(id: number) {
-    return displayProductName(
+    return this.displayName(
       this.data.products().find((p) => p.product_id === id)?.product_name ??
       this.text('Unknown product')
     );

@@ -71,3 +71,27 @@ it('clearing a search cancels the in-flight query and keeps the selected categor
   expect(cleared.request.params.get('category')).toBe('Hardware');
   cleared.flush(empty);
 });
+
+it('changes public sort order across pages and preserves the active search and category', async () => {
+  const {fixture, request} = initial();
+  const firstPage = {count: 30, next: 'page=2', previous: null, results: []};
+  request.flush(firstPage);
+  const page = fixture.componentInstance;
+  page.setSearch(' Adapter ');
+  page.setCategory('Hardware');
+  http.expectOne(req => req.params.get('category') === 'Hardware').flush(firstPage);
+  page.changePage(1);
+  const pendingPage = http.expectOne(req => req.params.get('page') === '2');
+
+  page.setOrdering('-product_id');
+
+  expect(pendingPage.cancelled).toBe(true);
+  const sorted = http.expectOne(req => req.params.get('ordering') === '-product_id');
+  expect(sorted.request.params.get('page')).toBe('1');
+  expect(sorted.request.params.get('search')).toBe('Adapter');
+  expect(sorted.request.params.get('category')).toBe('Hardware');
+  sorted.flush(firstPage);
+  page.changePage(1);
+  http.expectOne(req => req.params.get('page') === '2' && req.params.get('ordering') === '-product_id')
+    .flush({...firstPage, next: null, previous: 'page=1'});
+});

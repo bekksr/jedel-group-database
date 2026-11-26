@@ -12,7 +12,8 @@ test('actual seeded catalog displays all 55 products', async ({ page }) => {
   await expect(cards).toHaveCount(55);
   const laptop = cards.filter({has: page.getByRole('heading', {name: 'Notebook Air 13', exact: true})});
   await laptop.locator('summary').click();
-  await expect(laptop).toContainText('Notebook Air 13 is a fictional demonstration product');
+  await expect(laptop).toContainText('A compact 13-inch-class laptop concept');
+  await expect(page.getByText('Descriptions of sample products are illustrative.', {exact: true})).toHaveCount(1);
   await page.reload();
   await expect(cards).toHaveCount(55);
 });

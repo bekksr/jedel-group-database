@@ -99,6 +99,28 @@ describe("Pages", () => {
     expect(p.filtered()).toHaveLength(0);
     expect([...p.purchasingSuppliers().get(3)!].map((supplier) => supplier.supplier_id).sort()).toEqual([2, 3]);
   });
+  it('combines product search, category and stock with sorting by price or display name', () => {
+    const page = TestBed.createComponent(ProductsPage).componentInstance;
+    vi.spyOn(page.data, 'products').mockReturnValue([
+      {product_id: 1, product_name: '[DEMO] Zebra Monitor', category: 'Electronics', unit_price: 90, stock_quantity: 1},
+      {product_id: 2, product_name: 'Alpha Monitor', category: 'Electronics', unit_price: 100, stock_quantity: 3},
+      {product_id: 3, product_name: 'Studio Monitor', category: 'Electronics', unit_price: 50, stock_quantity: 0},
+      {product_id: 4, product_name: 'Monitor shelf', category: 'Furniture', unit_price: 20, stock_quantity: 5},
+      {product_id: 5, product_name: 'Keyboard', category: 'Electronics', unit_price: 30, stock_quantity: 2},
+    ]);
+
+    page.query.set(' monitor ');
+    page.category.set('Electronics');
+    page.stock.set('in');
+    page.ordering.set('-unit_price');
+    expect(page.filtered().map(product => product.product_id)).toEqual([2, 1]);
+    page.ordering.set('unit_price');
+    expect(page.filtered().map(product => product.product_id)).toEqual([1, 2]);
+    page.ordering.set('product_name');
+    expect(page.filtered().map(product => product.product_id)).toEqual([2, 1]);
+    page.stock.set('out');
+    expect(page.filtered().map(product => product.product_id)).toEqual([3]);
+  });
   it('opens only the selected product and toggles it closed', async () => {
     const fixture = TestBed.createComponent(ProductsPage); fixture.detectChanges(); await fixture.whenStable();
     const summaries = fixture.nativeElement.querySelectorAll('details summary') as NodeListOf<HTMLElement>;
@@ -123,6 +145,21 @@ describe("Pages", () => {
     const p = TestBed.createComponent(SuppliersPage).componentInstance;
     p.query.set(" GLOBAL@EXAMPLE.COM ");
     expect(p.filtered().map((supplier) => supplier.supplier_id)).toEqual([2]);
+  });
+  it('displays a clean supplier name and preserves its stored marker when editing', async () => {
+    const fixture = TestBed.createComponent(SuppliersPage);
+    const page = fixture.componentInstance;
+    const supplier = {supplier_id: 1, supplier_name: '[DEMO] Sample supplier', email: 's@example.test', phone: '', address: ''};
+    vi.spyOn(page.data, 'suppliers').mockReturnValue([supplier]);
+    const save = vi.spyOn(page.data, 'saveSupplier').mockResolvedValue(undefined);
+    await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('.catalog-card h2').textContent).toBe('Sample supplier');
+
+    page.edit(supplier);
+    expect(page.draft.supplier_name).toBe('Sample supplier');
+    page.draft.supplier_name = 'Updated supplier';
+    await page.save();
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({supplier_name: '[DEMO] Updated supplier'}), 1);
   });
   it('previews captured prices for existing Pending items and current prices for new orders', async () => {
     const fixture = TestBed.createComponent(OrdersPage); await fixture.whenStable();
@@ -155,6 +192,7 @@ describe("Pages", () => {
     orders.update(items => items.map(order => order.order_id === 2 ? {...order, status: 'Delivered'} : order));
     page.selectedId.set(2);
     await fixture.whenStable();
+    expect(fixture.nativeElement.querySelector('.cashback-reward')?.textContent).toContain('Virtual cashback points');
     expect(fixture.nativeElement.querySelector('.cashback-reward')?.textContent).toContain('+3');
     expect(page.demoBonusBalance()).toBe(4);
   });

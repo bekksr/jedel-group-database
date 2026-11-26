@@ -53,7 +53,7 @@ test('registration activates Basic User, logs in automatically, persists and pre
   await page.goto('/products/new');
   await expect(page.getByRole('heading', {name: 'Access denied', exact: true})).toBeVisible();
   await page.locator('.profile-menu summary').click();
-  await expect(page.getByRole('link', {name: 'My Profile', exact: true})).toBeVisible();
+  await expect(page.getByRole('link', {name: 'Open profile', exact: true})).toBeVisible();
   await page.getByRole('button', {name: 'Log out', exact: true}).click();
   await expect(page.getByRole('navigation').getByRole('link', {name: 'Account', exact: true})).toBeVisible();
   expect((await page.request.get('/api/auth/me/')).status()).toBe(401);
@@ -80,8 +80,29 @@ test('registration activates Basic User, logs in automatically, persists and pre
   await expect(admin.getByRole('link', {name: 'Admin browser product', exact: true})).toBeVisible();
   await adminContext.close();
   await page.locator('.profile-menu summary').click();
-  await page.getByRole('link', {name: 'My Profile', exact: true}).click();
+  await page.getByRole('link', {name: 'Open profile', exact: true}).click();
+  await expect(page).toHaveURL(/\/profile$/);
+  await expect(page.getByRole('heading', {name: 'Browser Applicant', exact: true})).toBeVisible();
+  await expect(page.getByText('browser-applicant@example.test', {exact: true})).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'What your role can do', exact: true})).toBeVisible();
+  await expect(page.getByText('Your role has no purchasing permissions. You can browse the public catalog.', {exact: true})).toBeVisible();
+  await expect(page.getByRole('link', {name: 'Edit profile', exact: true})).toHaveCount(0);
   await expect(page.getByRole('heading', {name: 'Account settings', exact: true})).toBeVisible();
+  await expect(page.getByLabel('New password', {exact: true})).toBeVisible();
+  await page.getByLabel('Name', {exact: true}).fill('Updated Browser Applicant');
+  await page.getByRole('button', {name: 'Save name', exact: true}).click();
+  await expect(page.getByText('Profile saved.', {exact: true})).toBeVisible();
+  await expect(page.getByRole('heading', {name: 'Updated Browser Applicant', exact: true})).toBeVisible();
+  await page.goto('/settings');
+  await expect(page).toHaveURL(/\/profile$/);
+  await expect(page.getByRole('heading', {name: 'Updated Browser Applicant', exact: true})).toBeVisible();
+  const changedPassword = password + 'a9!';
+  for (const [current, next] of [[password, changedPassword], [changedPassword, password]]) {
+    await page.getByLabel('Current password', {exact: true}).fill(current);
+    await page.getByLabel('New password', {exact: true}).fill(next);
+    await page.getByRole('button', {name: 'Change password', exact: true}).click();
+    await expect(page.getByText('Password changed.', {exact: true})).toBeVisible();
+  }
   await page.locator('.profile-menu summary').click();
   await page.getByRole('button', {name: 'Log out', exact: true}).click();
   await page.getByRole('navigation').getByRole('link', {name: 'Home', exact: true}).click();
