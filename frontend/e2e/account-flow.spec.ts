@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-test('registration activates Basic User, logs in automatically, persists and preserves restrictions', async ({page, browser}) => {
+test('registration activates User, logs in automatically, persists and preserves restrictions', async ({page, browser}) => {
   if (process.env['JEDEL_ISOLATED_BROWSER'] !== '1') throw new Error('Use the isolated backend harness.');
   const password = process.env['JEDEL_E2E_PASSWORD']!;
   await page.goto('/register');
@@ -12,16 +12,31 @@ test('registration activates Basic User, logs in automatically, persists and pre
   await expect(page.getByRole('heading', {name: 'Purchasing, made simple.'})).toBeVisible();
   await expect(page.getByText('Account created successfully. Welcome to Jedel.Group!', {exact: true})).toBeVisible();
   await expect(page.locator('.account-summary')).toContainText('Browser Applicant');
-  await expect(page.locator('.account-summary')).toContainText('Basic User');
+  await expect(page.locator('.profile-identity small')).toHaveText('User');
   await page.reload();
   await expect(page.locator('.account-summary')).toContainText('Browser Applicant');
   const me = await page.request.get('/api/auth/me/');
   expect(me.status()).toBe(200);
-  const account = await me.json(); expect(account.role).toBe('Basic User'); expect(account.can_administer).toBe(false);
+  const account = await me.json(); expect(account.role).toBe('User'); expect(account.can_administer).toBe(false);
   expect(account.username).toBe('browser-applicant'); expect(account.email).toBe('browser-applicant@example.test');
-  expect(Object.values(account.capabilities).some(Boolean)).toBe(false);
-  expect((await page.request.get('/api/suppliers/')).status()).toBe(403);
-  expect((await page.request.get('/api/orders/')).status()).toBe(403);
+  expect(account.capabilities).toEqual({
+    read: true, manage_catalog: true, create_orders: true, transition_orders: false, delete_records: false,
+  });
+  expect((await page.request.get('/api/suppliers/')).status()).toBe(200);
+  expect((await page.request.get('/api/orders/')).status()).toBe(200);
+  await page.goto('/products/new');
+  await expect(page.getByRole('heading', {name: 'New product', exact: true})).toBeVisible();
+  await expect(page.getByRole('button', {name: 'Delete', exact: true})).toHaveCount(0);
+  await page.goto('/orders/new');
+  await expect(page.getByRole('heading', {name: 'New purchase order', exact: true})).toBeVisible();
+  await expect(page.getByRole('button', {name: 'Mark Approved', exact: true})).toHaveCount(0);
+  await page.locator('.profile-menu summary').click();
+  await expect(page.getByRole('link', {name: 'Open profile', exact: true})).toBeVisible();
+  await expect(page.getByRole('link', {name: 'Administration', exact: true})).toHaveCount(0);
+  await page.getByRole('button', {name: 'Log out', exact: true}).click();
+  await expect(page.getByRole('navigation').getByRole('link', {name: 'Account', exact: true})).toBeVisible();
+  expect((await page.request.get('/api/auth/me/')).status()).toBe(401);
+
   await page.getByRole('navigation').getByRole('link', {name: 'Products', exact: true}).click();
   await expect(page.getByRole('heading', {name: 'Public catalog hardware', exact: true})).toBeVisible();
   await expect(page.getByText('Unit price', {exact: true})).toHaveCount(0);
@@ -51,17 +66,12 @@ test('registration activates Basic User, logs in automatically, persists and pre
   const safeRows = (await safeCatalog.json()).results;
   for (const row of safeRows) expect(Object.keys(row).sort()).toEqual(['category','product_id','product_name']);
   await page.goto('/products/new');
-  await expect(page.getByRole('heading', {name: 'Access denied', exact: true})).toBeVisible();
-  await page.locator('.profile-menu summary').click();
-  await expect(page.getByRole('link', {name: 'Open profile', exact: true})).toBeVisible();
-  await page.getByRole('button', {name: 'Log out', exact: true}).click();
-  await expect(page.getByRole('navigation').getByRole('link', {name: 'Account', exact: true})).toBeVisible();
-  expect((await page.request.get('/api/auth/me/')).status()).toBe(401);
+  await expect(page).toHaveURL(/auth\?mode=login&returnTo=/);
   await page.goto('/login');
   await page.getByLabel('Email address or username', {exact: true}).fill('browser-applicant');
   await page.getByLabel('Password', {exact: true}).fill(password);
   await page.locator('form').getByRole('button', {name: 'Log in', exact: true}).click();
-  await expect(page.locator('.account-summary')).toContainText('Basic User');
+  await expect(page.locator('.profile-identity small')).toHaveText('User');
   const adminContext = await browser.newContext();
   const admin = await adminContext.newPage();
   const backend = process.env['JEDEL_E2E_BACKEND_URL']!;
@@ -85,7 +95,9 @@ test('registration activates Basic User, logs in automatically, persists and pre
   await expect(page.getByRole('heading', {name: 'Browser Applicant', exact: true})).toBeVisible();
   await expect(page.getByText('browser-applicant@example.test', {exact: true})).toBeVisible();
   await expect(page.getByRole('heading', {name: 'What your role can do', exact: true})).toBeVisible();
-  await expect(page.getByText('Your role has no purchasing permissions. You can browse the public catalog.', {exact: true})).toBeVisible();
+  const permissions = page.locator('.permission-row');
+  await expect(permissions.filter({hasText: 'Create purchase orders'}).locator('dd')).toHaveText('Allowed');
+  await expect(permissions.filter({hasText: 'Approve, deliver, cancel'}).locator('dd')).toHaveText('Not allowed');
   await expect(page.getByRole('link', {name: 'Edit profile', exact: true})).toHaveCount(0);
   await expect(page.getByRole('heading', {name: 'Account settings', exact: true})).toBeVisible();
   await expect(page.getByLabel('New password', {exact: true})).toBeVisible();
@@ -100,6 +112,7 @@ test('registration activates Basic User, logs in automatically, persists and pre
   for (const [current, next] of [[password, changedPassword], [changedPassword, password]]) {
     await page.getByLabel('Current password', {exact: true}).fill(current);
     await page.getByLabel('New password', {exact: true}).fill(next);
+    await page.getByLabel('Confirm new password', {exact: true}).fill(next);
     await page.getByRole('button', {name: 'Change password', exact: true}).click();
     await expect(page.getByText('Password changed.', {exact: true})).toBeVisible();
   }

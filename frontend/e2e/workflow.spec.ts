@@ -1,20 +1,26 @@
 import { test, expect } from '@playwright/test';
-test('session, catalog persistence, Pending amendment, delivery and forbidden writes', async ({page}) => {
+test('session, catalog persistence, Pending amendment, delivery and forbidden writes', async ({page, browser}) => {
   if (process.env['JEDEL_ISOLATED_BROWSER'] !== '1') throw new Error('Use the guarded backend browser test runner; never target a project database.');
   const businessRequests: string[] = [];
   page.on('request', request => { if (/\/api\/(products|suppliers|orders|analytics|dashboard|access)\//.test(request.url())) businessRequests.push(request.url()); });
   await page.goto('/');
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', {name: 'Purchasing, made simple.'})).toBeVisible();
-  for (const name of ['Suppliers', 'Orders', 'Analytics', 'Products']) {
+  for (const name of ['Suppliers', 'Orders', 'Products']) {
     await page.getByRole('navigation').getByRole('link', {name, exact: true}).click();
     if (name === 'Products') {
       await expect(page.getByRole('heading', {name: 'Public catalog hardware', exact: true})).toBeVisible();
       await expect(page.getByText('Unit price', {exact: true})).toHaveCount(0);
-    } else await expect(page.getByRole('heading', {name: 'Open your team workspace', exact: true})).toBeVisible();
+    } else {
+      await expect(page.getByRole('heading', {name: 'Role matrix supplier', exact: true})).toBeVisible();
+      await expect(page.locator('main')).not.toContainText('private-role@example.test');
+    }
   }
+  await expect(page.getByRole('navigation').getByRole('link', {name: 'Analytics', exact: true})).toHaveCount(0);
+  await page.goto('/analytics');
+  await expect(page).toHaveURL(url => url.pathname === '/auth' && url.searchParams.get('returnTo') === '/analytics');
   expect(businessRequests).toEqual([]);
-  await page.getByRole('link', {name: 'Create product', exact: true}).click();
+  await page.goto('/products/new');
   await expect(page).toHaveURL(/auth\?mode=login&returnTo=/);
 
   await page.getByLabel('Email address or username', {exact: true}).fill('browser-manager');
@@ -88,10 +94,26 @@ test('session, catalog persistence, Pending amendment, delivery and forbidden wr
   await page.getByRole('button', {name: 'Save amendment'}).click();
   await expect(page.getByRole('button', {name: 'Edit Pending order'})).toBeVisible();
   await page.getByRole('button', {name: 'Mark Approved'}).click();
-  await expect(page.locator('.detail')).toContainText('Approved');
-  await page.getByRole('button', {name: 'Mark Delivered'}).click();
-  await expect(page.locator('.detail')).toContainText('Delivered');
-  await expect(page.locator('.detail')).toContainText('37.50');
+  await expect(page.locator('main [role="alert"]')).toHaveText('The order creator cannot approve their own order.');
+
+  const approvalContext = await browser.newContext({extraHTTPHeaders: {'X-Forwarded-For': '198.51.100.23'}});
+  const approvalPage = await approvalContext.newPage();
+  await approvalPage.goto('/login');
+  await approvalPage.getByLabel('Email address or username', {exact: true}).fill('browser-admin');
+  await approvalPage.getByLabel('Password', {exact: true}).fill(process.env['JEDEL_E2E_PASSWORD']!);
+  await approvalPage.locator('form').getByRole('button', {name: 'Log in', exact: true}).click();
+  await expect(approvalPage.locator('.account-summary')).toContainText('System Administrator');
+  await approvalPage.goto('/orders');
+  const orderRow = approvalPage.getByRole('row').filter({has: approvalPage.getByRole('cell', {name: 'Browser supplier', exact: true})});
+  await orderRow.getByRole('button', {name: /^View order /}).click();
+  await approvalPage.getByRole('button', {name: 'Mark Approved'}).click();
+  await expect(orderRow.getByRole('cell', {name: 'Approved', exact: true})).toBeVisible();
+  await approvalPage.getByRole('button', {name: 'Mark Delivered'}).click();
+  await expect(orderRow.getByRole('cell', {name: 'Delivered', exact: true})).toBeVisible();
+  await expect(approvalPage.locator('.detail')).toContainText('37.50');
+  await approvalContext.close();
+
+  await page.getByRole('button', {name: 'Refresh', exact: true}).click();
   await page.getByRole('navigation', {name: 'Main navigation'}).getByRole('link', {name: 'Products', exact: true}).click();
   await expect(page.locator('article').filter({has: page.getByRole('heading', {name: 'Browser product', exact: true})})).toContainText('3 units');
   await page.getByRole('navigation', {name: 'Main navigation'}).getByRole('link', {name: 'Analytics', exact: true}).click();

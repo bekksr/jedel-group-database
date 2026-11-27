@@ -71,9 +71,18 @@ print('Disposable administrator bootstrap verified; credential not displayed.')
     email = 'smoke-' + secrets.token_hex(6) + '@example.test'
     username = 'smoke-user-' + secrets.token_hex(6)
     request('/api/auth/register/', {'name':'Fictional CI User','username':username,'email':email,'password':secrets.token_urlsafe(40)})
-    assert request('/api/auth/me/')['role'] == 'Basic User'
+    account = request('/api/auth/me/')
+    assert account['role'] == 'User'
+    assert account['can_administer'] is False
+    assert account['capabilities'] == {
+        'read': True, 'manage_catalog': True, 'create_orders': True,
+        'transition_orders': False, 'delete_records': False,
+    }
+    catalog_path = Path(__file__).resolve().parents[1] / 'database' / 'shared_catalog.json'
+    shared_catalog = json.loads(catalog_path.read_text(encoding='utf-8'))
+    expected_counts = f"{len(shared_catalog['products'])}|{len(shared_catalog['suppliers'])}|0|0"
     catalog = request('/api/catalog/products/')
-    assert catalog['count'] == 55, 'Fresh fictional catalog should contain 55 products.'
+    assert catalog['count'] == len(shared_catalog['products']), 'Fresh catalog should match the shared fixture.'
     for product in catalog['results']:
         assert set(product) == {'product_id', 'product_name', 'category'}
     assert request('/api/ai/capabilities/')['chat_configured'] is False
@@ -84,7 +93,7 @@ print('Disposable administrator bootstrap verified; credential not displayed.')
         result = subprocess.run(['docker', 'compose', '-p', project, 'exec', '-T', 'db', 'psql', '-U', 'jedel_dev', '-d', 'jedel_dev', '-At', '-c', sql], capture_output=True, text=True, check=True)
         return result.stdout.strip()
 
-    assert counts() == '55|4|8|24', 'Unexpected fresh PostgreSQL counts'
+    assert counts() == expected_counts, 'Unexpected fresh PostgreSQL counts'
     for path in ('/', '/products', '/orders', '/ai-assistant'):
         with client.open(base + path, timeout=15) as response:
             assert response.status == 200
@@ -103,7 +112,7 @@ print('Disposable administrator bootstrap verified; credential not displayed.')
             time.sleep(1)
     else:
         raise SystemExit('Services did not recover after isolated restart.')
-    assert counts() == '55|4|8|24', 'Counts changed after restart'
+    assert counts() == expected_counts, 'Counts changed after restart'
     assert request('/api/auth/me/')['email'] == email
     assert request('/api/catalog/products/') == catalog
     request('/api/auth/logout/', {})
@@ -118,7 +127,7 @@ print('Disposable administrator bootstrap verified; credential not displayed.')
         assert response.status == 200 and urlsplit(response.geturl()).path == '/admin/'
         admin_page = AdminElements(); admin_page.feed(response.read().decode('utf-8'))
         assert 'logout-form' in admin_page.form_ids
-    print('PASS: fresh Compose registration, session, Basic catalog, no-key local capabilities, restart persistence and administrator authentication.')
+    print('PASS: fresh Compose registration, session, shared catalog, no-key local capabilities, restart persistence and administrator authentication.')
     if args.browser:
         node = shutil.which('node')
         frontend = Path(__file__).resolve().parents[1] / 'frontend'

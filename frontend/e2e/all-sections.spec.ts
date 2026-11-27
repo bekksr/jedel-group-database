@@ -1,14 +1,14 @@
 import { test, expect } from '@playwright/test';
 const roles = [
  {name:'Anonymous', username:'', read:false},
- {name:'Basic User', username:'browser-basic-pages',read:false},
+ {name:'User', username:'browser-basic-pages',read:true},
  {name:'Purchasing Employee',username:'browser-employee',read:true},
  {name:'Purchasing Manager',username:'browser-manager',read:true},
  {name:'Analyst / Tester',username:'browser-analyst',read:true},
  {name:'System Administrator',username:'browser-admin',read:true},
  {name:'Security Administrator',username:'browser-security',read:false},
 ];
-test('all five sections support every role without leaking private data',async({browser})=>{
+test('each role can open its permitted sections without leaking private data',async({browser})=>{
  test.setTimeout(90000);
  if(process.env['JEDEL_ISOLATED_BROWSER']!=='1') throw new Error('Use isolated backend harness.');
  for(const role of roles) {
@@ -20,19 +20,22 @@ test('all five sections support every role without leaking private data',async({
    await page.goto('/auth'); await page.getByLabel('Email address or username',{exact:true}).fill(role.username);
    await page.getByLabel('Password',{exact:true}).fill(process.env['JEDEL_E2E_PASSWORD']!);
    await page.locator('form').getByRole('button',{name:'Log in',exact:true}).click();
-   await expect(page.locator('.account-summary')).toContainText(role.name);
+   await expect(page.locator('.profile-identity small')).toHaveText(role.name);
    await expect(page).toHaveURL(/\/$/);
    if(role.read) await expect(page.getByRole('region',{name:'Overview',exact:true})).toBeVisible();
   } else await page.goto('/');
-  for(const section of ['Home','Products','Suppliers','Orders','Analytics']) {
-   await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:section,exact:true}).click();
+  const navigation = page.getByRole('navigation',{name:'Main navigation'});
+  const sections = ['Home','Products','Suppliers','Orders'];
+  if(role.read) sections.push('Analytics');
+  else await expect(navigation.getByRole('link',{name:'Analytics',exact:true})).toHaveCount(0);
+  for(const section of sections) {
+   await navigation.getByRole('link',{name:section,exact:true}).click();
    await expect(page.locator('main h1')).toBeVisible();
    await expect(page.locator('main')).not.toContainText('Access denied.');
    if(!role.read) {
-    for(const secret of ['private-role@example.test','ROLE-PRIVATE-PHONE','Role matrix supplier','90,321.67','9,876 units']) await expect(page.locator('main')).not.toContainText(secret);
-    if(section==='Suppliers') await expect(page.getByRole('heading',{name:'Supplier management workflow',exact:true})).toBeVisible();
-    if(section==='Orders') await expect(page.getByText('not customer sales orders or checkout',{exact:false})).toBeVisible();
-    if(section==='Analytics') await expect(page.getByRole('heading',{name:'Report definitions before figures',exact:true})).toBeVisible();
+    for(const secret of ['private-role@example.test','ROLE-PRIVATE-PHONE','90,321.67','9,876 units']) await expect(page.locator('main')).not.toContainText(secret);
+    if(section==='Suppliers') await expect(page.locator('app-public-suppliers').getByRole('heading',{name:'Role matrix supplier',exact:true})).toBeVisible();
+    if(section==='Orders') await expect(page.locator('app-public-orders').getByRole('heading',{name:'Role matrix supplier',exact:true})).toBeVisible();
     if(section==='Products') await expect(page.getByRole('heading',{name:'Public catalog hardware',exact:true})).toBeVisible();
    } else {
     if(section==='Products') await expect(page.getByText('Warehouse stock',{exact:true}).first()).toBeVisible();
@@ -48,19 +51,24 @@ test('all five sections support every role without leaking private data',async({
    }
   }
   if(!role.read) {
-   expect(privateRequests).toEqual([]);
    await page.setViewportSize({width:390,height:900});
-   for(const section of ['Home','Products','Suppliers','Orders','Analytics']) {
-    await page.getByRole('navigation').getByRole('link',{name:section,exact:true}).click();
+   for(const section of sections) {
+    await navigation.getByRole('link',{name:section,exact:true}).click();
     await expect(page.locator('main h1')).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
    }
-  }
-  if(role.name==='Basic User') {
-   await page.getByRole('link',{name:'Request access',exact:true}).click();
-   await expect(page).toHaveURL(/access\?section=analytics/);
-   await expect(page.getByRole('heading',{name:'Request workspace access',exact:true})).toBeVisible();
-   await expect(page.getByText('does not submit or approve a request automatically',{exact:false})).toBeVisible();
+   await page.goto('/analytics');
+   if(role.username) {
+    await expect(page).toHaveURL(/\/access-denied$/);
+    await expect(page.getByRole('heading',{name:'Access denied',exact:true})).toBeVisible();
+    await page.getByRole('link',{name:'Request access',exact:true}).click();
+    await expect(page).toHaveURL(/\/access(?:\?section=)?$/);
+    await expect(page.getByRole('heading',{name:'Request workspace access',exact:true})).toBeVisible();
+    await expect(page.getByText('does not submit or approve a request automatically',{exact:false})).toBeVisible();
+   } else {
+    await expect(page).toHaveURL(url=>url.pathname==='/auth' && url.searchParams.get('returnTo')==='/analytics');
+   }
+   expect(privateRequests).toEqual([]);
   }
   await context.close();
  }

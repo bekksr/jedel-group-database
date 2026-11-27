@@ -20,43 +20,55 @@ test('Groq consent checkbox stays visible and enables Ask without external reque
   });
   await page.route('**/api/ai/chat/',()=>{throw new Error('Consent-only test must not submit a cloud request');});
   await page.goto('/ai-assistant');
-  await expect(page.locator('.account-summary')).toContainText('Basic User');
-  const consent=page.getByRole('checkbox',{name:/I agree to send this message and recent general conversation to Groq/});
-  const ask=page.getByRole('button',{name:'Ask Jedel AI',exact:true});
+  await expect(page.locator('.profile-identity small')).toHaveText('User');
+  const consent=page.getByRole('checkbox',{name:/Allow Groq to process general chat messages/});
+  const ask=page.getByRole('button',{name:'Send message',exact:true});
   for(const width of [1440,390]) {
     await page.setViewportSize({width,height:900});
     await expect(consent).toBeVisible();
     await expect(consent).toBeEnabled();
-    await page.getByLabel('Message',{exact:true}).fill('can you find electronics');
+    await page.getByLabel('Message Jedel AI',{exact:true}).fill('can you find electronics');
     const box=await consent.boundingBox();expect(box!.width).toBeGreaterThanOrEqual(20);expect(box!.height).toBeGreaterThanOrEqual(20);
     await expect(ask).toBeDisabled();
     await consent.focus();await page.keyboard.press('Space');
     await expect(consent).toBeChecked();
-    await expect(page.getByLabel('Message',{exact:true})).toHaveValue('can you find electronics');
+    await expect(page.getByLabel('Message Jedel AI',{exact:true})).toHaveValue('can you find electronics');
     await expect(ask).toBeEnabled();
     await consent.uncheck();await expect(ask).toBeDisabled();
   }
   await context.close();
 });
-test('anonymous and Basic use real safe Copilot search on desktop and mobile',async({browser})=>{
+test('guest Copilot access is guarded and User can safely search on desktop and mobile',async({browser})=>{
   if(process.env['JEDEL_ISOLATED_BROWSER']!=='1') throw new Error('Use isolated PostgreSQL harness.');
   for(const username of ['', 'browser-basic-pages']) {
     // Separate simulated clients keep independent scenarios from consuming the
     // existing suite's shared login-IP bucket. Production throttles stay intact.
     const context=await browser.newContext({extraHTTPHeaders:{'X-Forwarded-For':username ? '198.51.100.21' : '198.51.100.20'}});const page=await context.newPage();
-    if(username) await login(page,username);else await page.goto('/');
-    await page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Jedel AI',exact:true}).click();
-    await expect(page.getByRole('heading',{name:'Jedel AI',exact:true})).toBeVisible();
-    await page.getByLabel('Product name',{exact:true}).fill('Public catalog');
-    await page.getByLabel('Category',{exact:true}).fill('Hardware');
-    await page.getByRole('button',{name:'Search catalog',exact:true}).click();
-    await expect(page.getByRole('heading',{name:'Public catalog hardware',exact:true})).toBeVisible();
-    await expect(page.getByRole('heading',{name:'Public catalog office',exact:true})).toHaveCount(0);
-    await expect(page.getByText('Groq chat is not configured.',{exact:false})).toBeVisible();
-    await expect(page.getByRole('heading',{name:'Best offer finder',exact:true})).toHaveCount(0);
+    const assistantLink=page.getByRole('navigation',{name:'Main navigation'}).getByRole('link',{name:'Jedel AI',exact:true});
+    if(username) {
+      await login(page,username);
+      await assistantLink.click();
+      await expect(page.getByRole('heading',{name:'Jedel AI',level:1,exact:true})).toBeVisible();
+      await page.getByRole('button',{name:'Browse catalog filters',exact:true}).click();
+      await page.getByLabel('Product name',{exact:true}).fill('Public catalog');
+      await page.getByLabel('Category',{exact:true}).fill('Hardware');
+      await page.getByRole('button',{name:'Search catalog',exact:true}).click();
+      await expect(page.getByRole('heading',{name:'Public catalog hardware',exact:true})).toBeVisible();
+      await expect(page.getByRole('heading',{name:'Public catalog office',exact:true})).toHaveCount(0);
+      await expect(page.getByText('Groq chat is not configured.',{exact:false})).toBeVisible();
+      await expect(page.getByRole('heading',{name:'Best offer finder',exact:true})).toBeVisible();
+    } else {
+      await page.goto('/');
+      await expect(assistantLink).toHaveCount(0);
+      await page.goto('/ai-assistant');
+      await expect(page).toHaveURL(url=>url.pathname==='/auth' && url.searchParams.get('returnTo')==='/ai-assistant');
+    }
+    expect((await page.request.get('/api/auth/csrf/')).ok()).toBe(true);
     const safe=await page.request.post('/api/ai/products/search/',{data:{query:'Public catalog'},headers:{'X-CSRFToken':(await context.cookies()).find(cookie=>cookie.name==='csrftoken')!.value}});
     expect(safe.status()).toBe(200);
-    for(const product of (await safe.json()).results) expect(Object.keys(product).sort()).toEqual(['category','product_id','product_name']);
+    const products=(await safe.json()).results;
+    expect(products).toHaveLength(2);
+    for(const product of products) expect(Object.keys(product).sort()).toEqual(['category','product_id','product_name']);
     for(const secret of ['90321.67','4321','private-role@example.test']) await expect(page.locator('main')).not.toContainText(secret);
     await page.setViewportSize({width:390,height:844});
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
@@ -69,6 +81,7 @@ test('authorized Copilot compares actual test quotations and drafts without busi
   await page.context().setExtraHTTPHeaders({'X-Forwarded-For':'198.51.100.22'});
   await login(page,'browser-employee');await page.goto('/ai-assistant');
   await expect(page.locator('.account-summary')).toContainText('Purchasing Employee');
+  await page.getByRole('button',{name:'Browse catalog filters',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Best offer finder',exact:true})).toBeVisible();
   await page.getByLabel('Product name',{exact:true}).fill('Public catalog hardware');await page.getByRole('button',{name:'Search catalog',exact:true}).click();
   const card=page.locator('.product-card').filter({has:page.getByRole('heading',{name:'Public catalog hardware',exact:true})});
@@ -91,9 +104,9 @@ test('authorized Copilot compares actual test quotations and drafts without busi
   await page.getByRole('button',{name:'Prepare review-only draft',exact:true}).click();await expect(page.getByRole('heading',{name:'Draft proposal — not saved',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Review inventory',exact:true}).click();await expect(page.getByText('PostgreSQL inventory · Threshold 20',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'Use local low-stock question',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Ask Jedel AI',exact:true})).toBeEnabled();
+  await expect(page.getByRole('button',{name:'Send message',exact:true})).toBeEnabled();
   await expect(page.getByText('Ready: this question runs locally in Django.',{exact:false})).toBeVisible();
-  await page.getByRole('button',{name:'Ask Jedel AI',exact:true}).click();
+  await page.getByRole('button',{name:'Send message',exact:true}).click();
   await expect(page.locator('.conversation')).toContainText('Here are the current inventory levels.');
   await expect(page.locator('.conversation')).toContainText('Source: PostgreSQL');
   const ordersAfter=await (await page.request.get('/api/orders/')).json();expect(ordersAfter.count).toBe(ordersBefore.count);

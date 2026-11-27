@@ -1,4 +1,6 @@
 ﻿import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 test('disposable Compose browser workflow', async ({ page }) => {
   test.skip(process.env['JEDEL_COMPOSE_BROWSER'] !== '1', 'Requires the guarded disposable Compose smoke');
@@ -24,21 +26,20 @@ test('disposable Compose browser workflow', async ({ page }) => {
   await page.getByLabel('Password', {exact: true}).fill(password);
   await page.locator('form').getByRole('button', {name: 'Log in', exact: true}).click();
   await expect(page.locator('.account-summary')).toContainText('Compose Browser User');
-  await page.locator('.profile-menu summary').click();
-  await page.getByRole('button', {name: 'Log out', exact: true}).click();
-  await page.goto('/login');
-  await page.getByLabel('Email address or username', {exact: true}).fill(process.env['JEDEL_E2E_ADMIN']!);
-  await page.getByLabel('Password', {exact: true}).fill(password);
-  await page.locator('form').getByRole('button', {name: 'Log in', exact: true}).click();
   await expect(page).toHaveURL(/\/$/);
   await page.goto('/products');
-  const demo = page.locator('article.catalog-card[data-demo="true"]');
-  await expect(demo).toHaveCount(55);
-  await page.getByLabel('Search products', {exact: true}).fill('Notebook Air 13');
-  const laptop = page.locator('article.catalog-card').filter({has: page.getByRole('heading', {name: 'Notebook Air 13', exact: true})});
+  const sharedCatalog = JSON.parse(readFileSync(resolve('..', 'database', 'shared_catalog.json'), 'utf8')) as {
+    products: {product_name: string}[];
+  };
+  const cards = page.locator('article.catalog-card');
+  await expect(cards).toHaveCount(sharedCatalog.products.length);
+  expect((await cards.getByRole('heading', {level: 2}).allTextContents()).sort())
+    .toEqual(sharedCatalog.products.map(product => product.product_name).sort());
+  await page.getByLabel('Search products', {exact: true}).fill('Laptop Dell');
+  const laptop = cards.filter({has: page.getByRole('heading', {name: 'Laptop Dell', exact: true})});
   await expect(laptop).toBeVisible();
   await laptop.locator('summary').click();
-  await expect(laptop).toContainText('A compact 13-inch-class laptop concept');
+  await expect(laptop).toContainText('Laptop for portable office work; model specifications are not recorded.');
   await page.getByLabel('Search products', {exact: true}).fill('');
   await page.getByRole('button', {name: 'New product', exact: true}).click();
   await page.getByLabel('Product name', {exact: true}).fill('Compose browser product');
@@ -48,20 +49,35 @@ test('disposable Compose browser workflow', async ({ page }) => {
   await expect(page.getByRole('heading', {name: 'Compose browser product', exact: true})).toBeVisible();
   await page.goto('/orders');
   await page.getByRole('button', {name: 'New order', exact: true}).click();
-  await page.getByRole('combobox', {name: 'Supplier', exact: true}).selectOption({label: 'Fictional Office Supply'});
+  await page.getByRole('combobox', {name: 'Supplier', exact: true}).selectOption({label: 'TechnoSupply'});
   await page.getByRole('combobox', {name: 'Product 1', exact: true}).fill('Compose browser product');
   await page.getByRole('option', {name: /Compose browser product/}).click();
   await page.getByLabel('Quantity 1', {exact: true}).fill('3');
   await page.getByRole('button', {name: 'Create order', exact: true}).click();
+  const orderRow = page.getByRole('row').filter({has: page.getByRole('cell', {name: 'TechnoSupply', exact: true})});
+  await expect(orderRow.getByRole('cell', {name: 'Pending', exact: true})).toBeVisible();
+  await expect(page.getByRole('button', {name: 'Mark Approved'})).toHaveCount(0);
+
+  await page.locator('.profile-menu summary').click();
+  await page.getByRole('button', {name: 'Log out', exact: true}).click();
+  await expect(page.locator('.account-summary')).toHaveCount(0);
+  await page.goto('/login');
+  await page.getByLabel('Email address or username', {exact: true}).fill(process.env['JEDEL_E2E_ADMIN']!);
+  await page.getByLabel('Password', {exact: true}).fill(password);
+  await page.locator('form').getByRole('button', {name: 'Log in', exact: true}).click();
+  await expect(page.locator('.account-summary')).toContainText('System Administrator');
+  await page.goto('/orders');
+  await orderRow.getByRole('button', {name: /^View order /}).click();
   await page.getByRole('button', {name: 'Mark Approved'}).click();
-  await expect(page.locator('.detail')).toContainText('Approved');
+  await expect(orderRow.getByRole('cell', {name: 'Approved', exact: true})).toBeVisible();
   await page.getByRole('button', {name: 'Mark Delivered'}).click();
-  await expect(page.locator('.detail')).toContainText('Delivered');
+  await expect(orderRow.getByRole('cell', {name: 'Delivered', exact: true})).toBeVisible();
   await page.goto('/products');
   await expect(page.locator('article.catalog-card').filter({has: page.getByRole('heading', {name: 'Compose browser product', exact: true})})).toContainText('3 units');
   await page.goto('/analytics');
   await expect(page.getByRole('table')).toContainText('37.50');
   await page.goto('/ai-assistant');
+  await page.getByRole('button', {name: 'Browse catalog filters', exact: true}).click();
   await page.getByLabel('Product name', {exact: true}).fill('Notebook Air 13');
   await page.getByRole('button', {name: 'Search catalog', exact: true}).click();
   await expect(page.getByRole('heading', {name: 'Notebook Air 13', exact: true})).toBeVisible();
